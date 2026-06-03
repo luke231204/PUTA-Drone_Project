@@ -7,6 +7,37 @@ let kkopLayers = [];
 let countdownInterval = null;
 let currentYearFilter = 'All';
 
+// Flight evaluation global states
+let satelliteLayer = null;
+let streetLayer = null;
+let activeTileMode = 'streets';
+let flightLogData = null;
+let flightPathPolyline = null;
+let activeCharts = [];
+
+// Web browser fallback mock for local testing outside Electron main process
+if (typeof window !== 'undefined' && !window.api) {
+  window.api = {
+    loadPermits: async () => {
+      try {
+        const response = await fetch('data/permits.json');
+        return await response.json();
+      } catch (err) {
+        console.warn("Fallback to local fetch failed, using mock data", err);
+        return [];
+      }
+    },
+    openPDF: async (fileName, year) => {
+      console.log(`Mock Open PDF: ${fileName} for year ${year}`);
+      return { success: true };
+    },
+    savePermit: async (permitData) => {
+      console.log("Mock Save Permit:", permitData);
+      return { success: true };
+    }
+  };
+}
+
 // Fallback coordinate mappings for known regions in Sumatra (OTBAN Region VI)
 const LOCATION_COORDS = {
   "ogan komering ilir": [-3.30, 104.80],
@@ -88,6 +119,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   initMap();
   await loadAndRenderData();
   setupEventListeners();
+
+  // Report Modal button event listeners
+  const btnCloseModal = document.getElementById('close-report-modal');
+  if (btnCloseModal) {
+    btnCloseModal.addEventListener('click', closeReportModal);
+  }
+
+  const btnExportPdf = document.getElementById('btn-export-pdf');
+  if (btnExportPdf) {
+    btnExportPdf.addEventListener('click', exportReportToPDF);
+  }
 });
 
 // 1. GIS Map Canvas Setup
@@ -101,11 +143,38 @@ function initMap() {
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
   // Load sleek light theme map tiles from CartoDB Positron
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     subdomains: 'abcd',
     maxZoom: 20
   }).addTo(map);
+
+  // Load satellite tiles
+  satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    maxZoom: 20
+  });
+
+  // Map Tile Toggle
+  const mapToggle = document.getElementById('map-toggle-satellite');
+  const mapToggleText = document.getElementById('map-toggle-text');
+  if (mapToggle) {
+    mapToggle.addEventListener('click', () => {
+      if (activeTileMode === 'streets') {
+        map.removeLayer(streetLayer);
+        satelliteLayer.addTo(map);
+        activeTileMode = 'satellite';
+        mapToggleText.textContent = "Street Map";
+        mapToggle.classList.add('text-[#0071e3]');
+      } else {
+        map.removeLayer(satelliteLayer);
+        streetLayer.addTo(map);
+        activeTileMode = 'streets';
+        mapToggleText.textContent = "Satellite Map";
+        mapToggle.classList.remove('text-[#0071e3]');
+      }
+    });
+  }
 
   // Plot KKOP Airport Safety zones (red border rings)
   REGION_AIRPORTS.forEach(airport => {
@@ -390,6 +459,15 @@ function renderInspector() {
   const panel = document.getElementById('inspector-panel');
   if (clearInterval) clearInterval(countdownInterval);
 
+  // Clear flight log data when permit selection changes (if the log was for a different permit)
+  if (selectedPermit && (!flightLogData || flightLogData.permit_id !== selectedPermit.permit_id)) {
+    flightLogData = null;
+    if (flightPathPolyline) {
+      map.removeLayer(flightPathPolyline);
+      flightPathPolyline = null;
+    }
+  }
+
   if (!selectedPermit) {
     panel.innerHTML = `
       <div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-500 gap-3">
@@ -521,6 +599,46 @@ function renderInspector() {
       </div>
     </div>
 
+    <!-- Flight Log Evaluation Panel -->
+    <div class="p-6 border-b border-black/5 space-y-3">
+      <h3 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Flight Log Evaluation</h3>
+      <input type="file" id="flight-log-input" accept=".csv,.kml" class="hidden">
+      <button id="btn-upload-log" class="w-full py-2 bg-[#f5f5f7] hover:bg-black/5 text-[#1d1d1f] font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 border border-black/5">
+        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+        </svg>
+        Upload Flight Log (.csv / .kml)
+      </button>
+      
+      <!-- Log Evaluation Status (hidden until uploaded) -->
+      <div id="log-evaluation-status" class="hidden space-y-2 pt-2 text-xs">
+        <div class="bg-sky-50/50 border border-sky-100 p-3 rounded-2xl flex flex-col gap-2">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-500 font-semibold">Log File:</span>
+            <span id="log-filename" class="font-mono text-gray-700 font-bold max-w-[150px] truncate"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-500 font-semibold">Max Altitude:</span>
+            <span id="log-max-alt" class="font-bold"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-500 font-semibold">Max Speed:</span>
+            <span id="log-max-speed" class="font-bold"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-500 font-semibold">Geofence:</span>
+            <span id="log-geofence" class="font-bold"></span>
+          </div>
+        </div>
+        <button id="btn-preview-report" class="w-full py-2.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-bold rounded-2xl text-xs transition-all shadow-md shadow-[#0071e3]/15 flex items-center justify-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Preview & Cetak Laporan (PDF)
+        </button>
+      </div>
+    </div>
+
     <!-- AirNav Towers Region VI Emergency contacts -->
     <div class="p-6 border-b border-black/5 space-y-3">
       <h3 class="text-[10px] uppercase font-extrabold text-red-500 tracking-wider">Emergency Communications</h3>
@@ -569,6 +687,25 @@ function renderInspector() {
         showToast(res.error || "Failed to open PDF reference", 'error');
       }
     });
+  }
+
+  // Wire up log upload click trigger
+  const btnUpload = document.getElementById('btn-upload-log');
+  const logInput = document.getElementById('flight-log-input');
+  if (btnUpload && logInput) {
+    btnUpload.addEventListener('click', () => logInput.click());
+    logInput.addEventListener('change', handleFlightLogUpload);
+  }
+
+  // Preview report click handler
+  const btnPreview = document.getElementById('btn-preview-report');
+  if (btnPreview) {
+    btnPreview.addEventListener('click', openReportModal);
+  }
+
+  // Maintain UI persistence if a log was already parsed for this permit
+  if (flightLogData && flightLogData.permit_id === permit.permit_id) {
+    updateEvaluationStatusUI();
   }
 
   // Countdown timer clock cycle loop
@@ -831,5 +968,564 @@ async function handleAddPermitSubmit(e) {
     errorAlert.textContent = res.error || "Failed to save new permit.";
     errorAlert.classList.remove('hidden');
     showToast("Failed to save permit", "error");
+  }
+}
+
+// 7. Flight Log Evaluation & PDF Reporting Helper Functions
+
+function handleFlightLogUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const extension = file.name.split('.').pop().toLowerCase();
+    
+    try {
+      showToast(`Parsing ${file.name}...`, 'info');
+      const parsed = parseLogData(text, extension);
+      
+      if (!parsed || parsed.points.length === 0) {
+        throw new Error("No coordinate data found in log file.");
+      }
+      
+      // Save parsed data locally linked to selectedPermit
+      flightLogData = {
+        permit_id: selectedPermit.permit_id,
+        filename: file.name,
+        points: parsed.points,      // array of [lat, lng, alt_ft, speed_knots, timestamp]
+        maxAltitude: parsed.maxAltitude,
+        maxSpeed: parsed.maxSpeed,
+        altitudes: parsed.altitudes,
+        speeds: parsed.speeds,
+        timestamps: parsed.timestamps
+      };
+      
+      // Check compliance
+      runComplianceChecks();
+      
+      // Plot path on map
+      plotFlightPath();
+      
+      // Update inspector DOM
+      updateEvaluationStatusUI();
+      
+      showToast("Flight log evaluated successfully!", "success");
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "Failed to evaluate log file", "error");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseLogData(text, extension) {
+  let points = []; 
+  let maxAltitude = 0;
+  let maxSpeed = 0;
+  
+  let altitudes = [];
+  let speeds = [];
+  let timestamps = [];
+
+  if (extension === 'kml') {
+    const parser = new DOMParser();
+    const kml = parser.parseFromString(text, 'text/xml');
+    const coordinatesNodes = kml.getElementsByTagName('coordinates');
+    
+    if (coordinatesNodes.length === 0) {
+      throw new Error("No coordinate data tags in KML file.");
+    }
+    
+    // Find the coordinates node containing the actual flight line
+    let coordText = "";
+    for (let i = 0; i < coordinatesNodes.length; i++) {
+      const val = coordinatesNodes[i].textContent;
+      if (val.trim().split(/\s+/).length > coordText.trim().split(/\s+/).length) {
+        coordText = val;
+      }
+    }
+    
+    const lines = coordText.trim().split(/\s+/);
+    lines.forEach((line, index) => {
+      const parts = line.split(',');
+      if (parts.length >= 2) {
+        const lng = parseFloat(parts[0]);
+        const lat = parseFloat(parts[1]);
+        let altM = parts.length >= 3 ? parseFloat(parts[2]) : 0;
+        let altFt = altM * 3.28084; // Convert meters to feet
+        
+        // Approximate speed / default values since KML holds coordinates only
+        points.push([lat, lng, altFt, 0, index]);
+        
+        // Downsample slightly to prevent rendering bottlenecks (take 1 of every 5 points)
+        if (index % 5 === 0) {
+          altitudes.push(altFt);
+          speeds.push(0);
+          timestamps.push(`Pt ${index}`);
+          if (altFt > maxAltitude) maxAltitude = altFt;
+        }
+      }
+    });
+  } else if (extension === 'csv') {
+    const lines = text.split('\n');
+    if (lines.length < 2) {
+      throw new Error("CSV file is empty or corrupted.");
+    }
+    
+    const header = lines[0].split(',');
+    
+    // Find column indexes with robust lower-casing
+    const latIndex = header.findIndex(h => h.toLowerCase().trim() === 'latitude');
+    const lngIndex = header.findIndex(h => h.toLowerCase().trim() === 'longitude');
+    
+    let heightIndex = header.findIndex(h => h.toLowerCase().trim().includes('height_above_takeoff'));
+    if (heightIndex === -1) {
+      heightIndex = header.findIndex(h => h.toLowerCase().trim().includes('height_above_ground'));
+    }
+    if (heightIndex === -1) {
+      heightIndex = header.findIndex(h => h.toLowerCase().trim() === 'altitude(feet)' || h.toLowerCase().trim() === 'altitude');
+    }
+    
+    let speedIndex = header.findIndex(h => h.toLowerCase().trim().includes('speed') && !h.toLowerCase().trim().includes('max'));
+    const timeIndex = header.findIndex(h => h.toLowerCase().trim().includes('datetime') || h.toLowerCase().trim().includes('time'));
+    
+    if (latIndex === -1 || lngIndex === -1) {
+      throw new Error("CSV log must contain 'latitude' and 'longitude' columns.");
+    }
+    
+    let pointCount = 0;
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const row = lines[i].split(',');
+      if (row.length < header.length) continue;
+      
+      const lat = parseFloat(row[latIndex]);
+      const lng = parseFloat(row[lngIndex]);
+      
+      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) continue;
+      
+      let altFt = heightIndex !== -1 ? parseFloat(row[heightIndex]) : 0;
+      if (isNaN(altFt)) altFt = 0;
+      
+      let speedMph = speedIndex !== -1 ? parseFloat(row[speedIndex]) : 0;
+      if (isNaN(speedMph)) speedMph = 0;
+      let speedKnots = speedMph * 0.868976; // convert mph to knots
+      
+      // Clean noise readings
+      if (altFt < -100 || altFt > 10000) altFt = 0;
+      if (speedKnots < 0 || speedKnots > 300) speedKnots = 0;
+      
+      let timeVal = timeIndex !== -1 ? row[timeIndex].trim() : `Point ${pointCount}`;
+      
+      // Downsample log data (take 1 point every 20 records to keep PDF size small and charts readable)
+      pointCount++;
+      if (pointCount % 20 === 0) {
+        points.push([lat, lng, altFt, speedKnots, timeVal]);
+        
+        altitudes.push(altFt);
+        speeds.push(speedKnots);
+        
+        let formattedTime = timeVal;
+        if (timeVal.includes(' ')) {
+          formattedTime = timeVal.split(' ')[1]; 
+        }
+        timestamps.push(formattedTime);
+        
+        if (altFt > maxAltitude) maxAltitude = altFt;
+        if (speedKnots > maxSpeed) maxSpeed = speedKnots;
+      }
+    }
+  }
+  
+  return {
+    points,
+    maxAltitude,
+    maxSpeed,
+    altitudes,
+    speeds,
+    timestamps
+  };
+}
+
+function runComplianceChecks() {
+  if (!flightLogData || !selectedPermit) return;
+  
+  const points = flightLogData.points;
+  const limitAlt = selectedPermit.max_altitude_ft || 400;
+  const limitSpeed = 87; // civil aviation safety limit in knots
+  
+  // 1. Altitude Compliance
+  flightLogData.altCompliant = flightLogData.maxAltitude <= limitAlt;
+  
+  // 2. Speed Compliance
+  flightLogData.speedCompliant = flightLogData.maxSpeed <= limitSpeed;
+  
+  // 3. Geofence Boundary Compliance
+  let geofenceBreached = false;
+  let breachCount = 0;
+  
+  const polygon = selectedPermit.coordinates;
+  
+  if (polygon && polygon.length > 0) {
+    // Check points inside boundary polygon
+    for (const pt of points) {
+      const isInside = isPointInPolygon([pt[0], pt[1]], polygon);
+      if (!isInside) {
+        geofenceBreached = true;
+        breachCount++;
+      }
+    }
+  } else {
+    // Fallback circle radius check
+    const center = getCoordsFromLocation(selectedPermit.location);
+    if (center) {
+      const radius = 6000; // 6km fallback radius
+      for (const pt of points) {
+        const isInside = isPointInCircle([pt[0], pt[1]], center, radius);
+        if (!isInside) {
+          geofenceBreached = true;
+          breachCount++;
+        }
+      }
+    }
+  }
+  
+  flightLogData.geofenceCompliant = !geofenceBreached;
+  flightLogData.breachCount = breachCount;
+}
+
+function isPointInCircle(point, center, radiusM) {
+  const lat1 = point[0], lon1 = point[1];
+  const lat2 = center[0], lon2 = center[1];
+  
+  const R = 6371e3; // Earth radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c <= radiusM;
+}
+
+function isPointInPolygon(point, vs) {
+  const lat = point[0], lng = point[1];
+  let inside = false;
+  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+    const xi = vs[i][1], yi = vs[i][0]; // xi = longitude, yi = latitude
+    const xj = vs[j][1], yj = vs[j][0]; // xj = longitude, yj = latitude
+    const intersect = ((yi > lat) !== (yj > lat))
+        && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function plotFlightPath() {
+  if (!flightLogData || !map) return;
+  
+  // Clean previous path overlay
+  if (flightPathPolyline) {
+    map.removeLayer(flightPathPolyline);
+  }
+  
+  const latlngs = flightLogData.points.map(pt => [pt[0], pt[1]]);
+  
+  // Render bold dotted yellow flight path line
+  flightPathPolyline = L.polyline(latlngs, {
+    color: '#f59e0b',
+    weight: 3,
+    opacity: 0.85,
+    dashArray: '5, 5'
+  }).addTo(map);
+  
+  map.fitBounds(flightPathPolyline.getBounds(), { padding: [40, 40] });
+}
+
+function updateEvaluationStatusUI() {
+  const statusContainer = document.getElementById('log-evaluation-status');
+  if (!statusContainer || !flightLogData) return;
+  
+  statusContainer.classList.remove('hidden');
+  document.getElementById('log-filename').textContent = flightLogData.filename;
+  
+  const altEl = document.getElementById('log-max-alt');
+  altEl.innerHTML = `${Math.round(flightLogData.maxAltitude)} ft <span class="text-[9px] text-gray-400">/ ${selectedPermit.max_altitude_ft} ft limit</span>`;
+  altEl.className = flightLogData.altCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600 animate-pulse";
+  
+  const speedEl = document.getElementById('log-max-speed');
+  speedEl.innerHTML = `${Math.round(flightLogData.maxSpeed)} knots <span class="text-[9px] text-gray-400">/ 87 limit</span>`;
+  speedEl.className = flightLogData.speedCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600 animate-pulse";
+  
+  const geoEl = document.getElementById('log-geofence');
+  geoEl.textContent = flightLogData.geofenceCompliant ? "Compliant (100% in bounds)" : `Breached (${flightLogData.breachCount} points out)`;
+  geoEl.className = flightLogData.geofenceCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600 animate-pulse";
+}
+
+function openReportModal() {
+  const modal = document.getElementById('report-preview-modal');
+  const modalBox = modal.querySelector('div');
+  
+  if (!selectedPermit || !flightLogData) return;
+  
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.remove('opacity-0');
+    modalBox.classList.remove('scale-95');
+  }, 10);
+  
+  // Fill report text fields
+  document.getElementById('report-nota-num').textContent = `45/06/02/PUPB-${selectedPermit.year}`;
+  
+  const opNames = document.querySelectorAll('#report-meta-op-name, #report-meta-op-name2, #report-tbl-operator');
+  opNames.forEach(el => el.textContent = selectedPermit.operator_name);
+  
+  const locations = document.querySelectorAll('#report-meta-location, #report-tbl-location');
+  locations.forEach(el => el.textContent = selectedPermit.location);
+  
+  document.getElementById('report-meta-permit-id').textContent = selectedPermit.permit_id;
+  
+  const formatDateString = (isoStr) => {
+    if (!isoStr) return "";
+    const [y, m, d] = isoStr.split('-');
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${d} ${months[parseInt(m) - 1]} ${y}`;
+  };
+  
+  document.getElementById('report-meta-date').textContent = formatDateString(new Date().toISOString().split('T')[0]);
+  document.getElementById('report-tbl-time').textContent = `${formatDateString(selectedPermit.date_start)} s.d ${formatDateString(selectedPermit.date_end)}`;
+  
+  const registries = Array.isArray(selectedPermit.puta_registry) ? selectedPermit.puta_registry.join(', ') : selectedPermit.puta_registry;
+  document.getElementById('report-tbl-registry').textContent = registries || "None";
+  
+  const pilots = Array.isArray(selectedPermit.pilot_name) ? selectedPermit.pilot_name.join(', ') : selectedPermit.pilot_name;
+  document.getElementById('report-tbl-pilots').textContent = pilots || "None";
+  
+  // Metric evaluations
+  document.getElementById('report-eval-max-alt').textContent = Math.round(flightLogData.maxAltitude);
+  document.getElementById('report-eval-limit-alt').textContent = selectedPermit.max_altitude_ft;
+  
+  const altStatusEl = document.getElementById('report-eval-alt-status');
+  if (flightLogData.altCompliant) {
+    altStatusEl.textContent = "memenuhi syarat (berada di bawah)";
+    altStatusEl.className = "font-bold text-emerald-600";
+  } else {
+    altStatusEl.textContent = "MELANGGAR SYARAT (berada di atas)";
+    altStatusEl.className = "font-bold text-red-600";
+  }
+  
+  document.getElementById('report-eval-max-speed').textContent = Math.round(flightLogData.maxSpeed);
+  document.getElementById('report-eval-max-speed-kmh').textContent = Math.round(flightLogData.maxSpeed * 1.852);
+  
+  const speedStatusEl = document.getElementById('report-eval-max-speed');
+  speedStatusEl.className = flightLogData.speedCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600";
+  
+  document.getElementById('report-eval-total-points').textContent = flightLogData.points.length;
+  
+  const breachPointsEl = document.getElementById('report-eval-breach-points');
+  if (flightLogData.geofenceCompliant) {
+    breachPointsEl.textContent = "0 (100% Compliant)";
+    breachPointsEl.className = "font-bold text-emerald-600";
+    document.getElementById('report-eval-geofence-status').textContent = "100% berada di dalam";
+    document.getElementById('report-eval-geofence-status').className = "font-bold text-emerald-600";
+  } else {
+    breachPointsEl.textContent = `${flightLogData.breachCount} titik melanggar (Breach)`;
+    breachPointsEl.className = "font-bold text-red-600";
+    document.getElementById('report-eval-geofence-status').textContent = "MELANGGAR BATAS (terdapat titik di luar)";
+    document.getElementById('report-eval-geofence-status').className = "font-bold text-red-600";
+  }
+  
+  // Update Conclusion block colors & texts
+  const conclusionTextEl = document.querySelector('#report-paper-container div.bg-emerald-50, #report-paper-container div.bg-red-50');
+  const conclusionInnerEl = document.getElementById('report-conclusion-op').parentElement;
+  document.getElementById('report-conclusion-op').textContent = selectedPermit.operator_name;
+  
+  const allCompliant = flightLogData.altCompliant && flightLogData.speedCompliant && flightLogData.geofenceCompliant;
+  
+  if (allCompliant) {
+    if (conclusionTextEl) {
+      conclusionTextEl.className = "p-4 bg-emerald-50 border border-emerald-200 rounded-2xl mt-4";
+    }
+    conclusionInnerEl.innerHTML = `Secara keseluruhan, operasi pengoperasian PUTA oleh <span class="font-bold">${selectedPermit.operator_name}</span> dinyatakan <strong>MEMENUHI SYARAT KESELAMATAN (COMPLIANT)</strong>. Tidak ditemukan adanya pelanggaran batas ketinggian, batas kecepatan, maupun batas koordinat geofencing. Rekomendasi diberikan untuk melanjutkan operasi dengan tetap mematuhi koordinasi AirNav Indonesia.`;
+    conclusionInnerEl.className = "text-emerald-700 leading-relaxed text-justify m-0";
+  } else {
+    if (conclusionTextEl) {
+      conclusionTextEl.className = "p-4 bg-red-50 border border-red-200 rounded-2xl mt-4";
+    }
+    conclusionInnerEl.innerHTML = `Secara keseluruhan, operasi pengoperasian PUTA oleh <span class="font-bold">${selectedPermit.operator_name}</span> dinyatakan <strong>TIDAK MEMENUHI SYARAT KESELAMATAN (NON-COMPLIANT)</strong>. Ditemukan adanya pelanggaran parameter batas izin pengoperasian drone (lihat rincian data evaluasi di atas). Disarankan untuk menangguhkan sementara operasi penerbangan dan meminta klarifikasi tertulis dari operator.`;
+    conclusionInnerEl.className = "text-red-700 leading-relaxed text-justify m-0";
+  }
+  
+  // Render Chart.js charts
+  buildReportCharts();
+}
+
+function closeReportModal() {
+  const modal = document.getElementById('report-preview-modal');
+  const modalBox = modal.querySelector('div');
+  
+  modal.classList.add('opacity-0');
+  modalBox.classList.add('scale-95');
+  setTimeout(() => {
+    modal.classList.add('hidden');
+  }, 300);
+}
+
+function buildReportCharts() {
+  // Clear previous chart instances
+  activeCharts.forEach(chart => chart.destroy());
+  activeCharts = [];
+  
+  const altCtx = document.getElementById('chart-report-altitude').getContext('2d');
+  const speedCtx = document.getElementById('chart-report-speed').getContext('2d');
+  
+  const limitAlt = selectedPermit.max_altitude_ft || 400;
+  
+  const altLimitLine = Array(flightLogData.altitudes.length).fill(limitAlt);
+  const speedLimitLine = Array(flightLogData.speeds.length).fill(87); // 87 knots civil cap
+  
+  // Altitude Chart
+  const altChart = new Chart(altCtx, {
+    type: 'line',
+    data: {
+      labels: flightLogData.timestamps,
+      datasets: [
+        {
+          label: 'Ketinggian Terbang PUTA (ft)',
+          data: flightLogData.altitudes,
+          borderColor: '#0071e3',
+          borderWidth: 2,
+          fill: false,
+          pointRadius: 0,
+          tension: 0.1
+        },
+        {
+          label: 'Batas Ketinggian Izin (ft)',
+          data: altLimitLine,
+          borderColor: '#ef4444',
+          borderWidth: 1.5,
+          borderDash: [5, 5],
+          fill: false,
+          pointRadius: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { boxWidth: 12, font: { size: 9 } } }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          ticks: { font: { size: 8 } },
+          title: { display: true, text: 'Ketinggian (feet)', font: { size: 9 } }
+        }
+      }
+    }
+  });
+  activeCharts.push(altChart);
+  
+  // Speed Chart
+  const speedChart = new Chart(speedCtx, {
+    type: 'line',
+    data: {
+      labels: flightLogData.timestamps,
+      datasets: [
+        {
+          label: 'Kecepatan Terbang PUTA (knots)',
+          data: flightLogData.speeds,
+          borderColor: '#10b981',
+          borderWidth: 2,
+          fill: false,
+          pointRadius: 0,
+          tension: 0.1
+        },
+        {
+          label: 'Batas Kecepatan Izin (87 knots)',
+          data: speedLimitLine,
+          borderColor: '#ef4444',
+          borderWidth: 1.5,
+          borderDash: [5, 5],
+          fill: false,
+          pointRadius: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { boxWidth: 12, font: { size: 9 } } }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          ticks: { font: { size: 8 } },
+          title: { display: true, text: 'Kecepatan (knots)', font: { size: 9 } }
+        }
+      }
+    }
+  });
+  activeCharts.push(speedChart);
+}
+
+async function exportReportToPDF() {
+  const element = document.getElementById('report-paper-container');
+  if (!element) return;
+  
+  showToast("Rendering PDF document, please wait...", "info");
+  
+  const dividers = element.querySelectorAll('.page-break-divider');
+  dividers.forEach(el => el.style.opacity = '0'); // hide dividers in print output
+  
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    // Restore dividers in UI
+    dividers.forEach(el => el.style.opacity = '1');
+    
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    
+    const pageHeightCanvas = (imgWidth / pdfWidth) * pdfHeight;
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, (imgHeight * pdfWidth) / imgWidth);
+    heightLeft -= pageHeightCanvas;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position * (pdfWidth / imgWidth), pdfWidth, (imgHeight * pdfWidth) / imgWidth);
+      heightLeft -= pageHeightCanvas;
+    }
+    
+    const sanitizedId = selectedPermit.permit_id.replace(/[\/\\?%*:|"<>\s]/g, '_');
+    pdf.save(`Laporan_Pengawasan_PUTA_${sanitizedId}.pdf`);
+    
+    showToast("PDF report saved successfully!", "success");
+  } catch (error) {
+    console.error("PDF Export error:", error);
+    showToast("Failed to render PDF report.", "error");
+    dividers.forEach(el => el.style.opacity = '1');
   }
 }

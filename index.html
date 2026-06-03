@@ -14,6 +14,11 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
+  <!-- Chart.js, jsPDF, and html2canvas CDN libraries for flight evaluation and reporting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
   <!-- Custom Tailwind config for custom values -->
   <script>
     tailwind.config = {
@@ -136,6 +141,13 @@
         <div class="flex items-center gap-2">
           <span class="w-3.5 h-3.5 rounded bg-sky-500/10 border border-[#0071e3]/40 inline-block"></span>
           <span>Approved Work Areas</span>
+        </div>
+        <div class="w-px h-4 bg-black/10"></div>
+        <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#0071e3] transition-colors" id="map-toggle-satellite">
+          <svg class="w-4.5 h-4.5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a3 3 0 013 3v2.83c0 .8-.3 1.57-.83 2.12l-1.17 1.17a3 3 0 01-2.12.83H12a3 3 0 01-3-3v-2a3 3 0 00-3-3H4.83"></path>
+          </svg>
+          <span id="map-toggle-text">Satellite Map</span>
         </div>
       </div>
     </main>
@@ -276,6 +288,224 @@
 
   <!-- Sleek Custom Notification Toast Center -->
   <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Report Preview Modal Overlay (A4 document view) -->
+  <div id="report-preview-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-all duration-300">
+    <div class="bg-gray-100 rounded-3xl w-[900px] h-[90vh] shadow-2xl border border-black/5 flex flex-col scale-95 transition-all duration-300 overflow-hidden">
+      <!-- Modal Sticky Header -->
+      <div class="p-4 border-b border-black/5 bg-white flex items-center justify-between z-10 shrink-0">
+        <div>
+          <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#0071e3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Flight Log Compliance Report Preview
+          </h2>
+          <p class="text-[10px] text-gray-500 font-semibold">Review the generated Nota Dinas and compliance charts before exporting.</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-export-pdf" type="button" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-md shadow-emerald-600/10 transition-all active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+            </svg>
+            Cetak PDF
+          </button>
+          <button id="close-report-modal" type="button" class="bg-white hover:bg-black/5 text-gray-600 px-4 py-2 border border-black/5 rounded-xl text-xs font-bold transition-all active:scale-95">
+            Tutup
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Document Container -->
+      <div class="flex-1 overflow-y-auto p-6 flex justify-center items-start bg-gray-200">
+        <!-- Printable Paper Container (A4 Printable width approx. 794px) -->
+        <div id="report-paper-container" class="w-[794px] bg-white shadow-xl p-10 text-[11px] text-[#1d1d1f] font-sans border border-black/5 relative select-text leading-relaxed">
+          
+          <!-- Page 1: Administrative Nota Dinas -->
+          <div class="space-y-4 print-page">
+            <!-- Kop Surat / Government Header -->
+            <div class="flex items-center gap-4 border-b-2 border-black pb-3">
+              <!-- Garuda/Ministry Logo Placeholder -->
+              <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+                <svg class="w-10 h-10 text-sky-800" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 22h20L12 2zm0 3l7 14H5l7-14z"/>
+                </svg>
+              </div>
+              <div class="text-center flex-1 font-bold text-xs uppercase text-slate-800 tracking-tight">
+                <div class="text-[10px] tracking-wide">KEMENTERIAN PERHUBUNGAN</div>
+                <div class="text-[11px] tracking-normal">DIREKTORAT JENDERAL PERHUBUNGAN UDARA</div>
+                <div class="text-[10px] tracking-wider text-sky-800">KANTOR OTORITAS BANDAR UDARA WILAYAH VI – PADANG</div>
+              </div>
+            </div>
+
+            <!-- Title: Nota Dinas -->
+            <div class="text-center font-bold text-sm tracking-wide mt-2">
+              <u>NOTA DINAS</u>
+              <div class="text-[10px] font-normal mt-0.5">Nomor: <span id="report-nota-num">--/--/--/--</span></div>
+            </div>
+
+            <!-- Address Meta Box -->
+            <table class="w-full text-left border-collapse text-[11px] font-medium border-b border-black/10 pb-2">
+              <tr>
+                <td class="w-24 py-1">Kepada Yth</td>
+                <td class="w-4">:</td>
+                <td class="font-bold py-1">Kepala Kantor Otoritas Bandar Udara Wilayah VI – Padang</td>
+              </tr>
+              <tr>
+                <td class="py-1">Dari</td>
+                <td>:</td>
+                <td class="py-1">Kepala Seksi Pelayanan dan Pengoperasian Bandar Udara</td>
+              </tr>
+              <tr>
+                <td class="py-1">Perihal</td>
+                <td>:</td>
+                <td class="py-1 font-semibold">Laporan Pengawasan Pengoperasian Pesawat Udara Tanpa Awak (PUTA) <span id="report-meta-op-name">PT. Timah, Tbk</span> di <span id="report-meta-location">Bangka Belitung</span></td>
+              </tr>
+              <tr>
+                <td class="py-1">Tanggal</td>
+                <td>:</td>
+                <td class="py-1"><span id="report-meta-date">06 Februari 2023</span></td>
+              </tr>
+            </table>
+
+            <!-- Content intro -->
+            <p class="mt-2 text-justify">
+              Menindaklanjuti Surat Direktur Navigasi Penerbangan perihal Persetujuan Pengoperasian Pesawat Udara Tanpa Awak (PUTA) <span class="font-semibold" id="report-meta-op-name2">PT. Timah, Tbk</span>, dengan hormat terlampir Laporan Pengawasan Pengoperasian PUTA dengan isi sebagai berikut:
+            </p>
+
+            <ol class="list-decimal pl-6 space-y-1 text-justify">
+              <li>Laporan Pengawasan Pengoperasian PUTA;</li>
+              <li>Lampiran 1 Evaluasi Log Pengoperasian PUTA terhadap Batas Ketinggian yang Diizinkan;</li>
+              <li>Lampiran 2 Evaluasi Log Pengoperasian PUTA terhadap Batas Area Ruang Udara yang Diizinkan (Geofencing);</li>
+              <li>Lampiran 3 Evaluasi Log Pengoperasian PUTA terhadap Batas Kecepatan Terbang yang Diizinkan.</li>
+            </ol>
+
+            <!-- Dasar Section -->
+            <div class="mt-4">
+              <span class="font-bold block uppercase tracking-wide">A. Dasar</span>
+              <ol class="list-decimal pl-6 space-y-1 text-justify">
+                <li>Undang-Undang Republik Indonesia Nomor 1 Tahun 2009 tentang Penerbangan;</li>
+                <li>Peraturan Menteri Perhubungan Nomor PM 37 Tahun 2020 tentang Pengoperasian Pesawat Udara Tanpa Awak;</li>
+                <li>Peraturan Menteri Perhubungan Nomor PM 63 Tahun 2021 tentang Peraturan Keselamatan Penerbangan Sipil Bagian 107 (Sistem PUTA Kecil);</li>
+                <li>Surat Persetujuan Pengoperasian PUTA Nomor: <span class="font-semibold text-sky-800" id="report-meta-permit-id">--/--</span>.</li>
+              </ol>
+            </div>
+
+            <!-- Data Objek Section -->
+            <div class="mt-4">
+              <span class="font-bold block uppercase tracking-wide">B. Data Objek Pengawasan</span>
+              <table class="w-full text-left mt-2 border border-slate-200 border-collapse text-[10px]">
+                <tr class="bg-slate-50 border-b border-slate-200">
+                  <td class="p-2 border-r border-slate-200 font-bold w-40">Nama Operator</td>
+                  <td class="p-2 font-semibold text-slate-800" id="report-tbl-operator">PT. Timah, Tbk</td>
+                </tr>
+                <tr class="border-b border-slate-200">
+                  <td class="p-2 border-r border-slate-200 font-bold">Lokasi Pengoperasian</td>
+                  <td class="p-2" id="report-tbl-location">Bangka Belitung</td>
+                </tr>
+                <tr class="bg-slate-50 border-b border-slate-200">
+                  <td class="p-2 border-r border-slate-200 font-bold">Waktu Pengoperasian</td>
+                  <td class="p-2" id="report-tbl-time">20 Desember 2022 s.d 05 Agustus 2023</td>
+                </tr>
+                <tr class="border-b border-slate-200">
+                  <td class="p-2 border-r border-slate-200 font-bold">Registrasi PUTA</td>
+                  <td class="p-2 font-mono" id="report-tbl-registry">BB-11-2-RWL</td>
+                </tr>
+                <tr class="bg-slate-50">
+                  <td class="p-2 border-r border-slate-200 font-bold">Pilot Penguji</td>
+                  <td class="p-2" id="report-tbl-pilots">Supriadi Hari Wibowo</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Signature block -->
+            <div class="mt-8 flex justify-between pt-4 border-t border-black/5 text-[10px]">
+              <div class="w-48 text-center space-y-12">
+                <div>Penyusun Laporan,</div>
+                <div class="font-bold">
+                  <u>RHOBEN TAMPUBOLON</u><br>
+                  <span class="font-normal text-gray-500">NIP. 19870414 201012 1 006</span>
+                </div>
+              </div>
+              <div class="w-48 text-center space-y-12">
+                <div>Mengetahui,<br>Kepala Seksi P2B</div>
+                <div class="font-bold">
+                  <u>ALPHADA SATRIANSA</u><br>
+                  <span class="font-normal text-gray-500">NIP. 19700922 199803 1 003</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Page Break visual spacer (hidden during PDF print but nice in UI) -->
+          <div class="my-10 border-t-2 border-dashed border-gray-300 relative h-1 shrink-0 select-none page-break-divider">
+            <span class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 bg-gray-200 rounded-full text-[9px] font-bold text-gray-400">PAGE BREAK</span>
+          </div>
+
+          <!-- Page 2: Graphs & Logs Evaluation -->
+          <div class="space-y-6 print-page">
+            <div class="font-bold text-xs uppercase border-b border-black pb-1">
+              LAMPIRAN 1: EVALUASI LOG PENGOPERASIAN PUTA
+            </div>
+
+            <!-- Altitude Section -->
+            <div class="space-y-2">
+              <span class="font-bold block text-slate-800 text-[10px] uppercase">1. Evaluasi Ketinggian Terbang (Ceiling Limit)</span>
+              <p class="text-justify">
+                Berdasarkan analisa log terbang, ketinggian maksimum yang dicapai adalah <span class="font-bold text-emerald-600" id="report-eval-max-alt">--</span> feet. Ketinggian ini <span class="font-bold" id="report-eval-alt-status">berada di bawah</span> batas ceiling izin yang ditetapkan sebesar <span class="font-semibold" id="report-eval-limit-alt">400</span> feet (120 meter) AGL.
+              </p>
+              <!-- Altitude Chart Container -->
+              <div class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-center">
+                <div class="w-[600px] h-[160px] relative">
+                  <canvas id="chart-report-altitude"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Speed Section -->
+            <div class="space-y-2">
+              <span class="font-bold block text-slate-800 text-[10px] uppercase">2. Evaluasi Kecepatan Terbang (Speed Limit)</span>
+              <p class="text-justify">
+                Berdasarkan data log, kecepatan maksimum PUTA tercatat sebesar <span class="font-bold text-emerald-600" id="report-eval-max-speed">--</span> knots (<span id="report-eval-max-speed-kmh">--</span> km/jam). Kecepatan ini memenuhi syarat keselamatan penerbangan sipil yang membatasi kecepatan maksimum PUTA kecil sebesar 87 knots (100 mil/jam).
+              </p>
+              <!-- Speed Chart Container -->
+              <div class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-center">
+                <div class="w-[600px] h-[160px] relative">
+                  <canvas id="chart-report-speed"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Geofencing Section -->
+            <div class="space-y-2">
+              <span class="font-bold block text-slate-800 text-[10px] uppercase">3. Evaluasi Area Ruang Udara (Geofencing Compliance)</span>
+              <p class="text-justify">
+                Rute penerbangan PUTA telah diplot terhadap wilayah izin operasi yang diberikan. Hasil plotting menunjukkan bahwa lintasan drone <span class="font-bold" id="report-eval-geofence-status">100% berada di dalam</span> batas koordinat area kerja yang diizinkan, dan tidak melanggar Kawasan Keselamatan Operasi Penerbangan (KKOP) bandara terdekat.
+              </p>
+              <!-- Geofence Check Details -->
+              <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex justify-between items-center text-[10px]">
+                <div>
+                  <strong>Total Titik Log Evaluasi:</strong> <span id="report-eval-total-points">0</span> titik
+                </div>
+                <div>
+                  <strong>Titik Melanggar Batas (Out of Bounds):</strong> <span id="report-eval-breach-points" class="font-bold text-emerald-600">0 (Compliant)</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Summary Conclusion Box -->
+            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl mt-4">
+              <div class="font-bold text-emerald-800 text-[10px] uppercase mb-1">Kesimpulan Evaluasi Pengawasan</div>
+              <p class="text-emerald-700 leading-relaxed text-justify m-0">
+                Secara keseluruhan, operasi pengoperasian PUTA oleh <span class="font-bold" id="report-conclusion-op">PT. Timah, Tbk</span> dinyatakan <strong>MEMENUHI SYARAT KESELAMATAN (COMPLIANT)</strong>. Tidak ditemukan adanya pelanggaran batas ketinggian, batas kecepatan, maupun batas koordinat geofencing. Rekomendasi diberikan untuk melanjutkan operasi dengan tetap mematuhi koordinasi AirNav Indonesia.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Leaflet GIS Map JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
