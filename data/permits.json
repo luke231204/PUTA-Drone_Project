@@ -1,0 +1,1001 @@
+[
+  {
+    "permit_id": "0008/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Halo Indah Permai",
+    "location": "Surveillance Sinarmas Term 3",
+    "year": 2026,
+    "date_start": "2026-01-21",
+    "date_end": "2026-04-20",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Yan Ferdiansyah",
+      "Dhia Ul Hayat",
+      "Ferdi Haryono",
+      "Randu Prayaoga Putra"
+    ],
+    "puta_registry": [
+      "BT-58-3-BTH",
+      "JK-53-3-WVI",
+      "BT-58-3-ETU",
+      "BT-58-3-RYU"
+    ],
+    "file_name": "(1) Persetujuan Halo Indah Permai di Palembang dan Jambi (200426).pdf"
+  },
+  {
+    "permit_id": "0006/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT TORTUGA XCEL DYNAMICS",
+    "location": "Ogan Komering Ilir",
+    "year": 2026,
+    "date_start": "2026-01-16",
+    "date_end": "2026-01-16",
+    "time_start": "07:00 WIB",
+    "time_end": "17:30 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Dandung Septyawan"
+    ],
+    "puta_registry": [
+      "JB-52-3-CDK"
+    ],
+    "file_name": "(1) Persetujuan PT. Tortuga Xcel Dynamics di Ogan Komering Ilir (160126).pdf"
+  },
+  {
+    "permit_id": "0042/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT AAR Indonesia",
+    "location": "Swp",
+    "year": 2026,
+    "date_start": "2026-03-01",
+    "date_end": "2026-04-30",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Galdencia Rezah Josiana"
+    ],
+    "puta_registry": [
+      "RI-18-3-XPW",
+      "RI-18-3-YXM"
+    ],
+    "file_name": "(2) Persetujuan PT. Applied Agricultural Resources Indonesia di Belitung Timur (300426).pdf"
+  },
+  {
+    "permit_id": "0043/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT AAR Indonesia",
+    "location": "Pt Aks",
+    "year": 2026,
+    "date_start": "2026-03-01",
+    "date_end": "2026-04-30",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Galdencia Rezah Josiana"
+    ],
+    "puta_registry": [
+      "RI-18-3-XPW",
+      "RI-18-3-YXM"
+    ],
+    "file_name": "(2) Persetujuan PT. Applied Agricultural Resources Indonesia di Kab. Belitung (300426).pdf"
+  },
+  {
+    "permit_id": "0024/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT. Kelantan Sakti",
+    "location": "Kayu Agung",
+    "year": 2026,
+    "date_start": "2026-02-09",
+    "date_end": "2026-12-14",
+    "time_start": "06:00 WIB",
+    "time_end": "18:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Muhammad Yusni",
+      "Egi Alba Haloho"
+    ],
+    "puta_registry": [
+      "JB-55-1-ZPE",
+      "JK-52-3-HDU"
+    ],
+    "file_name": "(2) Persetujuan PT. Kelantan Sakti di Ogan Komering Ilir (141226).pdf"
+  },
+  {
+    "permit_id": "0017/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Terra Drone Indonesia",
+    "location": "Supreme-thermal",
+    "year": 2026,
+    "date_start": "2026-02-04",
+    "date_end": "2026-07-05",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Hayudimas Raihan",
+      "Syaiful Adyaksa Kurnia",
+      "Mamat Rohimat",
+      "Ericson Sijabat",
+      "Ade Perdana Putra"
+    ],
+    "puta_registry": [
+      "JB-52-3-MQS",
+      "JB-52-3-KHJ",
+      "BT-58-3-DUM",
+      "JB-52-3-GHE",
+      "JB-52-3-PTF"
+    ],
+    "file_name": "(2) Persetujuan PT. Terra Drone Indonesia di Muara Enim (050726).pdf"
+  },
+  {
+    "permit_id": "0016/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT Timah Tbk",
+    "location": "Wiup Pt Timah Pulau Bangka",
+    "year": 2026,
+    "date_start": "2026-02-03",
+    "date_end": "2026-09-24",
+    "time_start": "08:00 WIB",
+    "time_end": "16:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Supriadi Hari Wibowo",
+      "Asep Dodi",
+      "Arpendi",
+      "Sugih Sriyanto Erlangga",
+      "Sutaryo",
+      "Taufan Pratama Putra"
+    ],
+    "puta_registry": [
+      "BB-11-2-QKY",
+      "BB-11-2-RWL",
+      "BB-11-0-HID",
+      "BB-11-3-ETH",
+      "BB-17-2-YLP",
+      "BB-17-3-XZH"
+    ],
+    "file_name": "(2) Persetujuan PT. Timah Tbk di Pulau Bangka (240926).pdf"
+  },
+  {
+    "permit_id": "0015/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT Timah Tbk",
+    "location": "Wiup Pt Timah Pulau Belitung",
+    "year": 2026,
+    "date_start": "2026-02-03",
+    "date_end": "2026-09-24",
+    "time_start": "08:00 WIB",
+    "time_end": "16:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Supriadi Hari Wibowo",
+      "Asep Dodi",
+      "Arpendi",
+      "Sugih Sriyanto Erlangga",
+      "Sutaryo",
+      "Taufan Pratama Putra"
+    ],
+    "puta_registry": [
+      "BB-11-2-QKY",
+      "BB-11-2-RWL",
+      "BB-11-0-HID",
+      "BB-11-3-ETH",
+      "BB-17-2-YLP",
+      "BB-17-3-XZH"
+    ],
+    "file_name": "(2) Persetujuan PT. Timah Tbk di Pulau Belitung (240926).pdf"
+  },
+  {
+    "permit_id": "0040/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Ismanto",
+    "location": "Pl Bayung",
+    "year": 2026,
+    "date_start": "2026-03-10",
+    "date_end": "2026-06-10",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Ismanto",
+      "Hendri Boy"
+    ],
+    "puta_registry": [
+      "JA-13-3-TUB"
+    ],
+    "file_name": "(2) Persetujuan PT. Transportasi Gas Indonesia di Jambi (100626)(1).pdf"
+  },
+  {
+    "permit_id": "0039/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Ismanto",
+    "location": "Pl Muaro Jambi",
+    "year": 2026,
+    "date_start": "2026-03-10",
+    "date_end": "2026-06-10",
+    "time_start": "07:00 WIB",
+    "time_end": "15:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Ismanto",
+      "Hendri Boy"
+    ],
+    "puta_registry": [
+      "JA-13-3-TUB"
+    ],
+    "file_name": "(2) Persetujuan PT. Transportasi Gas Indonesia di Jambi (100626)(2).pdf"
+  },
+  {
+    "permit_id": "0038/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Ismanto",
+    "location": "Pl Kaos",
+    "year": 2026,
+    "date_start": "2026-03-10",
+    "date_end": "2026-06-10",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Ismanto",
+      "Hendri Boy"
+    ],
+    "puta_registry": [
+      "JA-13-3-TUB"
+    ],
+    "file_name": "(2) Persetujuan PT. Transportasi Gas Indonesia di Jambi (100626)(3).pdf"
+  },
+  {
+    "permit_id": "0037/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Ismanto",
+    "location": "Pl Sekernan",
+    "year": 2026,
+    "date_start": "2026-03-10",
+    "date_end": "2026-06-10",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Hendri Boy",
+      "Ismanto"
+    ],
+    "puta_registry": [
+      "JA-13-3-TUB"
+    ],
+    "file_name": "(2) Persetujuan PT. Transportasi Gas Indonesia di Jambi (100626)(4).pdf"
+  },
+  {
+    "permit_id": "0036/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Ismanto",
+    "location": "Pl Sekernan",
+    "year": 2026,
+    "date_start": "2026-03-10",
+    "date_end": "2026-06-10",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Ismanto",
+      "Hendri Boy"
+    ],
+    "puta_registry": [
+      "JA-13-3-TUB"
+    ],
+    "file_name": "(2) Persetujuan PT. Transportasi Gas Indonesia di Jambi (100626)(5).pdf"
+  },
+  {
+    "permit_id": "0041/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Ismanto",
+    "location": "Pl Ro Grissik",
+    "year": 2026,
+    "date_start": "2026-03-10",
+    "date_end": "2026-06-10",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Ismanto",
+      "Hendri Boy"
+    ],
+    "puta_registry": [
+      "JA-13-3-TUB"
+    ],
+    "file_name": "(2) Persetujuan PT. Transportasi Gas Indonesia di Jambi (100626).pdf"
+  },
+  {
+    "permit_id": "0051/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT AAR Indonesia",
+    "location": "Pt Ama",
+    "year": 2026,
+    "date_start": "2026-03-03",
+    "date_end": "2026-04-30",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Galdencia Rezah Josiana"
+    ],
+    "puta_registry": [
+      "RI-18-3-XPW",
+      "RI-18-3-YXM"
+    ],
+    "file_name": "(3) Persetujuan PT. Applied Agricultural Resources Indonesia di Kab. Belitung (300426).pdf"
+  },
+  {
+    "permit_id": "0050/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT. Inti Indosawit Subur",
+    "location": "Bulian Jaya",
+    "year": 2026,
+    "date_start": "2026-03-03",
+    "date_end": "2026-12-22",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Juanda Ambarita",
+      "Muhammad Yusni",
+      "Muhammad Akbar"
+    ],
+    "puta_registry": [
+      "RI-18-3-XRM"
+    ],
+    "file_name": "(3) Persetujuan PT. Inti Indosawit Subur di Bulian Jaya, Jambi (221226).pdf"
+  },
+  {
+    "permit_id": "0048/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT. Prima Mas Lestari",
+    "location": "Bungo",
+    "year": 2026,
+    "date_start": "2026-03-03",
+    "date_end": "2027-12-31",
+    "time_start": "09:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Muhammad Yusni",
+      "Juanda Ambarita",
+      "Muhammad Akbar"
+    ],
+    "puta_registry": [
+      "RI-18-3-XRM"
+    ],
+    "file_name": "(3) Persetujuan PT. Prima Mas Lestari di Kab. Bungo, Jambi (311226).pdf"
+  },
+  {
+    "permit_id": "0097/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "Halo Indah Permai",
+    "location": "Surveillance Sinarmas Term 4",
+    "year": 2026,
+    "date_start": "2026-04-21",
+    "date_end": "2026-07-16",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Randu Prayaoga Putra",
+      "Ferdi Haryono",
+      "Dhia Ul Hayat",
+      "Yan Ferdiansyah"
+    ],
+    "puta_registry": [
+      "BT-58-3-RYU",
+      "BT-58-3-ETU",
+      "JK-53-3-WVI",
+      "BT-58-3-BTH"
+    ],
+    "file_name": "(4) Persetujuan Halo Indah Permai di Palembang dan Jambi (160726).pdf"
+  },
+  {
+    "permit_id": "0113/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT. 3S Engineering",
+    "location": "Pipa Tgi",
+    "year": 2026,
+    "date_start": "2026-04-29",
+    "date_end": "2026-06-14",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Muhammad Miftahudin"
+    ],
+    "puta_registry": [
+      "KI-AH-3-LSE"
+    ],
+    "file_name": "(4) Persetujuan PT. 3S Engineering di Jambi (140626).pdf"
+  },
+  {
+    "permit_id": "0104/APPROVAL-PUTA/DNP-2026",
+    "operator_name": "PT Musi Hutan Persada",
+    "location": "Area Konsesi Pbph Pt Musi Hutan Persada",
+    "year": 2026,
+    "date_start": "2026-04-20",
+    "date_end": "2027-02-23",
+    "time_start": "07:00 WIB",
+    "time_end": "16:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Heriansyah Hidayat",
+      "Yogi Oloan Dwiputra Harahap",
+      "Aldo Redho Alparisi",
+      "Galuh Dimijultyo"
+    ],
+    "puta_registry": [
+      "SS-15-3-PXC",
+      "SS-15-3-KLZ",
+      "SS-25-3-ZUL"
+    ],
+    "file_name": "(4) Persetujuan PT. Musi Hutan Persada di Sumatera Selatan (230227).pdf"
+  },
+  {
+    "permit_id": "435/MHP/DH.LGL/NIRU/III/2024",
+    "operator_name": "PT Musi Hutan Persada",
+    "location": "Sumatera Selatan",
+    "year": 2024,
+    "date_start": "2024-04-01",
+    "date_end": "2024-11-10",
+    "time_start": "08:00",
+    "time_end": "17:00",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Aldo Redho Alparisi",
+      "Candra Kurniawan",
+      "Delvanoe Mahena Sl.mata",
+      "Edwin Septiansyah",
+      "Heriansyah Hidayat Beflaku",
+      "Muhammad Irfansyah S",
+      "Yogi Oloan Dwiputra Harahap Berlakusam Den",
+      "S.d. Io"
+    ],
+    "puta_registry": [],
+    "file_name": "(4) Perizinan PUTA PT. Musi Hutan Persada - Sumatera Selatan_KOBU VI.pdf"
+  },
+  {
+    "permit_id": "RK7F-RK/DEP/2024.03.25-2",
+    "operator_name": "PTPN I",
+    "location": "Sumsel, Bengkulu dan Lampung",
+    "year": 2024,
+    "date_start": "2024-03-01",
+    "date_end": "2024-03-01",
+    "time_start": "08:00",
+    "time_end": "17:00",
+    "max_altitude_ft": 1312,
+    "coordinates": [],
+    "pilot_name": [
+      "Angga Christiansyah",
+      "Jenny Melynda Siagian",
+      "Rendy Reza Charismawan",
+      "Issued"
+    ],
+    "puta_registry": [
+      "LA-11-0-CPV",
+      "LA-11-2-PIQ",
+      "LA-II-O-CPV"
+    ],
+    "file_name": "(4) Perizinan PUTA PTPN 1 - Sumsel, Bengkulu dan Lampung_KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0024/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "PT AAR Indonesia",
+    "location": "Pt. Prima Alumga",
+    "year": 2024,
+    "date_start": "2024-07-15",
+    "date_end": "2024-09-30",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Gilang Akhyuta",
+      "Tjang Andreas Archie Candra Saputra Wijaya",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidzmeyndljzduxoduyjrimzlingyxzjqwmgzjodfmnze"
+    ],
+    "puta_registry": [
+      "RI-18-3-XPW",
+      "RI-18-3-YXM"
+    ],
+    "file_name": "(6) Perizinan PUTA PT. AAR Indonesia (KOBU VI).pdf"
+  },
+  {
+    "permit_id": "0023/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "PT AAR Indonesia",
+    "location": "Pt. Pinang Witmas Sejati",
+    "year": 2024,
+    "date_start": "2024-07-15",
+    "date_end": "2024-09-30",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Gilang Akhyuta",
+      "Tjang Andreas Archie Candra Saputra Wijaya",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidmwmzzgiwmjazotzhnwiymuzduzmynzinqxztk"
+    ],
+    "puta_registry": [
+      "RI-18-3-XPW",
+      "RI-18-3-YXM"
+    ],
+    "file_name": "(6) Perizinan PUTA PT. AAR Indonesia di Pinang Witmas Sejati (KOBU VI).pdf"
+  },
+  {
+    "permit_id": "0022/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "PT. ELIXER REKA DIGITA",
+    "location": "Kota Padang",
+    "year": 2024,
+    "date_start": "2024-06-21",
+    "date_end": "2024-09-11",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Muhammad Aulia Rahman",
+      "Ade Putra Hadiyanto",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidzjamtynzcngemvlywmwymyyzamnlnzewzwi"
+    ],
+    "puta_registry": [
+      "JB-58-3-HLJ",
+      "JB-58-3-ZET"
+    ],
+    "file_name": "(6) Perizinan PUTA PT. Elixer Reka Digita (KOBU VI).pdf"
+  },
+  {
+    "permit_id": "0008/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "PT. ELIXER REKA DIGITA",
+    "location": "Kota Padang",
+    "year": 2024,
+    "date_start": "2024-05-30",
+    "date_end": "2024-06-09",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Dikarenakan Alasan Masa",
+      "Muhammad Aulia Rahman",
+      "Ade Putra Hadiyanto"
+    ],
+    "puta_registry": [
+      "JB-58-3-HLJ",
+      "JB-58-3-ENG"
+    ],
+    "file_name": "(6) Perizinan PUTA PT. Elixer Reka Digita di Padang.pdf"
+  },
+  {
+    "permit_id": "RJT/BIL.803/EKSTERN.249/V11/2024",
+    "operator_name": "PT Hutama Karya",
+    "location": "Jalan Tol Kayu Agung",
+    "year": 2024,
+    "date_start": "2024-07-26",
+    "date_end": "2025-05-10",
+    "time_start": "08:00 WIB",
+    "time_end": "18:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "E Surve To O Afi",
+      "Billy Silaen",
+      "Ragil Wahyu Tasyrifin Karim",
+      "Audita Widya Astuti"
+    ],
+    "puta_registry": [
+      "JT-76-2-FQM"
+    ],
+    "file_name": "(7) Perizinan PUTA PT. Hutama Karya di Jalan Tol Kayu Agung - Tungkal Jaya.pdf"
+  },
+  {
+    "permit_id": "0047/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "PT SKYTECH INDONESIA",
+    "location": "Pt Skytech Indonesia_pt. Bmh",
+    "year": 2024,
+    "date_start": "2024-07-10",
+    "date_end": "2024-10-03",
+    "time_start": "08:00 WIB",
+    "time_end": "16:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Dikarenakan Alasan Masa",
+      "Farrasta Andito Putra Wardhana",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidywezngmmwvknjmwzwuztzizgumdfjmwrlmendq"
+    ],
+    "puta_registry": [
+      "JI-67-3-JHQ"
+    ],
+    "file_name": "(7) Perizinan PUTA PT. Skytech Indonesia (KOBU VI).pdf"
+  },
+  {
+    "permit_id": "0089/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "Kementerian Pertanian",
+    "location": "Candi Muaro Jambi",
+    "year": 2024,
+    "date_start": "2024-08-07",
+    "date_end": "2024-08-09",
+    "time_start": "08:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Heri Budi Wibowo",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidnwfhnjdhngrhytkniwyjmytdkytllmtqzywvjnzc"
+    ],
+    "puta_registry": [
+      "JT-77-3-FKB"
+    ],
+    "file_name": "(8) Perizinan PUTA Kementerian Pertanian di Candi Muaro Jambi - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0084/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "PT Hutama Karya",
+    "location": "Pematang Panggang - Palembang - Jambi - Rengat",
+    "year": 2024,
+    "date_start": "2024-08-07",
+    "date_end": "2025-05-10",
+    "time_start": "08:00 WIB",
+    "time_end": "18:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Billy Silaen",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidnzhmnmvjymenwzimdfmzdanmyxyjungmmjyzymi"
+    ],
+    "puta_registry": [
+      "JT-76-2-FQM"
+    ],
+    "file_name": "(8) Perizinan PUTA PT. Hutama Karya - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0082/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "PT Hutama Karya",
+    "location": "Indralaya - Muara Enim - Lubuk Linggau - Bengkulu",
+    "year": 2024,
+    "date_start": "2024-08-08",
+    "date_end": "2025-05-10",
+    "time_start": "08:00 WIB",
+    "time_end": "18:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Billy Silaen",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidzdkzngrlodqzmtuzzddjzddmytrhytjhodgngmyoty"
+    ],
+    "puta_registry": [
+      "JT-76-2-FQM"
+    ],
+    "file_name": "(8) Perizinan PUTA PT. Hutama Karya di Bengkulu - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0163/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "indra",
+    "location": "Sumpal",
+    "year": 2024,
+    "date_start": "2024-09-20",
+    "date_end": "2024-10-31",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Abdul Malik Ardhofi"
+    ],
+    "puta_registry": [
+      "SS-16-3-RGO"
+    ],
+    "file_name": "(9) Perizinan PUTA Indra - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0161/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "indra",
+    "location": "Dayung",
+    "year": 2024,
+    "date_start": "2024-09-20",
+    "date_end": "2024-10-31",
+    "time_start": "00:07 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Abdul Malik Ardhofi",
+      "Muhamad Rizi"
+    ],
+    "puta_registry": [
+      "SS-16-3-WPS"
+    ],
+    "file_name": "(9) Perizinan PUTA Indra di Dayung - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0160/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "indra",
+    "location": "Gelam",
+    "year": 2024,
+    "date_start": "2024-09-21",
+    "date_end": "2024-10-31",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Indra",
+      "Muhamad Rizi",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidzdingnkyyzyzywnjazjkzdczwvjmdqyogqyja"
+    ],
+    "puta_registry": [
+      "SS-16-3-WPS",
+      "SS-16-3-RGO",
+      "JA-13-3-FJC"
+    ],
+    "file_name": "(9) Perizinan PUTA Indra di Gelam - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0158/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "indra",
+    "location": "Rebon Jaro",
+    "year": 2024,
+    "date_start": "2024-09-21",
+    "date_end": "2024-10-31",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Indra",
+      "Muhamad Rizi",
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidnqyzzhnzgymjmmzgwnynwmnjdlntfhmziyy"
+    ],
+    "puta_registry": [
+      "SS-16-3-WPS",
+      "SS-16-3-RGO",
+      "JA-13-3-FJC"
+    ],
+    "file_name": "(9) Perizinan PUTA Indra di Rebon Jaro - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0157/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "indra",
+    "location": "Sambar",
+    "year": 2024,
+    "date_start": "2024-09-21",
+    "date_end": "2024-10-31",
+    "time_start": "07:00 WIB",
+    "time_end": "17:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Indra",
+      "Muhamad Rizi"
+    ],
+    "puta_registry": [
+      "JA-13-3-FJC",
+      "SS-16-3-RGO",
+      "SS-16-3-WPS"
+    ],
+    "file_name": "(9) Perizinan PUTA Indra di Sambar - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0162/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "indra",
+    "location": "Sumpal",
+    "year": 2024,
+    "date_start": "2024-09-20",
+    "date_end": "2024-10-31",
+    "time_start": "18:00 WIB",
+    "time_end": "05:59 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Abdul Malik Ardhofi"
+    ],
+    "puta_registry": [
+      "SS-16-3-WPS"
+    ],
+    "file_name": "(9) Perizinan PUTA Indra di Sumpal - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "0141/APPROVAL-PUTA/DNP-2024",
+    "operator_name": "KJSB Sandi Jaya Primawardani",
+    "location": "Kota Jambi",
+    "year": 2024,
+    "date_start": "2024-10-01",
+    "date_end": "2024-11-30",
+    "time_start": "08:00 WIB",
+    "time_end": "16:00 WIB",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Imsis-djpu.dephub.go.idapproval-opsapprovalprintidnzezdzinzyotcxmtjkytezmgziyzyywjkotmmgu"
+    ],
+    "puta_registry": [
+      "JA-20-3-QFR"
+    ],
+    "file_name": "(9) Perizinan PUTA KJSB Sandi Jaya Primawardani - KOBU VI.pdf"
+  },
+  {
+    "permit_id": "4647/TbWUM-2040/24-S1.3.8",
+    "operator_name": "PT Timah Tbk",
+    "location": "Pulau Bangka",
+    "year": 2025,
+    "date_start": "2025-02-11",
+    "date_end": "2025-08-05",
+    "time_start": "08:00",
+    "time_end": "17:00",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Supriadi Hari Wibowo",
+      "Lukman Hadi Fatah",
+      "Taufan Pratama Putra",
+      "Asep Dodi",
+      "Ruslan",
+      "Sutaryo"
+    ],
+    "puta_registry": [
+      "BIB-11-2-QKY",
+      "BB-11-2-RWL",
+      "BB-11-2-QKY",
+      "BB-11-O-HID",
+      "BB-17-2-YLP",
+      "BB-17-3-XZH"
+    ],
+    "file_name": "(2) Persetujuan PT. Timah Tbk di Pulau Bangka (050825).pdf"
+  },
+  {
+    "permit_id": "4647/TbWUM-2040/24-S1.3.8",
+    "operator_name": "PT Timah Tbk",
+    "location": "Pulau Belitung",
+    "year": 2025,
+    "date_start": "2025-02-11",
+    "date_end": "2025-08-05",
+    "time_start": "08:00",
+    "time_end": "17:00",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Supriadi Hari Wibowo",
+      "Lukman Hadi Fatah",
+      "Taufan Pratama Putra",
+      "Asep Dodi",
+      "Ruslan",
+      "Sutaryo"
+    ],
+    "puta_registry": [
+      "BB-11-2-QKY",
+      "BB-11-2-RWL",
+      "BB-17-2-YLP",
+      "BB-17-3-XZH"
+    ],
+    "file_name": "(2) Persetujuan PT. Timah Tbk di Pulau Belitung (050825).pdf"
+  },
+  {
+    "permit_id": "048/DU/APN/IV/2025",
+    "operator_name": "PT Agrinas Palma Nusantara",
+    "location": "Jambi",
+    "year": 2025,
+    "date_start": "2025-04-30",
+    "date_end": "2025-06-13",
+    "time_start": "08:00",
+    "time_end": "17:00",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Ryan Nugraha",
+      "Hairul Malau",
+      "Josua Sm Hutauruk",
+      "Rizki Teguh Pranoto",
+      "Dendy Prihambodo",
+      "Ade Prabowo",
+      "Fadlan Faskaif",
+      "Herbert Ops Sitorus",
+      "Ilham Habib Tagor Lubis",
+      "Kiki Pratama Simamora",
+      "Muhammad Angga R. Dalimunthe",
+      "Muhammad Asbil Tanjung",
+      "Riza Abdillah Pufra",
+      "Teddy Badio Baykard",
+      "Fadtli Sidik",
+      "Heri Syahpufra",
+      "Jeremia Kr",
+      "Hariansyah",
+      "Muhatnrnad Fuser Erikson",
+      "Nouva Liza",
+      "Al Amin Surya Rahmat",
+      "Ali Munthaha",
+      "Ivan Nofiq Sahari",
+      "Para Surya",
+      "R Wahyu Bagus Widigdo",
+      "Wahyu Widyanto",
+      "Widhi Banuardhi Susanto"
+    ],
+    "puta_registry": [
+      "SU-15-2-FXR",
+      "SU-15-2-JEK",
+      "SU-24-2-JQV",
+      "SU-24-2-GYQ",
+      "SU-24-2-QKV",
+      "JB-65-O-BFV",
+      "JB-65-O-LEV",
+      "JB-55-3-HWU",
+      "JT-80-3-QOK",
+      "JL-82-3-HCK",
+      "JT-80-1-EHQ",
+      "JT-80-1-QHZ",
+      "KS-AC-3-YTP",
+      "KS-AC-3-PNU",
+      "SU-24-O-WHG",
+      "SU-24-O-1QF"
+    ],
+    "file_name": "(4) Persetujuan PT. Agrinas Palma Nusantara di Jambi (130625).pdf"
+  },
+  {
+    "permit_id": "048/DU/APN/IV/2025",
+    "operator_name": "PT Agrinas Palma Nusantara",
+    "location": "Sumatera Selatan",
+    "year": 2025,
+    "date_start": "2025-04-30",
+    "date_end": "2025-06-13",
+    "time_start": "08:00",
+    "time_end": "17:00",
+    "max_altitude_ft": 400,
+    "coordinates": [],
+    "pilot_name": [
+      "Ryan Nugaha L",
+      "Hairul Malau",
+      "Josua Sm Hutauruk",
+      "Rizki Teguh Pranoto",
+      "Dendy Prihambodo",
+      "Ade Prabowo",
+      "Fadlan Faskaif",
+      "Herbert Ops Sitorus",
+      "Ilharn Habib Tagor Lubis",
+      "Kiki Pratama Simamora",
+      "Muhammad Angga R. Dalimunthe",
+      "Muhammad Asbil Tanjung",
+      "Riza Abdillah Putra",
+      "Teddy Badio Baykard",
+      "Faddi Sidik",
+      "Heri Syahputra",
+      "Jeremia Kr Hutauruk",
+      "Lukman Hariansyah",
+      "Nouva Liza",
+      "Al Amin Surya Rahmat",
+      "Ali Munthaha",
+      "Ivan Nofiq Sahari",
+      "Pifra Para Surya",
+      "R Wahyu Bagus Widigdo",
+      "Wahyu Widyanto",
+      "Widhi Banuardhi Susanto",
+      "Winga Gen"
+    ],
+    "puta_registry": [
+      "SU-15-2-JEK",
+      "SU-24-2-JQV",
+      "SU-24-2-GYQ",
+      "SU-24-2-QKV",
+      "JB-65-O-BFV",
+      "JB-65-O-LEV",
+      "JB-55-3-HWU",
+      "JT-80-3-QOK",
+      "JL-82-3-HCK",
+      "JT-80-1-EHQ",
+      "JT-80-1-QHZ",
+      "KS-AC-3-YTP",
+      "KS-AC-3-PNU",
+      "SU-24-O-WHG",
+      "SU-24-O-1QF"
+    ],
+    "file_name": "(4) Persetujuan PT. Agrinas Palma Nusantara di Sumatera Selatan (130625).pdf"
+  }
+]

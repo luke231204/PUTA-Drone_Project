@@ -1,0 +1,14 @@
+# Dependency directories
+node_modules/
+
+# Synced heavy PDF documents
+6. KOBU VI - PADANG/
+
+# Local data (optional: if you want database changes to be tracked in Git, comment the line below)
+# data/permits.json
+
+# Log files and cache
+*.log
+__pycache__/
+.DS_Store
+Thumbs.db

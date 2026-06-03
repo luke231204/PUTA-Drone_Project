@@ -1,0 +1,19 @@
+{
+  "name": "puta-monitor",
+  "version": "1.0.0",
+  "description": "Electron-Based Drone Permission Visualizer & Airspace Dashboard",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "drone",
+    "monitor",
+    "kobu"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^30.0.1"
+  }
+}
