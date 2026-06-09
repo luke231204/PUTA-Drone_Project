@@ -545,10 +545,18 @@
 
           <!-- Limit Line Controls -->
           <div class="flex items-center justify-between bg-slate-50 border border-black/5 rounded-2xl px-4 py-2.5 text-xs select-none">
-            <div class="flex items-center gap-2">
-              <input type="checkbox" id="enable-limit-lines" checked onchange="handleTelemetryLimitChange()"
-                class="w-3.5 h-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-              <label for="enable-limit-lines" class="font-bold text-gray-700 cursor-pointer">Show Limit Threshold Lines</label>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="enable-limit-lines" checked onchange="handleTelemetryLimitChange()"
+                  class="w-3.5 h-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <label for="enable-limit-lines" class="font-bold text-gray-700 cursor-pointer">Show Limit Lines</label>
+              </div>
+              <div class="h-4 w-px bg-black/10"></div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="enable-flight-averages" checked onchange="handleTelemetryAveragesToggle()"
+                  class="w-3.5 h-3.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
+                <label for="enable-flight-averages" class="font-bold text-gray-700 cursor-pointer">Show Flight Averages</label>
+              </div>
             </div>
             
             <div class="flex items-center gap-4">

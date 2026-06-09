@@ -24,6 +24,7 @@ let telemetryLimitAgl = 1150;
 let telemetryLimitAmsl = 1150;
 let telemetryLimitSpeed = 100;
 let telemetryLimitEnabled = true;
+let telemetryAveragesEnabled = true;
 let telemetryAltLimitMode = 'agl'; // 'agl' or 'amsl'
 
 // Parsed telemetry file structures
@@ -2300,6 +2301,8 @@ function showTelemetryFileInfo(filename, points, filtered, maxSpeed, maxAgl, max
   document.getElementById('telemetry-csv-stats').textContent =
     `${points.toLocaleString()} points · ${filtered} pre-flight rows filtered`;
 
+  const avgHiddenClass = telemetryAveragesEnabled ? '' : 'hidden';
+
   // Summary stats row
   const summaryRow = document.getElementById('telemetry-summary-row');
   summaryRow.innerHTML = `
@@ -2311,20 +2314,26 @@ function showTelemetryFileInfo(filename, points, filtered, maxSpeed, maxAgl, max
     <div class="bg-orange-50 border border-orange-100 rounded-2xl p-3 text-center shadow-sm flex flex-col justify-between">
       <div class="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Speed Profile</div>
       <div class="text-lg font-extrabold text-orange-600 mt-1">${maxSpeed.toFixed(1)} <span class="text-[10px] font-semibold text-gray-400">max</span></div>
-      <div class="text-[10px] text-orange-700 font-bold mt-1">Avg: ${avgSpeed.toFixed(1)} kts</div>
-      <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
+      <div class="telemetry-avg-info ${avgHiddenClass}">
+        <div class="text-[10px] text-orange-700 font-bold mt-1">Avg: ${avgSpeed.toFixed(1)} kts</div>
+        <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
+      </div>
     </div>
     <div class="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-center shadow-sm flex flex-col justify-between">
       <div class="text-[10px] font-bold text-sky-500 uppercase tracking-wider">Altitude AGL</div>
       <div class="text-lg font-extrabold text-sky-600 mt-1">${maxAgl.toFixed(0)} <span class="text-[10px] font-semibold text-gray-400">max</span></div>
-      <div class="text-[10px] text-sky-700 font-bold mt-1">Avg: ${avgAgl.toFixed(0)} ft</div>
-      <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
+      <div class="telemetry-avg-info ${avgHiddenClass}">
+        <div class="text-[10px] text-sky-700 font-bold mt-1">Avg: ${avgAgl.toFixed(0)} ft</div>
+        <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
+      </div>
     </div>
     <div class="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center shadow-sm flex flex-col justify-between">
       <div class="text-[10px] font-bold text-violet-500 uppercase tracking-wider">Altitude AMSL</div>
       <div class="text-lg font-extrabold text-violet-600 mt-1">${maxAmsl.toFixed(0)} <span class="text-[10px] font-semibold text-gray-400">max</span></div>
-      <div class="text-[10px] text-violet-700 font-bold mt-1">Avg: ${avgAmsl.toFixed(0)} ft</div>
-      <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
+      <div class="telemetry-avg-info ${avgHiddenClass}">
+        <div class="text-[10px] text-violet-700 font-bold mt-1">Avg: ${avgAmsl.toFixed(0)} ft</div>
+        <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
+      </div>
     </div>
   `;
 }
@@ -2386,6 +2395,20 @@ function processTelemetryKml(file) {
   };
   reader.readAsText(file);
 }
+
+window.handleTelemetryAveragesToggle = function() {
+  const checkbox = document.getElementById('enable-flight-averages');
+  telemetryAveragesEnabled = checkbox ? checkbox.checked : true;
+  
+  const avgInfoElements = document.querySelectorAll('.telemetry-avg-info');
+  avgInfoElements.forEach(el => {
+    if (telemetryAveragesEnabled) {
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+  });
+};
 
 function handleTelemetryLimitChange() {
   const checkbox = document.getElementById('enable-limit-lines');
