@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PUTA-Monitor: Region VI Drone Permission Visualizer & Airspace Dashboard</title>
   
-  <!-- MapLibre GL JS (replaces Leaflet — supports real 3D pitch/tilt) -->
-  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-  
-  <!-- Leaflet GIS Map CSS (restored for main dashboard) -->
+  <!-- Leaflet GIS Map CSS for main dashboard -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
   
@@ -21,8 +18,6 @@
   <!-- Chart.js and html2canvas CDN libraries for flight evaluation -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  
-  <!-- (Three.js removed — MapLibre GL JS handles real 3D natively) -->
   
   <!-- Custom Tailwind config for custom values -->
   <script>
@@ -155,6 +150,7 @@
             <button id="status-expired" class="flex-1 py-1.5 rounded-xl hover:text-red-600 transition-colors">Expired</button>
           </div>
         </div>
+        <!-- Status filter note: event listeners wired in renderer.js setupEventListeners() -->
       </div>
 
       <!-- Scrollable Permits List -->
@@ -188,20 +184,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a3 3 0 013 3v2.83c0 .8-.3 1.57-.83 2.12l-1.17 1.17a3 3 0 01-2.12.83H12a3 3 0 01-3-3v-2a3 3 0 00-3-3H4.83"></path>
           </svg>
           <span id="map-toggle-text">Satellite Map</span>
-        </div>
-        <div class="w-px h-4 bg-black/10"></div>
-        <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#8b5cf6] transition-colors" id="map-toggle-airport-paths">
-          <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-          </svg>
-          <span id="map-toggle-airport-text">Show Approach Paths</span>
-        </div>
-        <div class="w-px h-4 bg-black/10"></div>
-        <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#4f46e5] transition-colors" id="map-toggle-3d">
-          <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-          </svg>
-          <span id="map-toggle-3d-text">3D Viewport</span>
         </div>
       </div>
     </main>
@@ -628,9 +610,6 @@
   <!-- Leaflet JS (restored for main dashboard) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-  <!-- MapLibre GL JS -->
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-  
   <!-- Main Renderer Logic -->
   <script src="renderer.js"></script>
 </body>

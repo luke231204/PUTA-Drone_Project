@@ -58,7 +58,6 @@ function findGDriveFolder() {
     path.join(userProfile, "Google Drive\\My Drive\\6. KOBU VI - PADANG"),
     path.join(userProfile, "Google Drive\\Drive Saya\\6. KOBU VI - PADANG"),
     path.join(userProfile, "OneDrive\\Documents\\Project Latsar\\6. KOBU VI - PADANG"),
-    "c:\\Users\\lukma\\Downloads\\6. KOBU VI - PADANG",
     path.join(__dirname, "6. KOBU VI - PADANG"),
   ];
   for (const c of candidates) {

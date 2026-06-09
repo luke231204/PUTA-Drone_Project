@@ -6,6 +6,7 @@ let polygonLayers = {};
 let kkopLayers = [];
 let countdownInterval = null;
 let currentYearFilter = 'All';
+let currentStatusFilter = 'All'; // 'All', 'ACTIVE', 'PENDING', or 'EXPIRED'
 
 // Flight evaluation global states
 let satelliteLayer = null;
@@ -146,17 +147,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   initMap();
   await loadAndRenderData();
   setupEventListeners();
-
-  // Report Modal button event listeners
-  const btnCloseModal = document.getElementById('close-report-modal');
-  if (btnCloseModal) {
-    btnCloseModal.addEventListener('click', closeReportModal);
-  }
-
-  const btnExportPdf = document.getElementById('btn-export-pdf');
-  if (btnExportPdf) {
-    btnExportPdf.addEventListener('click', exportReportToPDF);
-  }
 });
 
 // 1. GIS Map Canvas Setup
@@ -245,11 +235,9 @@ async function loadAndRenderData() {
 // State engine: Calculates if permit is ACTIVE, PENDING or EXPIRED based on local time window
 function getPermitStatus(permit) {
   const now = new Date();
-  
-  // Format local date today as ISO string YYYY-MM-DD
-  const offset = now.getTimezoneOffset();
-  const localNow = new Date(now.getTime() - (offset * 60 * 1000));
-  const todayStr = localNow.toISOString().split('T')[0];
+
+  // Format local date today as YYYY-MM-DD in the local timezone (not UTC)
+  const todayStr = now.toLocaleDateString('en-CA'); // returns YYYY-MM-DD in local time
   
   if (todayStr < permit.date_start) return 'PENDING';
   if (todayStr > permit.date_end) return 'EXPIRED';
@@ -275,21 +263,42 @@ function getPermitStatus(permit) {
 
 // Setup filters and searches
 function setupEventListeners() {
+  // Debounced search input — avoids re-rendering on every single keypress
   const searchInput = document.getElementById('search-input');
-  searchInput.addEventListener('input', renderDashboard);
+  let searchDebounceTimer;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(renderDashboard, 300);
+  });
 
-  const tabs = ['all', '2026', '2025', '2024'];
-  tabs.forEach(tab => {
+  // Year filter tabs
+  const yearTabs = ['all', '2026', '2025', '2024'];
+  yearTabs.forEach(tab => {
     const btn = document.getElementById(`tab-${tab}`);
+    if (!btn) return;
     btn.addEventListener('click', () => {
-      // Toggle styles
-      tabs.forEach(t => {
+      yearTabs.forEach(t => {
         const otherBtn = document.getElementById(`tab-${t}`);
-        otherBtn.className = "flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors";
+        if (otherBtn) otherBtn.className = "flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors";
       });
       btn.className = "flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm";
-      
       currentYearFilter = tab === 'all' ? 'All' : parseInt(tab);
+      renderDashboard();
+    });
+  });
+
+  // Status filter tabs
+  const statusTabs = ['all', 'active', 'pending', 'expired'];
+  statusTabs.forEach(status => {
+    const btn = document.getElementById(`status-${status}`);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      statusTabs.forEach(s => {
+        const otherBtn = document.getElementById(`status-${s}`);
+        if (otherBtn) otherBtn.className = "flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors";
+      });
+      btn.className = "flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm";
+      currentStatusFilter = status === 'all' ? 'All' : status.toUpperCase();
       renderDashboard();
     });
   });
@@ -333,6 +342,9 @@ function renderDashboard() {
 
     // Apply Year Filter
     if (currentYearFilter !== 'All' && permit.year !== currentYearFilter) return;
+
+    // Apply Status Filter
+    if (currentStatusFilter !== 'All' && status !== currentStatusFilter) return;
 
     // Apply Search Filter
     const matchesSearch = 
@@ -484,7 +496,7 @@ function selectPermitCard(permit) {
 // 5. Build selected permit inspection details & countdown timers
 function renderInspector() {
   const panel = document.getElementById('inspector-panel');
-  if (clearInterval) clearInterval(countdownInterval);
+  if (countdownInterval) clearInterval(countdownInterval);
 
   // Clear flight log data when permit selection changes (if the log was for a different permit)
   if (selectedPermit && (!flightLogData || flightLogData.permit_id !== selectedPermit.permit_id)) {
@@ -1043,6 +1055,40 @@ function handleFlightLogUpload(event) {
   reader.readAsText(file);
 }
 
+// =================================================================
+// Shared KML coordinate parser — used by both parseLogData() and
+// processTelemetryKml() to eliminate duplicate logic.
+// Returns the raw coordinate text from the longest <coordinates> block.
+// =================================================================
+function parseKmlCoordinates(text) {
+  const parser = new DOMParser();
+  const kml = parser.parseFromString(text, 'text/xml');
+
+  // Search both namespaces/capitalizations
+  let coordinatesNodes = Array.from(kml.getElementsByTagNameNS('*', 'coordinates'))
+    .concat(Array.from(kml.getElementsByTagNameNS('*', 'Coordinates')));
+
+  // Regex fallback for malformed XML or namespace prefix issues
+  const regex = /<(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>([\s\S]*?)<\/(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>/g;
+  let match;
+  const regexTexts = [];
+  while ((match = regex.exec(text)) !== null) {
+    regexTexts.push(match[1]);
+  }
+
+  const allTexts = coordinatesNodes.map(node => node.textContent).concat(regexTexts);
+  if (allTexts.length === 0) throw new Error('No coordinate data tags found in KML file.');
+
+  // Pick the text block with the most whitespace-separated tokens (= most coordinate tuples)
+  let coordText = '';
+  for (const txt of allTexts) {
+    if (txt.trim().split(/\s+/).length > coordText.trim().split(/\s+/).length) {
+      coordText = txt;
+    }
+  }
+  return coordText;
+}
+
 function parseLogData(text, extension) {
   let points = []; 
   let maxAltitude = 0;
@@ -1053,36 +1099,7 @@ function parseLogData(text, extension) {
   let timestamps = [];
 
   if (extension === 'kml') {
-    const parser = new DOMParser();
-    const kml = parser.parseFromString(text, 'text/xml');
-    
-    // Search both namespaces/capitalizations and combine the lists
-    let coordinatesNodes = Array.from(kml.getElementsByTagNameNS('*', 'coordinates'))
-      .concat(Array.from(kml.getElementsByTagNameNS('*', 'Coordinates')));
-    
-    // Global regex fallback in case of XML parser failures or namespace issues
-    const regex = /<(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>([\s\S]*?)<\/(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>/g;
-    let match;
-    let regexTexts = [];
-    while ((match = regex.exec(text)) !== null) {
-      regexTexts.push(match[1]);
-    }
-    
-    // Combine text content from DOM nodes and regex matches
-    let allTexts = coordinatesNodes.map(node => node.textContent).concat(regexTexts);
-    
-    if (allTexts.length === 0) {
-      throw new Error("No coordinate data tags found in KML file.");
-    }
-    
-    // Find the coordinates text containing the actual flight line (longest coordinate list)
-    let coordText = "";
-    for (const txt of allTexts) {
-      if (txt.trim().split(/\s+/).length > coordText.trim().split(/\s+/).length) {
-        coordText = txt;
-      }
-    }
-    
+    const coordText = parseKmlCoordinates(text);
     const lines = coordText.trim().split(/\s+/);
     lines.forEach((line, index) => {
       const parts = line.split(',');
@@ -1792,34 +1809,8 @@ function processTelemetryKml(file) {
   reader.onload = function(e) {
     try {
       const text = e.target.result;
-      const parser = new DOMParser();
-      const kml = parser.parseFromString(text, 'text/xml');
-      
-      // Search both namespaces/capitalizations and combine the lists
-      let coordinatesNodes = Array.from(kml.getElementsByTagNameNS('*', 'coordinates'))
-        .concat(Array.from(kml.getElementsByTagNameNS('*', 'Coordinates')));
-      
-      // Global regex fallback in case of parsing failures or prefix issues
-      const regex = /<(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>([\s\S]*?)<\/(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>/g;
-      let match;
-      let regexTexts = [];
-      while ((match = regex.exec(text)) !== null) {
-        regexTexts.push(match[1]);
-      }
-      
-      let allTexts = coordinatesNodes.map(node => node.textContent).concat(regexTexts);
-      
-      if (allTexts.length === 0) {
-        throw new Error("No coordinate data tags found in KML file.");
-      }
-      
-      let coordText = "";
-      for (const txt of allTexts) {
-        if (txt.trim().split(/\s+/).length > coordText.trim().split(/\s+/).length) {
-          coordText = txt;
-        }
-      }
-      
+      // Use shared KML coordinate parser helper
+      const coordText = parseKmlCoordinates(text);
       const lines = coordText.trim().split(/\s+/);
       const points = [];
       lines.forEach(line => {
@@ -1832,7 +1823,7 @@ function processTelemetryKml(file) {
           }
         }
       });
-      
+
       if (points.length === 0) throw new Error("No valid coordinates found in KML.");
       
       uploadedKmlFile = file;
