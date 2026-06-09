@@ -114,33 +114,60 @@ function getEmergencyTower(locationStr) {
     return { name: "AirNav Padang Tower", phone: "+62 (751) 81920" };
   }
   const loc = locationStr.toLowerCase();
-  if (loc.includes('jambi') || loc.includes('sekernan') || loc.includes('bungo') || loc.includes('kaos') || loc.includes('jabung')) {
+
+  // Jambi jurisdiction
+  if (loc.includes('jambi') || loc.includes('sekernan') || loc.includes('bungo') ||
+      loc.includes('kaos') || loc.includes('jabung') || loc.includes('muara bungo')) {
     return { name: "AirNav Jambi Tower", phone: "+62 (741) 57321" };
   }
-  if (loc.includes('bengkulu')) {
+  // Bengkulu jurisdiction (includes Muko-Muko and Enggano which are in Bengkulu province)
+  if (loc.includes('bengkulu') || loc.includes('muko') || loc.includes('enggano')) {
     return { name: "AirNav Bengkulu Tower", phone: "+62 (736) 21014" };
   }
-  if (loc.includes('palembang') || loc.includes('ogan komering') || loc.includes('oki') || loc.includes('muara enim') || loc.includes('kayu agung') || loc.includes('sumsel') || loc.includes('sumatera selatan') || loc.includes('musi hutan') || loc.includes('gelam') || loc.includes('dayung') || loc.includes('sambar') || loc.includes('sumpal') || loc.includes('rebon jaro') || loc.includes('bayung') || loc.includes('witmas')) {
+  // Palembang / South Sumatra jurisdiction (includes Pagar Alam and Lubuk Linggau)
+  if (loc.includes('palembang') || loc.includes('ogan komering') || loc.includes('oki') ||
+      loc.includes('muara enim') || loc.includes('kayu agung') || loc.includes('sumsel') ||
+      loc.includes('sumatera selatan') || loc.includes('musi hutan') || loc.includes('gelam') ||
+      loc.includes('dayung') || loc.includes('sambar') || loc.includes('sumpal') ||
+      loc.includes('rebon jaro') || loc.includes('bayung') || loc.includes('witmas') ||
+      loc.includes('pagar alam') || loc.includes('lubuk linggau') || loc.includes('lahat') ||
+      loc.includes('baturaja') || loc.includes('ogan ilir')) {
     return { name: "AirNav Palembang Tower", phone: "+62 (711) 385006" };
   }
-  if (loc.includes('belitung') || loc.includes('swp')) {
+  // Belitung / Bangka Belitung jurisdiction
+  if (loc.includes('belitung') || loc.includes('swp') || loc.includes('tanjung pandan')) {
     return { name: "AirNav Tanjung Pandan Tower", phone: "+62 (719) 21010" };
   }
+  // Bangka / Pangkal Pinang jurisdiction
   if (loc.includes('bangka') || loc.includes('pangkal pinang')) {
     return { name: "AirNav Pangkal Pinang Tower", phone: "+62 (717) 422081" };
   }
+  // West Sumatra jurisdiction (Padang, Kerinci, Rokot Sipora, Muko-Muko — default)
   return { name: "AirNav Padang Tower", phone: "+62 (751) 81920" };
 }
 
-// Critical Airports in Region VI (Padang jurisdiction) for KKOP visualization
+// All airports under OTBAN Wilayah VI authority — for KKOP visualization and compliance checks
 const REGION_AIRPORTS = [
+  // --- Sumatera Barat ---
   { name: "Bandar Udara Internasional Minangkabau (PDG)", lat: -0.787999, lng: 100.28677, code: "PDG" },
-  { name: "Bandar Udara Rokot (RKI)", lat: -2.0991, lng: 99.7058, code: "RKI" },
-  { name: "Bandar Udara Fatmawati Soekarno (BKS)", lat: -3.86128, lng: 102.33967, code: "BKS" },
-  { name: "Bandar Udara Sultan Thaha (DJB)", lat: -1.63506, lng: 103.64601, code: "DJB" },
+  { name: "Bandar Udara Rokot Sipora (RKI)",              lat: -2.09910,  lng: 99.70580,  code: "RKI" },
+  { name: "Bandar Udara Kerinci / Depati Parbo (KRC)",    lat: -2.09222,  lng: 101.46806, code: "KRC" },
+  { name: "Bandar Udara Muko-Muko (MPC)",                 lat: -2.53972,  lng: 101.08778, code: "MPC" },
+  // --- Bengkulu ---
+  { name: "Bandar Udara Fatmawati Soekarno (BKS)",        lat: -3.86128,  lng: 102.33967, code: "BKS" },
+  { name: "Bandar Udara Enggano (ENE)",                   lat: -5.85972,  lng: 102.39444, code: "ENE" },
+  // --- Jambi ---
+  { name: "Bandar Udara Sultan Thaha (DJB)",              lat: -1.63506,  lng: 103.64601, code: "DJB" },
+  { name: "Bandar Udara Muara Bungo (BUU)",               lat: -1.12778,  lng: 102.13472, code: "BUU" },
+  // --- Sumatera Selatan ---
   { name: "Bandar Udara Internasional Sultan Mahmud Badaruddin II (PLM)", lat: -2.89615, lng: 104.70697, code: "PLM" },
-  { name: "Bandar Udara Depati Amir (PGK)", lat: -2.16063, lng: 106.14173, code: "PGK" }
+  { name: "Bandar Udara Atung Bungsu / Pagar Alam (PXA)", lat: -4.02750,  lng: 103.25000, code: "PXA" },
+  { name: "Bandar Udara Silampari / Lubuk Linggau (LLJ)", lat: -3.26278,  lng: 103.12028, code: "LLJ" },
+  // --- Kepulauan Bangka Belitung ---
+  { name: "Bandar Udara Depati Amir / Pangkal Pinang (PGK)", lat: -2.16063, lng: 106.14173, code: "PGK" },
+  { name: "Bandar Udara H.AS. Hanandjoeddin / Tanjung Pandan (TJQ)", lat: -2.74528, lng: 107.75472, code: "TJQ" },
 ];
+
 
 // Initialize application when loaded
 window.addEventListener('DOMContentLoaded', async () => {

@@ -139,8 +139,24 @@ Key locations (lowercase string → `[lat, lng]`):
 - PT TGI pipeline stations: `"pl bayung"`, `"pl muaro jambi"`, `"pl kaos"`, `"pl sekernan"`, `"pl jabung"`, `"pl ro grissik"`
 - Major cities: `"jambi"`, `"palembang"`, `"bengkulu"`, `"padang"`, `"bangka"`, `"belitung"`, `"bungo"`, etc.
 
-### `REGION_AIRPORTS` — 6 airports for KKOP visualization
-PDG (Minangkabau), RKI (Rokot), BKS (Fatmawati), DJB (Sultan Thaha), PLM (SMB II Palembang), PGK (Depati Amir). Each drawn as a 5km red dashed ring.
+### `REGION_AIRPORTS` — All 13 airports under OTBAN Wilayah VI authority
+| Code | Name | Province | Lat | Lng |
+|------|------|----------|-----|-----|
+| PDG | Minangkabau Intl | Sumatera Barat | -0.787999 | 100.28677 |
+| RKI | Rokot Sipora | Sumatera Barat | -2.09910 | 99.70580 |
+| KRC | Depati Parbo, Kerinci | Sumatera Barat | -2.09222 | 101.46806 |
+| MPC | Muko-Muko | Bengkulu | -2.53972 | 101.08778 |
+| BKS | Fatmawati Soekarno, Bengkulu | Bengkulu | -3.86128 | 102.33967 |
+| ENE | Enggano | Bengkulu | -5.85972 | 102.39444 |
+| DJB | Sultan Thaha, Jambi | Jambi | -1.63506 | 103.64601 |
+| BUU | Muara Bungo | Jambi | -1.12778 | 102.13472 |
+| PLM | SMB II, Palembang | Sumatera Selatan | -2.89615 | 104.70697 |
+| PXA | Atung Bungsu, Pagar Alam | Sumatera Selatan | -4.02750 | 103.25000 |
+| LLJ | Silampari, Lubuk Linggau | Sumatera Selatan | -3.26278 | 103.12028 |
+| PGK | Depati Amir, Pangkal Pinang | Babel | -2.16063 | 106.14173 |
+| TJQ | H.AS. Hanandjoeddin, Tanjung Pandan | Babel | -2.74528 | 107.75472 |
+
+Each drawn as a **5 km red dashed ring** on the Leaflet map. All 13 are checked in `runComplianceChecks()` for KKOP proximity.
 
 ### `getEmergencyTower(location)` — AirNav tower routing
 Maps location string to nearest tower + phone:
