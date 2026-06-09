@@ -2218,7 +2218,42 @@ function processTelemetryCsv(file) {
       const maxAgl = Math.max(...aglData);
       const maxAmsl = Math.max(...amslData);
       const duration = timeData[timeData.length - 1];
-      const avgSpeed = speedData.reduce((a, b) => a + b, 0) / speedData.length;
+
+      // Find takeoff and landing indices to calculate average values during flight phase (takeoff to landing)
+      let startIdx = 0;
+      let endIdx = aglData.length - 1;
+
+      // Find first point where AGL > 5 (takeoff)
+      for (let i = 0; i < aglData.length; i++) {
+        if (aglData[i] > 5) {
+          startIdx = i;
+          break;
+        }
+      }
+
+      // Find last point where AGL > 5 (landing)
+      for (let i = aglData.length - 1; i >= startIdx; i--) {
+        if (aglData[i] > 5) {
+          endIdx = i;
+          break;
+        }
+      }
+
+      const flightSpeedSlice = speedData.slice(startIdx, endIdx + 1);
+      const flightAglSlice = aglData.slice(startIdx, endIdx + 1);
+      const flightAmslSlice = amslData.slice(startIdx, endIdx + 1);
+
+      const avgSpeed = flightSpeedSlice.length > 0
+        ? flightSpeedSlice.reduce((a, b) => a + b, 0) / flightSpeedSlice.length
+        : (speedData.reduce((a, b) => a + b, 0) / speedData.length || 0);
+
+      const avgAgl = flightAglSlice.length > 0
+        ? flightAglSlice.reduce((a, b) => a + b, 0) / flightAglSlice.length
+        : (aglData.reduce((a, b) => a + b, 0) / aglData.length || 0);
+
+      const avgAmsl = flightAmslSlice.length > 0
+        ? flightAmslSlice.reduce((a, b) => a + b, 0) / flightAmslSlice.length
+        : (amslData.reduce((a, b) => a + b, 0) / amslData.length || 0);
 
       // Save parsed CSV structure globally
       uploadedCsvFile = file;
@@ -2234,6 +2269,8 @@ function processTelemetryCsv(file) {
         maxAmsl,
         duration,
         avgSpeed,
+        avgAgl,
+        avgAmsl,
         hasAgl: aglIdx !== -1,
         hasAmsl: amslIdx !== -1,
         date: dateVal,
@@ -2241,7 +2278,7 @@ function processTelemetryCsv(file) {
       };
 
       // Show results in UI
-      showTelemetryFileInfo(file.name, timeData.length, filteredPreFlight, maxSpeed, maxAgl, maxAmsl, duration, avgSpeed);
+      showTelemetryFileInfo(file.name, timeData.length, filteredPreFlight, maxSpeed, maxAgl, maxAmsl, duration, avgSpeed, avgAgl, avgAmsl);
       renderTelemetryChart(timeData, speedData, aglData, amslData, aglIdx !== -1, amslIdx !== -1);
       updateTelemetryAnalyzerUI();
 
@@ -2253,7 +2290,7 @@ function processTelemetryCsv(file) {
   reader.readAsText(file);
 }
 
-function showTelemetryFileInfo(filename, points, filtered, maxSpeed, maxAgl, maxAmsl, duration, avgSpeed) {
+function showTelemetryFileInfo(filename, points, filtered, maxSpeed, maxAgl, maxAmsl, duration, avgSpeed, avgAgl, avgAmsl) {
   // Hide drop zone, show info
   document.getElementById('telemetry-csv-drop-zone').classList.add('hidden');
   const infoEl = document.getElementById('telemetry-csv-file-info');
@@ -2266,25 +2303,28 @@ function showTelemetryFileInfo(filename, points, filtered, maxSpeed, maxAgl, max
   // Summary stats row
   const summaryRow = document.getElementById('telemetry-summary-row');
   summaryRow.innerHTML = `
-    <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 text-center">
-      <div class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Flight Duration</div>
-      <div class="text-lg font-bold text-indigo-700 mt-1">${duration.toFixed(2)}</div>
-      <div class="text-[9px] text-gray-400">minutes</div>
+    <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 text-center shadow-sm">
+      <div class="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Flight Duration</div>
+      <div class="text-lg font-extrabold text-indigo-700 mt-1">${duration.toFixed(2)}</div>
+      <div class="text-[9px] text-gray-400 font-medium">minutes</div>
     </div>
-    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-3 text-center">
-      <div class="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Max Speed</div>
-      <div class="text-lg font-bold text-orange-600 mt-1">${maxSpeed.toFixed(1)}</div>
-      <div class="text-[9px] text-gray-400">knots</div>
+    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-3 text-center shadow-sm flex flex-col justify-between">
+      <div class="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Speed Profile</div>
+      <div class="text-lg font-extrabold text-orange-600 mt-1">${maxSpeed.toFixed(1)} <span class="text-[10px] font-semibold text-gray-400">max</span></div>
+      <div class="text-[10px] text-orange-700 font-bold mt-1">Avg: ${avgSpeed.toFixed(1)} kts</div>
+      <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
     </div>
-    <div class="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-center">
-      <div class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Max Altitude AGL</div>
-      <div class="text-lg font-bold text-sky-600 mt-1">${maxAgl.toFixed(0)}</div>
-      <div class="text-[9px] text-gray-400">feet</div>
+    <div class="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-center shadow-sm flex flex-col justify-between">
+      <div class="text-[10px] font-bold text-sky-500 uppercase tracking-wider">Altitude AGL</div>
+      <div class="text-lg font-extrabold text-sky-600 mt-1">${maxAgl.toFixed(0)} <span class="text-[10px] font-semibold text-gray-400">max</span></div>
+      <div class="text-[10px] text-sky-700 font-bold mt-1">Avg: ${avgAgl.toFixed(0)} ft</div>
+      <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
     </div>
-    <div class="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center">
-      <div class="text-[10px] font-bold text-violet-400 uppercase tracking-wider">Max Altitude AMSL</div>
-      <div class="text-lg font-bold text-violet-600 mt-1">${maxAmsl.toFixed(0)}</div>
-      <div class="text-[9px] text-gray-400">feet</div>
+    <div class="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center shadow-sm flex flex-col justify-between">
+      <div class="text-[10px] font-bold text-violet-500 uppercase tracking-wider">Altitude AMSL</div>
+      <div class="text-lg font-extrabold text-violet-600 mt-1">${maxAmsl.toFixed(0)} <span class="text-[10px] font-semibold text-gray-400">max</span></div>
+      <div class="text-[10px] text-violet-700 font-bold mt-1">Avg: ${avgAmsl.toFixed(0)} ft</div>
+      <div class="text-[7.5px] text-gray-400 mt-0.5">(Takeoff to Landing)</div>
     </div>
   `;
 }
