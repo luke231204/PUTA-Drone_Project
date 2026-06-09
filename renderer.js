@@ -656,6 +656,14 @@ function renderInspector() {
             <span class="text-gray-500 font-semibold">Geofence:</span>
             <span id="log-geofence" class="font-bold"></span>
           </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-500 font-semibold">KKOP Corridor:</span>
+            <span id="log-kkop" class="font-bold"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-500 font-semibold">Time Compliance:</span>
+            <span id="log-time" class="font-bold"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -1222,6 +1230,128 @@ function runComplianceChecks() {
   
   flightLogData.geofenceCompliant = !geofenceBreached;
   flightLogData.breachCount = breachCount;
+
+  // 4. KKOP Airspace Buffer Proximity Auditing (Butir 2.2.2.a)
+  let kkopBreached = false;
+  const breachedAirports = [];
+  const authorizedAirports = [];
+
+  for (const pt of points) {
+    const lat = pt[0];
+    const lng = pt[1];
+    
+    for (const airport of REGION_AIRPORTS) {
+      const insideKkop = isPointInCircle([lat, lng], [airport.lat, airport.lng], 5000);
+      if (insideKkop) {
+        // Check if inside the permit boundaries
+        let insidePermit = false;
+        if (polygon && polygon.length > 0) {
+          insidePermit = isPointInPolygon([lat, lng], polygon);
+        } else {
+          const center = getCoordsFromLocation(selectedPermit.location);
+          if (center) {
+            insidePermit = isPointInCircle([lat, lng], center, 6000);
+          }
+        }
+
+        if (insidePermit) {
+          if (!authorizedAirports.includes(airport.code)) {
+            authorizedAirports.push(airport.code);
+          }
+        } else {
+          kkopBreached = true;
+          if (!breachedAirports.includes(airport.code)) {
+            breachedAirports.push(airport.code);
+          }
+        }
+      }
+    }
+  }
+
+  flightLogData.kkopBreached = kkopBreached;
+  flightLogData.breachedAirports = breachedAirports;
+  flightLogData.authorizedAirports = authorizedAirports;
+
+  // 5. Time Compliance (Daylight & Permit Time-Window Auditing (Butir 3.6 & 3.7))
+  let daylightBreached = false;
+  let permitTimeBreached = false;
+  let nightPointsCount = 0;
+  let outOfWindowPointsCount = 0;
+
+  const parsePermitTime = (tStr) => {
+    if (!tStr) return null;
+    const clean = tStr.split(' ')[0].replace('.', ':');
+    const parts = clean.split(':').map(Number);
+    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return { hours: parts[0], minutes: parts[1] };
+    }
+    return null;
+  };
+
+  const permitStart = parsePermitTime(selectedPermit.time_start);
+  const permitEnd = parsePermitTime(selectedPermit.time_end);
+
+  for (const pt of points) {
+    const timeVal = pt[4];
+    if (typeof timeVal === 'string') {
+      const localDate = parseTimeToLocal(timeVal);
+      if (localDate) {
+        const localHours = localDate.getHours();
+        const localMinutes = localDate.getMinutes();
+
+        // Daylight Check (06:00 - 18:00 local time)
+        if (localHours < 6 || localHours >= 18) {
+          daylightBreached = true;
+          nightPointsCount++;
+        }
+
+        // Permit Window Check
+        if (permitStart && permitEnd) {
+          const ptMin = localHours * 60 + localMinutes;
+          const startMin = permitStart.hours * 60 + permitStart.minutes;
+          const endMin = permitEnd.hours * 60 + permitEnd.minutes;
+          if (ptMin < startMin || ptMin > endMin) {
+            permitTimeBreached = true;
+            outOfWindowPointsCount++;
+          }
+        }
+      }
+    }
+  }
+
+  flightLogData.daylightBreached = daylightBreached;
+  flightLogData.permitTimeBreached = permitTimeBreached;
+  flightLogData.nightPointsCount = nightPointsCount;
+  flightLogData.outOfWindowPointsCount = outOfWindowPointsCount;
+}
+
+function parseTimeToLocal(timeVal) {
+  // Handles standard date time format "YYYY-MM-DD HH:MM:SS" (e.g. UTC timestamp from flight log)
+  if (timeVal.includes(' ') && timeVal.split(' ')[0].includes('-')) {
+    const parts = timeVal.split(' ');
+    const datePart = parts[0];
+    const timePart = parts[1];
+    // Treating as UTC by appending Z to convert to local PC timezone
+    const d = new Date(datePart + 'T' + timePart + 'Z');
+    if (!isNaN(d.getTime())) {
+      return d;
+    }
+  }
+  // Handles time only format "HH:MM:SS" or "HH:MM" (AM/PM optional)
+  const timeMatch = timeVal.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (timeMatch) {
+    let hours = parseInt(timeMatch[1]);
+    const minutes = parseInt(timeMatch[2]);
+    const ampm = timeMatch[4];
+    if (ampm) {
+      if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+      if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+    }
+    const d = new Date();
+    d.setHours(hours, minutes, 0, 0);
+    return d;
+  }
+  return null;
 }
 
 function isPointInCircle(point, center, radiusM) {
@@ -1291,6 +1421,39 @@ function updateEvaluationStatusUI() {
   const geoEl = document.getElementById('log-geofence');
   geoEl.textContent = flightLogData.geofenceCompliant ? "Compliant (100% in bounds)" : `Breached (${flightLogData.breachCount} points out)`;
   geoEl.className = flightLogData.geofenceCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600 animate-pulse";
+
+  // KKOP Status UI
+  const kkopEl = document.getElementById('log-kkop');
+  if (kkopEl) {
+    if (flightLogData.kkopBreached) {
+      kkopEl.textContent = `Breached (outside permit in ${flightLogData.breachedAirports.join(', ')} KKOP)`;
+      kkopEl.className = "font-bold text-red-600 animate-pulse";
+    } else if (flightLogData.authorizedAirports && flightLogData.authorizedAirports.length > 0) {
+      kkopEl.textContent = `Authorized KKOP (${flightLogData.authorizedAirports.join(', ')})`;
+      kkopEl.className = "font-bold text-emerald-600";
+    } else {
+      kkopEl.textContent = "Compliant (Clear of KKOP)";
+      kkopEl.className = "font-bold text-emerald-600";
+    }
+  }
+
+  // Time Compliance UI
+  const timeEl = document.getElementById('log-time');
+  if (timeEl) {
+    if (flightLogData.daylightBreached && flightLogData.permitTimeBreached) {
+      timeEl.textContent = `Breached (Night flight & Out of permit window)`;
+      timeEl.className = "font-bold text-red-600 animate-pulse";
+    } else if (flightLogData.daylightBreached) {
+      timeEl.textContent = `Breached (Night flight)`;
+      timeEl.className = "font-bold text-red-600 animate-pulse";
+    } else if (flightLogData.permitTimeBreached) {
+      timeEl.textContent = `Breached (Out of permit window)`;
+      timeEl.className = "font-bold text-red-600 animate-pulse";
+    } else {
+      timeEl.textContent = "Compliant (Daylight & within window)";
+      timeEl.className = "font-bold text-emerald-600";
+    }
+  }
 }
 
 
