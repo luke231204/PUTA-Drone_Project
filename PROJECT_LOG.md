@@ -140,21 +140,21 @@ Key locations (lowercase string → `[lat, lng]`):
 - Major cities: `"jambi"`, `"palembang"`, `"bengkulu"`, `"padang"`, `"bangka"`, `"belitung"`, `"bungo"`, etc.
 
 ### `REGION_AIRPORTS` — All 13 airports under OTBAN Wilayah VI authority
-| Code | Name | Province | Lat | Lng |
-|------|------|----------|-----|-----|
-| PDG | Minangkabau Intl | Sumatera Barat | -0.787999 | 100.28677 |
-| RKI | Rokot Sipora | Sumatera Barat | -2.09910 | 99.70580 |
-| KRC | Depati Parbo, Kerinci | Sumatera Barat | -2.09222 | 101.46806 |
-| MPC | Muko-Muko | Bengkulu | -2.53972 | 101.08778 |
-| BKS | Fatmawati Soekarno, Bengkulu | Bengkulu | -3.86128 | 102.33967 |
-| ENE | Enggano | Bengkulu | -5.85972 | 102.39444 |
-| DJB | Sultan Thaha, Jambi | Jambi | -1.63506 | 103.64601 |
-| BUU | Muara Bungo | Jambi | -1.12778 | 102.13472 |
-| PLM | SMB II, Palembang | Sumatera Selatan | -2.89615 | 104.70697 |
-| PXA | Atung Bungsu, Pagar Alam | Sumatera Selatan | -4.02750 | 103.25000 |
-| LLJ | Silampari, Lubuk Linggau | Sumatera Selatan | -3.26278 | 103.12028 |
-| PGK | Depati Amir, Pangkal Pinang | Babel | -2.16063 | 106.14173 |
-| TJQ | H.AS. Hanandjoeddin, Tanjung Pandan | Babel | -2.74528 | 107.75472 |
+| Code | ICAO | Name | Province | Lat | Lng |
+|------|------|------|----------|-----|-----|
+| PDG | WIEE | Minangkabau Intl | Sumatera Barat | -0.786670 | 100.280560 |
+| RKI | WIBR | Rokot Sipora | Sumatera Barat | -2.099058 | 99.705758 |
+| KRC | WIJI | Depati Parbo, Kerinci | Jambi | -2.094231 | 101.470808 |
+| MPC | WIPU | Muko-Muko | Bengkulu | -2.541092 | 101.088678 |
+| BKS | WIGG | Fatmawati Soekarno | Bengkulu | -3.861280 | 102.339670 |
+| ENG | WIGE | Enggano | Bengkulu | -5.306639 | 102.189564 |
+| DJB | WIJJ | Sultan Thaha | Jambi | -1.635060 | 103.646010 |
+| BUU | WIJB | Muara Bungo | Jambi | -1.543333 | 102.178611 |
+| PLM | WIPP | SMB II Palembang | Sumatera Selatan | -2.896150 | 104.706970 |
+| PXA | WIPY | Atung Bungsu, Pagar Alam | Sumatera Selatan | -4.024300 | 103.379170 |
+| LLJ | WIPB | Silampari, Lubuk Linggau | Sumatera Selatan | -3.280000 | 102.917200 |
+| PGK | WIPK | Depati Amir | Kepulauan Bangka Belitung | -2.160630 | 106.141730 |
+| TJQ | WIKT | H.AS. Hanandjoeddin | Kepulauan Bangka Belitung | -2.745280 | 107.753060 |
 
 Each drawn as a **5 km red dashed ring** on the Leaflet map. All 13 are checked in `runComplianceChecks()` for KKOP proximity.
 
@@ -223,7 +223,16 @@ Scans `6. KOBU VI - PADANG/2024`, `/2025`, and root for 2026. For each PDF:
 
 ---
 
-## 12. How to Start Each New Session Efficiently
+## 12. Interactive Airport Profiles & Proximity Filtering
+
+Interactive OTBAN airport specifications are integrated directly into the Leaflet map and Right Sidebar Drawer Inspector:
+- **Map Interaction**: Clicking any of the 13 airport KKOP rings or their custom center badge markers (showing IATA codes) displays detailed airport profiles.
+- **Airport Specifications**: Displays operator, classification, runway sizes/surface/heading, elevations, radio frequencies, and AirNav emergency contact phone numbers.
+- **Proximity Filtering**: Proximity checks (Haversine formula) let users filter permits located within 25 km of the selected airport. Shows a clearable blue filter banner above the permits list.
+
+---
+
+## 13. How to Start Each New Session Efficiently
 
 Start your message with:
 ```

@@ -4,6 +4,9 @@ let selectedPermit = null;
 let map = null;
 let polygonLayers = {};
 let kkopLayers = [];
+let selectedAirport = null;
+let currentNearAirportFilter = null;
+let airportLayers = {};
 let countdownInterval = null;
 let currentYearFilter = 'All';
 let currentStatusFilter = 'All'; // 'All', 'ACTIVE', 'PENDING', or 'EXPIRED'
@@ -150,23 +153,205 @@ function getEmergencyTower(locationStr) {
 // Coordinates verified against resmi kemenhub.go.id (Indonesian Directorate General of Civil Aviation)
 const REGION_AIRPORTS = [
   // --- Sumatera Barat ---
-  { name: "Bandar Udara Internasional Minangkabau (PDG)", lat: -0.786670, lng: 100.28056, code: "PDG" }, // ICAO: WIEE
-  { name: "Bandar Udara Rokot Sipora (RKI)",              lat: -2.099058, lng: 99.705758, code: "RKI" }, // ICAO: WIBR
-  { name: "Bandar Udara Kerinci / Depati Parbo (KRC)",    lat: -2.094231, lng: 101.470808, code: "KRC" }, // ICAO: WIPH
-  { name: "Bandar Udara Muko-Muko (MPC)",                 lat: -2.541092, lng: 101.088678, code: "MPC" }, // ICAO: WIGM
+  {
+    name: "Bandar Udara Internasional Minangkabau (PDG)",
+    lat: -0.786670,
+    lng: 100.28056,
+    code: "PDG",
+    icao: "WIEE",
+    province: "Sumatera Barat",
+    runway: "Runway 15/33, 3,000m x 45m, Asphalt",
+    elevation: "16 ft (5 m) AMSL",
+    operator: "PT Angkasa Pura II",
+    frequency: "Minangkabau Tower: 118.1 MHz",
+    emergencyName: "AirNav Padang Tower",
+    emergencyPhone: "+62 (751) 81920",
+    class: "Class I International"
+  },
+  {
+    name: "Bandar Udara Rokot Sipora (RKI)",
+    lat: -2.099058,
+    lng: 99.705758,
+    code: "RKI",
+    icao: "WIBR",
+    province: "Sumatera Barat",
+    runway: "Runway 12/30, 1,500m x 30m, Asphalt",
+    elevation: "26 ft (8 m) AMSL",
+    operator: "UPT Ditjen Hubud (Kemenhub)",
+    frequency: "Sipora Radio: 122.3 MHz",
+    emergencyName: "AirNav Padang Tower",
+    emergencyPhone: "+62 (751) 81920",
+    class: "Class III Domestic"
+  },
+  {
+    name: "Bandar Udara Kerinci / Depati Parbo (KRC)",
+    lat: -2.094231,
+    lng: 101.470808,
+    code: "KRC",
+    icao: "WIJI",
+    province: "Jambi",
+    runway: "Runway 12/30, 1,800m x 30m, Asphalt",
+    elevation: "2,607 ft (795 m) AMSL",
+    operator: "UPT Ditjen Hubud (Kemenhub)",
+    frequency: "Kerinci Radio: 122.2 MHz",
+    emergencyName: "AirNav Jambi Tower",
+    emergencyPhone: "+62 (741) 57321",
+    class: "Class III Domestic"
+  },
+  {
+    name: "Bandar Udara Muko-Muko (MPC)",
+    lat: -2.541092,
+    lng: 101.088678,
+    code: "MPC",
+    icao: "WIPU",
+    province: "Bengkulu",
+    runway: "Runway 16/34, 1,400m x 30m, Asphalt",
+    elevation: "27 ft (8 m) AMSL",
+    operator: "UPT Ditjen Hubud (Kemenhub)",
+    frequency: "Muko-Muko Radio: 122.3 MHz",
+    emergencyName: "AirNav Bengkulu Tower",
+    emergencyPhone: "+62 (736) 21014",
+    class: "Class III Domestic"
+  },
   // --- Bengkulu ---
-  { name: "Bandar Udara Fatmawati Soekarno (BKS)",        lat: -3.861280, lng: 102.339670, code: "BKS" }, // ICAO: WIGG
-  { name: "Bandar Udara Enggano (ENG)",                   lat: -5.306639, lng: 102.189564, code: "ENG" }, // ICAO: WIGE
+  {
+    name: "Bandar Udara Fatmawati Soekarno (BKS)",
+    lat: -3.861280,
+    lng: 102.339670,
+    code: "BKS",
+    icao: "WIGG",
+    province: "Bengkulu",
+    runway: "Runway 13/31, 2,239m x 45m, Asphalt",
+    elevation: "50 ft (15 m) AMSL",
+    operator: "PT Angkasa Pura II",
+    frequency: "Fatmawati Tower: 118.1 MHz",
+    emergencyName: "AirNav Bengkulu Tower",
+    emergencyPhone: "+62 (736) 21014",
+    class: "Class I Domestic"
+  },
+  {
+    name: "Bandar Udara Enggano (ENG)",
+    lat: -5.306639,
+    lng: 102.189564,
+    code: "ENG",
+    icao: "WIGE",
+    province: "Bengkulu",
+    runway: "Runway 11/29, 1,600m x 30m, Asphalt",
+    elevation: "47 ft (14 m) AMSL",
+    operator: "UPT Ditjen Hubud (Kemenhub)",
+    frequency: "Enggano Radio: 122.1 MHz",
+    emergencyName: "AirNav Bengkulu Tower",
+    emergencyPhone: "+62 (736) 21014",
+    class: "Class III Domestic / Satker"
+  },
   // --- Jambi ---
-  { name: "Bandar Udara Sultan Thaha (DJB)",              lat: -1.635060, lng: 103.646010, code: "DJB" }, // ICAO: WIPA
-  { name: "Bandar Udara Muara Bungo (BUU)",               lat: -1.543333, lng: 102.178611, code: "BUU" }, // ICAO: WIJB
+  {
+    name: "Bandar Udara Sultan Thaha (DJB)",
+    lat: -1.635060,
+    lng: 103.646010,
+    code: "DJB",
+    icao: "WIJJ",
+    province: "Jambi",
+    runway: "Runway 13/31, 2,602m x 45m, Asphalt",
+    elevation: "85 ft (26 m) AMSL",
+    operator: "PT Angkasa Pura II",
+    frequency: "Sultan Thaha Tower: 118.1 MHz",
+    emergencyName: "AirNav Jambi Tower",
+    emergencyPhone: "+62 (741) 57321",
+    class: "Class I Domestic"
+  },
+  {
+    name: "Bandar Udara Muara Bungo (BUU)",
+    lat: -1.543333,
+    lng: 102.178611,
+    code: "BUU",
+    icao: "WIJB",
+    province: "Jambi",
+    runway: "Runway 13/31, 2,100m x 30m, Asphalt",
+    elevation: "195 ft (59 m) AMSL",
+    operator: "UPT Ditjen Hubud (Kemenhub)",
+    frequency: "Bungo Radio: 122.4 MHz",
+    emergencyName: "AirNav Jambi Tower",
+    emergencyPhone: "+62 (741) 57321",
+    class: "Class III Domestic"
+  },
   // --- Sumatera Selatan ---
-  { name: "Bandar Udara Internasional Sultan Mahmud Badaruddin II (PLM)", lat: -2.896150, lng: 104.706970, code: "PLM" }, // ICAO: WIPP
-  { name: "Bandar Udara Atung Bungsu / Pagar Alam (PXA)", lat: -4.024300, lng: 103.379170, code: "PXA" }, // ICAO: WIPY
-  { name: "Bandar Udara Silampari / Lubuk Linggau (LLJ)", lat: -3.280000, lng: 102.917200, code: "LLJ" }, // ICAO: WIPB
+  {
+    name: "Bandar Udara Internasional Sultan Mahmud Badaruddin II (PLM)",
+    lat: -2.896150,
+    lng: 104.706970,
+    code: "PLM",
+    icao: "WIPP",
+    province: "Sumatera Selatan",
+    runway: "Runway 11/29, 3,000m x 45m, Asphalt",
+    elevation: "33 ft (10 m) AMSL",
+    operator: "PT Angkasa Pura II",
+    frequency: "Palembang Tower: 118.1 MHz",
+    emergencyName: "AirNav Palembang Tower",
+    emergencyPhone: "+62 (711) 385006",
+    class: "Class I International"
+  },
+  {
+    name: "Bandar Udara Atung Bungsu / Pagar Alam (PXA)",
+    lat: -4.024300,
+    lng: 103.379170,
+    code: "PXA",
+    icao: "WIPY",
+    province: "Sumatera Selatan",
+    runway: "Runway 06/24, 1,500m x 30m, Asphalt",
+    elevation: "2,093 ft (638 m) AMSL",
+    operator: "UPT Ditjen Hubud (Kemenhub)",
+    frequency: "Atung Bungsu Radio: 122.3 MHz",
+    emergencyName: "AirNav Palembang Tower",
+    emergencyPhone: "+62 (711) 385006",
+    class: "Class III Domestic"
+  },
+  {
+    name: "Bandar Udara Silampari / Lubuk Linggau (LLJ)",
+    lat: -3.280000,
+    lng: 102.917200,
+    code: "LLJ",
+    icao: "WIPB",
+    province: "Sumatera Selatan",
+    runway: "Runway 02/20, 2,220m x 30m, Asphalt",
+    elevation: "410 ft (125 m) AMSL",
+    operator: "UPT Ditjen Hubud (Kemenhub)",
+    frequency: "Silampari Radio: 122.2 MHz",
+    emergencyName: "AirNav Palembang Tower",
+    emergencyPhone: "+62 (711) 385006",
+    class: "Class III Domestic"
+  },
   // --- Kepulauan Bangka Belitung ---
-  { name: "Bandar Udara Depati Amir / Pangkal Pinang (PGK)", lat: -2.160630, lng: 106.141730, code: "PGK" }, // ICAO: WIPK
-  { name: "Bandar Udara H.AS. Hanandjoeddin / Tanjung Pandan (TJQ)", lat: -2.745280, lng: 107.753060, code: "TJQ" }, // ICAO: WIKT
+  {
+    name: "Bandar Udara Depati Amir / Pangkal Pinang (PGK)",
+    lat: -2.160630,
+    lng: 106.141730,
+    code: "PGK",
+    icao: "WIPK",
+    province: "Kepulauan Bangka Belitung",
+    runway: "Runway 16/34, 2,250m x 45m, Asphalt",
+    elevation: "108 ft (33 m) AMSL",
+    operator: "PT Angkasa Pura II",
+    frequency: "Depati Amir Tower: 118.1 MHz",
+    emergencyName: "AirNav Pangkal Pinang Tower",
+    emergencyPhone: "+62 (717) 422081",
+    class: "Class I Domestic"
+  },
+  {
+    name: "Bandar Udara H.AS. Hanandjoeddin / Tanjung Pandan (TJQ)",
+    lat: -2.745280,
+    lng: 107.753060,
+    code: "TJQ",
+    icao: "WIKT",
+    province: "Kepulauan Bangka Belitung",
+    runway: "Runway 15/33, 2,400m x 45m, Asphalt",
+    elevation: "161 ft (49 m) AMSL",
+    operator: "PT Angkasa Pura II",
+    frequency: "Hanandjoeddin Tower: 118.2 MHz",
+    emergencyName: "AirNav Tanjung Pandan Tower",
+    emergencyPhone: "+62 (719) 21010",
+    class: "Class I Domestic"
+  }
 ];
 
 
@@ -223,23 +408,43 @@ function initMap() {
     });
   }
 
-  // Plot KKOP Airport Safety zones (red border rings)
+  // Plot KKOP Airport Safety zones (red border rings) & Interactive IATA code badges
   REGION_AIRPORTS.forEach(airport => {
     // 5km Ring (No Fly Zone buffer)
     const nfzRing = L.circle([airport.lat, airport.lng], {
       color: '#ef4444',
       fillColor: '#ef4444',
-      fillOpacity: 0.1,
+      fillOpacity: 0.08,
       weight: 1.5,
       dashArray: '4, 4',
       radius: 5000 // 5 kilometers
     }).addTo(map);
 
-    // Bind basic popup info
-    nfzRing.bindPopup(`<strong class="text-red-400 font-bold">${airport.name}</strong><br/>
-      <span class="text-xs text-gray-400">KKOP Critical Buffer: Strict Drone Restriction Zone (5 km)</span>`);
+    // Create a beautiful custom HTML marker with the 3-letter IATA code
+    const airportIcon = L.divIcon({
+      html: `
+        <div class="flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-bold text-[9px] shadow-md shadow-red-500/20 border border-white hover:scale-110 active:scale-95 transition-all cursor-pointer">
+          ${airport.code}
+        </div>`,
+      className: 'custom-airport-icon',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+
+    const marker = L.marker([airport.lat, airport.lng], { icon: airportIcon }).addTo(map);
+
+    const handleAirportClick = (e) => {
+      L.DomEvent.stopPropagation(e);
+      selectAirport(airport);
+    };
+
+    marker.on('click', handleAirportClick);
+    nfzRing.on('click', handleAirportClick);
+
+    airportLayers[airport.code] = { ring: nfzRing, marker: marker };
     
     kkopLayers.push(nfzRing);
+    kkopLayers.push(marker);
   });
 }
 
@@ -347,6 +552,44 @@ function setupEventListeners() {
   if (form) form.addEventListener('submit', handleAddPermitSubmit);
 }
 
+// Calculate distance in meters between two lat/lng coordinates (Haversine formula)
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // metres
+  const phi1 = lat1 * Math.PI / 180;
+  const phi2 = lat2 * Math.PI / 180;
+  const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+  const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+            Math.cos(phi1) * Math.cos(phi2) *
+            Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in metres
+}
+
+function isPermitNearAirport(permit, airport) {
+  let coords = null;
+  if (permit.coordinates && permit.coordinates.length > 0) {
+    coords = permit.coordinates[0];
+  } else {
+    coords = getCoordsFromLocation(permit.location);
+  }
+  if (!coords) return false;
+  
+  const dist = getDistance(coords[0], coords[1], airport.lat, airport.lng);
+  return dist <= 25000; // 25 km radius
+}
+
+window.clearNearAirportFilter = function() {
+  currentNearAirportFilter = null;
+  const banner = document.getElementById('active-filters-banner');
+  if (banner) {
+    banner.classList.add('hidden');
+  }
+  renderDashboard();
+};
+
 // 3. Render list, stats and update map polygons
 function renderDashboard() {
   const query = document.getElementById('search-input').value.toLowerCase();
@@ -375,6 +618,11 @@ function renderDashboard() {
 
     // Apply Status Filter
     if (currentStatusFilter !== 'All' && status !== currentStatusFilter) return;
+
+    // Apply Proximity Filter if active
+    if (currentNearAirportFilter) {
+      if (!isPermitNearAirport(permit, currentNearAirportFilter)) return;
+    }
 
     // Apply Search Filter
     const matchesSearch = 
@@ -507,9 +755,57 @@ function renderDashboard() {
   }
 }
 
+// New functions for airport selection and highlighting
+function selectAirport(airport) {
+  selectedAirport = airport;
+  selectedPermit = null; // Clear selected permit
+  
+  // Highlight selected airport on map
+  highlightAirportOnMap(airport ? airport.code : null);
+  
+  renderDashboard(); // Updates dashboard list/map styles
+  renderInspector();  // Fills inspector panel with airport details
+  
+  if (airport) {
+    map.setView([airport.lat, airport.lng], 11, { animate: true, duration: 1 });
+  }
+}
+
+function highlightAirportOnMap(airportCode) {
+  // Reset all airport ring styles first
+  REGION_AIRPORTS.forEach(ap => {
+    const layers = airportLayers[ap.code];
+    if (layers) {
+      const isSelected = airportCode && ap.code === airportCode;
+      layers.ring.setStyle({
+        color: isSelected ? '#b45309' : '#ef4444', // brand gold when selected, red otherwise
+        fillColor: isSelected ? '#b45309' : '#ef4444',
+        fillOpacity: isSelected ? 0.2 : 0.08,
+        weight: isSelected ? 3 : 1.5,
+        dashArray: isSelected ? '0' : '4, 4'
+      });
+      
+      const markerEl = layers.marker.getElement();
+      if (markerEl) {
+        const div = markerEl.querySelector('.flex');
+        if (div) {
+          if (isSelected) {
+            div.className = "flex items-center justify-center w-9 h-9 rounded-full bg-[#b45309] text-white font-extrabold text-[10px] shadow-lg shadow-amber-700/40 border border-white scale-110 transition-all cursor-pointer";
+          } else {
+            div.className = "flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-bold text-[9px] shadow-md shadow-red-500/20 border border-white hover:scale-110 active:scale-95 transition-all cursor-pointer";
+          }
+        }
+      }
+    }
+  });
+}
+
 // 4. Select Card and Pan Map to Coordinates
 function selectPermitCard(permit) {
   selectedPermit = permit;
+  selectedAirport = null; // Clear selected airport
+  highlightAirportOnMap(null); // Reset airport highlights
+  
   renderDashboard(); // Updates list styles and map weights
   renderInspector();  // Fills inspector panel details
 
@@ -523,10 +819,165 @@ function selectPermitCard(permit) {
   }
 }
 
+function renderAirportInspector(airport) {
+  const panel = document.getElementById('inspector-panel');
+  panel.innerHTML = `
+    <!-- Top Details Title -->
+    <div class="p-6 border-b border-black/5 space-y-4">
+      <div class="flex justify-between items-start gap-1">
+        <div class="flex flex-wrap gap-1">
+          <span class="border border-[#b45309]/20 bg-amber-50 text-[#b45309] px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider">
+            OTBAN Wilayah VI
+          </span>
+          <span class="border border-red-200 bg-red-50 text-red-700 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider">
+            KKOP 5km Zone
+          </span>
+        </div>
+        <button id="close-airport-inspector" class="text-gray-400 hover:text-gray-600 transition-colors shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div>
+        <h2 class="text-base font-extrabold text-gray-900">${airport.name}</h2>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-xs font-mono font-bold">IATA: ${airport.code}</span>
+          <span class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-xs font-mono font-bold">ICAO: ${airport.icao}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details Content Scroll Area -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+      <!-- Specification Table Grid -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Technical Specifications</h3>
+        <div class="bg-gray-50 rounded-2xl p-4 border border-black/5 space-y-3 text-xs">
+          <div class="flex justify-between">
+            <span class="text-gray-400 font-medium">Operator</span>
+            <span class="font-bold text-gray-800 text-right">${airport.operator}</span>
+          </div>
+          <div class="border-t border-black/5 pt-2 flex justify-between">
+            <span class="text-gray-400 font-medium">Classification</span>
+            <span class="font-bold text-gray-800 text-right">${airport.class}</span>
+          </div>
+          <div class="border-t border-black/5 pt-2 flex justify-between">
+            <span class="text-gray-400 font-medium">Runway</span>
+            <span class="font-bold text-gray-800 text-right">${airport.runway}</span>
+          </div>
+          <div class="border-t border-black/5 pt-2 flex justify-between">
+            <span class="text-gray-400 font-medium">Elevation</span>
+            <span class="font-bold text-gray-800 text-right">${airport.elevation}</span>
+          </div>
+          <div class="border-t border-black/5 pt-2 flex justify-between">
+            <span class="text-gray-400 font-medium">Coordinates</span>
+            <span class="font-mono font-bold text-gray-700 text-right">${airport.lat.toFixed(6)}, ${airport.lng.toFixed(6)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Communications & Contacts -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Communications & Support</h3>
+        <div class="bg-indigo-50/50 border border-indigo-500/10 rounded-2xl p-4 space-y-3 text-xs">
+          <div class="flex justify-between items-center">
+            <span class="text-indigo-600/70 font-semibold">Radio / Tower</span>
+            <span class="font-extrabold text-indigo-950">${airport.frequency}</span>
+          </div>
+          <div class="border-t border-indigo-500/10 pt-2 flex justify-between items-center">
+            <span class="text-indigo-600/70 font-semibold">Emergency Tower</span>
+            <span class="font-extrabold text-indigo-950">${airport.emergencyName || 'AirNav Tower'}</span>
+          </div>
+          <div class="border-t border-indigo-500/10 pt-2 flex justify-between items-center">
+            <span class="text-indigo-600/70 font-semibold">Contact Phone</span>
+            <a href="tel:${airport.emergencyPhone.replace(/\s+/g, '')}" class="font-extrabold text-indigo-700 hover:underline flex items-center gap-1 select-all">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+              </svg>
+              ${airport.emergencyPhone}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- KKOP Notice -->
+      <div class="p-4 bg-red-50/60 border border-red-500/10 rounded-2xl text-xs space-y-1.5">
+        <h4 class="font-bold text-red-800 flex items-center gap-1">
+          <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          KKOP Safety Regulation Zone
+        </h4>
+        <p class="text-red-700/80 leading-relaxed font-medium">
+          Drones are strictly prohibited inside the 5 km lateral buffer zone without prior official approval from the Ministry of Transportation (KKOP compliance PM 37/2020). Unauthorized operations constitute an airspace safety breach.
+        </p>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="space-y-3 pt-2">
+        <h3 class="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Quick GIS Actions</h3>
+        <div class="flex flex-col gap-2">
+          <button id="btn-focus-airport" class="w-full bg-[#f5f5f7] hover:bg-black/5 text-[#1d1d1f] font-bold py-2.5 rounded-2xl text-xs border border-black/5 transition-all active:scale-95 flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            Focus & Zoom on Map
+          </button>
+          
+          <button id="btn-filter-near-permits" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-2xl text-xs shadow-md shadow-emerald-600/10 transition-all active:scale-95 flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+            </svg>
+            Filter Permits Nearby (25 km)
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Attach event listeners for airport actions
+  const btnCloseAp = document.getElementById('close-airport-inspector');
+  if (btnCloseAp) {
+    btnCloseAp.addEventListener('click', () => {
+      selectAirport(null);
+    });
+  }
+  
+  const btnFocusAp = document.getElementById('btn-focus-airport');
+  if (btnFocusAp) {
+    btnFocusAp.addEventListener('click', () => {
+      map.setView([airport.lat, airport.lng], 14, { animate: true, duration: 1.5 });
+    });
+  }
+
+  const btnFilterNear = document.getElementById('btn-filter-near-permits');
+  if (btnFilterNear) {
+    btnFilterNear.addEventListener('click', () => {
+      currentNearAirportFilter = airport;
+      const banner = document.getElementById('active-filters-banner');
+      if (banner) {
+        banner.innerHTML = `
+          <span>Filtered near <strong>${airport.code}</strong> (25km)</span>
+          <button onclick="clearNearAirportFilter()" class="hover:text-red-500 font-extrabold uppercase text-[9px] tracking-wider transition-colors ml-2 shrink-0">Clear</button>
+        `;
+        banner.classList.remove('hidden');
+      }
+      renderDashboard();
+    });
+  }
+}
+
 // 5. Build selected permit inspection details & countdown timers
 function renderInspector() {
   const panel = document.getElementById('inspector-panel');
   if (countdownInterval) clearInterval(countdownInterval);
+
+  if (selectedAirport) {
+    renderAirportInspector(selectedAirport);
+    return;
+  }
 
   // Clear flight log data when permit selection changes (if the log was for a different permit)
   if (selectedPermit && (!flightLogData || flightLogData.permit_id !== selectedPermit.permit_id)) {
@@ -540,7 +991,11 @@ function renderInspector() {
   if (!selectedPermit) {
     panel.innerHTML = `
       <div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-500 gap-3">
-        <p class="text-sm font-semibold text-gray-400">No Permit Selected</p>
+        <svg class="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"></path>
+        </svg>
+        <p class="text-sm font-bold text-gray-500">No Target Selected</p>
+        <p class="text-xs text-gray-400">Select a drone permit from the sidebar, or click an airport on the map to inspect safety specifications.</p>
       </div>`;
     return;
   }
