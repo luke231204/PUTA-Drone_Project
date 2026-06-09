@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>WIKK VOR RWY 34 Approach Path</name>
+    <description>3D Sloping Approach Path from SADAI IAF to Runway 34 Threshold</description>
+
+    <Style id="approachStyle">
+      <LineStyle>
+        <color>ff00ffff</color> <width>4</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>5500ffff</color> </PolyStyle>
+    </Style>
+
+    <Style id="beaconStyle">
+      <IconStyle>
+        <color>ff0000ff</color> <scale>1.1</scale>
+      </IconStyle>
+    </Style>
+
+    <Placemark>
+      <name>PKP VOR/DME (114.2 MHz)</name>
+      <description>Depati Amir Airport Primary Navaid</description>
+      <styleUrl>#beaconStyle</styleUrl>
+      <Point>
+        <coordinates>106.142083,-2.167194,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>VOR RWY 34 Final Approach Path</name>
+      <styleUrl>#approachStyle</styleUrl>
+      <LineString>
+        <extrude>1</extrude> <tessellate>1</tessellate>
+        <altitudeMode>relativeToGround</altitudeMode>
+        <coordinates>
+          106.183694,-2.414722,914.4
+          
+          106.155389,-2.246417,487.7
+          
+          106.147583,-2.200139,335.3
+          
+          106.142083,-2.167194,0
+        </coordinates>
+      </LineString>
+    </Placemark>
+
+  </Document>
+</kml>

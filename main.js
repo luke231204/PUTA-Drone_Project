@@ -17,7 +17,7 @@ function createWindow() {
 
   // Load the dashboard layout
   mainWindow.loadFile('index.html');
-  
+
   // Watch for permits.json changes and reload window automatically
   const permitsPath = path.join(__dirname, 'data', 'permits.json');
   let watchTimeout;
@@ -135,3 +135,52 @@ ipcMain.handle('save-permit', async (event, newPermit) => {
     return { success: false, error: error.message };
   }
 });
+
+// IPC Handler to convert PDF/Image to KML
+ipcMain.handle('convert-to-kml', async (event, filePath) => {
+  const { execFile } = require('child_process');
+  const pythonScript = path.join(__dirname, 'convert_to_kml.py');
+
+  return new Promise((resolve) => {
+    execFile('python', [pythonScript, filePath], (error, stdout, stderr) => {
+      if (stderr) {
+        console.error("Python stderr:", stderr);
+      }
+      if (error) {
+        console.error("Exec error:", error);
+        resolve({ success: false, error: stderr || error.message });
+        return;
+      }
+
+      try {
+        const result = JSON.parse(stdout.trim());
+        resolve(result);
+      } catch (err) {
+        console.error("Failed to parse Python stdout:", stdout, err);
+        resolve({ success: false, error: "Parser output was not valid JSON: " + stdout });
+      }
+    });
+  });
+});
+
+// IPC Handler to load airport KML files
+ipcMain.handle('load-airport-kml', async () => {
+  const airportDir = path.join(__dirname, 'Airport', 'Depati Amir');
+  try {
+    if (fs.existsSync(airportDir)) {
+      const files = fs.readdirSync(airportDir);
+      const kmlFiles = files.filter(f => f.toLowerCase().endsWith('.kml'));
+      const results = kmlFiles.map(filename => {
+        const fullPath = path.join(airportDir, filename);
+        const content = fs.readFileSync(fullPath, 'utf8');
+        return { filename, content };
+      });
+      return { success: true, files: results };
+    }
+    return { success: false, error: "Airport/Depati Amir directory not found." };
+  } catch (error) {
+    console.error("Failed to load airport KML files:", error);
+    return { success: false, error: error.message };
+  }
+});
+

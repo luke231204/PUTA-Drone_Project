@@ -65,10 +65,9 @@ def extract_coordinates(text):
     """
     coords = []
     
-    # 1. Look for DMS coordinate patterns: degrees° minutes' seconds" Direction (LS/LU/BT/BB)
-    # E.g., 03° 15' 30" LS - 104° 30' 00" BT
+    # 1. Look for DMS coordinates (lenient symbols, allowing spaces or newlines as separator)
     dms_pattern = re.compile(
-        r'(\d+)\s*°\s*(\d+)\s*\'\s*(\d+(?:\.\d+)?)\s*"?\s*(LS|LU|S|N)\s*[-–—:]\s*(\d+)\s*°\s*(\d+)\s*\'\s*(\d+(?:\.\d+)?)\s*"?\s*(BT|BB|E|W)',
+        r'(\d+)\s*[°o*]?\s*(\d+)\s*\'?\s*(\d+(?:\.\d+)?)\s*"?\s*(LS|LU|S|N)\s*(?:[-–—:]|\s+)\s*(\d+)\s*[°o*]?\s*(\d+)\s*\'?\s*(\d+(?:\.\d+)?)\s*"?\s*(BT|BB|E|W)',
         re.IGNORECASE
     )
     

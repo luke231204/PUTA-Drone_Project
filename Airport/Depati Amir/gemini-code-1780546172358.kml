@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>WIKK VOR RWY 16 Approach Path</name>
+    <description>3D Sloping Approach Path from GUGID IAF to Runway 16 Threshold</description>
+
+    <Style id="approachStyle16">
+      <LineStyle>
+        <color>ff00aaff</color> <width>4</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>5500aaff</color> </PolyStyle>
+    </Style>
+
+    <Placemark>
+      <name>VOR RWY 16 Final Approach Path</name>
+      <styleUrl>#approachStyle16</styleUrl>
+      <LineString>
+        <extrude>1</extrude> <tessellate>1</tessellate>
+        <altitudeMode>relativeToGround</altitudeMode>
+        <coordinates>
+          106.073611,-1.925278,914.4
+          
+          106.091944,-1.989722,853.4
+          
+          106.116667,-2.079444,548.6
+          
+          106.132222,-2.135556,304.8
+          
+          106.142083,-2.167194,0
+        </coordinates>
+      </LineString>
+    </Placemark>
+
+  </Document>
+</kml>

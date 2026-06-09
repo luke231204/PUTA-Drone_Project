@@ -5,8 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PUTA-Monitor: Region VI Drone Permission Visualizer & Airspace Dashboard</title>
   
-  <!-- Leaflet GIS Map CSS -->
+  <!-- MapLibre GL JS (replaces Leaflet — supports real 3D pitch/tilt) -->
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  
+  <!-- Leaflet GIS Map CSS (restored for main dashboard) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
   
   <!-- Custom Styles -->
   <link rel="stylesheet" href="style.css" />
@@ -14,10 +18,11 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Chart.js, jsPDF, and html2canvas CDN libraries for flight evaluation and reporting -->
+  <!-- Chart.js and html2canvas CDN libraries for flight evaluation -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <!-- (Three.js removed — MapLibre GL JS handles real 3D natively) -->
   
   <!-- Custom Tailwind config for custom values -->
   <script>
@@ -80,6 +85,27 @@
         </div>
       </div>
       
+      <!-- Telemetry Analyzer Button -->
+      <button
+        onclick="openTelemetryAnalyzer()"
+        id="btn-telemetry-analyzer"
+        class="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs px-4 py-2.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95 shrink-0 flex items-center gap-1.5"
+      >
+        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        Telemetry Analyzer
+      </button>
+
+      <!-- KML Converter Button -->
+      <button id="btn-open-converter" class="bg-[#f5f5f7] hover:bg-black/5 text-[#1d1d1f] border border-black/5 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shrink-0">
+        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+        </svg>
+        KML Converter
+      </button>
+
       <!-- Sleek Apple-style blue + Add Permit button -->
       <button id="btn-add-permit" class="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#0071e3]/15 transition-all active:scale-95 shrink-0">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -108,12 +134,26 @@
           <input type="text" id="search-input" placeholder="Search operator, permit, or location..." class="w-full bg-[#e8e8ed]/80 border-none rounded-2xl pl-9 pr-4 py-2.5 text-sm text-[#1d1d1f] placeholder-gray-500 focus:outline-none focus:bg-[#e8e8ed] transition-colors" />
         </div>
         
-        <!-- Year filter tabs -->
-        <div class="flex bg-[#e8e8ed] p-0.5 rounded-2xl border-none text-xs text-center font-semibold text-gray-500">
-          <button id="tab-all" class="flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm">All</button>
-          <button id="tab-2026" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2026</button>
-          <button id="tab-2025" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2025</button>
-          <button id="tab-2024" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2024</button>
+        <div class="space-y-1">
+          <div class="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider pl-1">Operating Year</div>
+          <!-- Year filter tabs -->
+          <div class="flex bg-[#e8e8ed] p-0.5 rounded-2xl border-none text-[11px] text-center font-semibold text-gray-500">
+            <button id="tab-all" class="flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm">All</button>
+            <button id="tab-2026" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2026</button>
+            <button id="tab-2025" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2025</button>
+            <button id="tab-2024" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2024</button>
+          </div>
+        </div>
+        
+        <div class="space-y-1">
+          <div class="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider pl-1">Permit Status</div>
+          <!-- Status filter tabs -->
+          <div class="flex bg-[#e8e8ed] p-0.5 rounded-2xl border-none text-[11px] text-center font-semibold text-gray-500">
+            <button id="status-all" class="flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm">All</button>
+            <button id="status-active" class="flex-1 py-1.5 rounded-xl hover:text-emerald-700 transition-colors">Active</button>
+            <button id="status-pending" class="flex-1 py-1.5 rounded-xl hover:text-amber-700 transition-colors">Pending</button>
+            <button id="status-expired" class="flex-1 py-1.5 rounded-xl hover:text-red-600 transition-colors">Expired</button>
+          </div>
         </div>
       </div>
 
@@ -132,7 +172,7 @@
       <div id="map" class="w-full h-full z-0 border-r border-black/[0.02]"></div>
       
       <!-- Overlay controls for map filters (Light Glass Theme) -->
-      <div class="absolute bottom-4 left-4 z-[1000] glass-panel rounded-2xl px-4 py-2.5 flex items-center gap-4 text-xs font-semibold select-none bg-white/80 border-black/5 text-[#1d1d1f]">
+      <div class="absolute bottom-4 left-4 z-[1000] glass-panel rounded-2xl px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold select-none bg-white/80 border-black/5 text-[#1d1d1f] max-w-[calc(100%-2rem)]">
         <div class="flex items-center gap-2">
           <span class="w-3.5 h-3.5 rounded bg-red-500/10 border border-red-500/40 inline-block"></span>
           <span>Airport Buffer Zones (KKOP)</span>
@@ -144,10 +184,24 @@
         </div>
         <div class="w-px h-4 bg-black/10"></div>
         <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#0071e3] transition-colors" id="map-toggle-satellite">
-          <svg class="w-4.5 h-4.5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a3 3 0 013 3v2.83c0 .8-.3 1.57-.83 2.12l-1.17 1.17a3 3 0 01-2.12.83H12a3 3 0 01-3-3v-2a3 3 0 00-3-3H4.83"></path>
           </svg>
           <span id="map-toggle-text">Satellite Map</span>
+        </div>
+        <div class="w-px h-4 bg-black/10"></div>
+        <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#8b5cf6] transition-colors" id="map-toggle-airport-paths">
+          <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+          </svg>
+          <span id="map-toggle-airport-text">Show Approach Paths</span>
+        </div>
+        <div class="w-px h-4 bg-black/10"></div>
+        <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#4f46e5] transition-colors" id="map-toggle-3d">
+          <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+          </svg>
+          <span id="map-toggle-3d-text">3D Viewport</span>
         </div>
       </div>
     </main>
@@ -286,229 +340,296 @@
     </div>
   </div>
 
-  <!-- Sleek Custom Notification Toast Center -->
-  <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] flex flex-col gap-2 pointer-events-none"></div>
-
-  <!-- Report Preview Modal Overlay (A4 document view) -->
-  <div id="report-preview-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-all duration-300">
-    <div class="bg-gray-100 rounded-3xl w-[900px] h-[90vh] shadow-2xl border border-black/5 flex flex-col scale-95 transition-all duration-300 overflow-hidden">
-      <!-- Modal Sticky Header -->
-      <div class="p-4 border-b border-black/5 bg-white flex items-center justify-between z-10 shrink-0">
+  <!-- KML Converter Modal Overlay -->
+  <div id="kml-converter-modal" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-all duration-300">
+    <div class="bg-white/95 backdrop-blur-md rounded-3xl w-[550px] max-h-[85vh] shadow-2xl border border-black/5 flex flex-col scale-95 transition-all duration-300 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-6 border-b border-black/5 flex items-center justify-between bg-white">
         <div>
-          <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-            <svg class="w-5 h-5 text-[#0071e3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
-            Flight Log Compliance Report Preview
-          </h2>
-          <p class="text-[10px] text-gray-500 font-semibold">Review the generated Nota Dinas and compliance charts before exporting.</p>
+          <h2 class="text-lg font-bold text-gray-900">Convert PDF / Image to KML</h2>
+          <p class="text-xs text-gray-500">Submit a permit document to compile a 3D KML file.</p>
         </div>
-        <div class="flex gap-2">
-          <button id="btn-export-pdf" type="button" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-md shadow-emerald-600/10 transition-all active:scale-95">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+        <button id="close-converter-modal" type="button" class="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-full hover:bg-black/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-4 text-xs font-semibold text-gray-500 bg-white">
+        <!-- Error Alert -->
+        <div id="converter-error-alert" class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl hidden font-bold">
+          Failed to process file.
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        <div id="converter-drop-zone" class="border-2 border-dashed border-gray-200 hover:border-[#0071e3]/40 bg-gray-50/50 hover:bg-sky-50/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all">
+          <input type="file" id="converter-file-input" accept=".pdf,.png,.jpg,.jpeg" class="hidden">
+          <div class="bg-white p-3 rounded-full shadow-sm border border-black/5">
+            <svg class="w-8 h-8 text-[#0071e3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
             </svg>
-            Cetak PDF
-          </button>
-          <button id="close-report-modal" type="button" class="bg-white hover:bg-black/5 text-gray-600 px-4 py-2 border border-black/5 rounded-xl text-xs font-bold transition-all active:scale-95">
-            Tutup
-          </button>
+          </div>
+          <div class="text-center space-y-1">
+            <p class="text-gray-700 font-bold">Drag and drop file here, or click to browse</p>
+            <p class="text-[10px] text-gray-400 font-medium">Supports PDF, PNG, JPG, and JPEG files</p>
+          </div>
+        </div>
+
+        <!-- Parsing Loader -->
+        <div id="converter-loader" class="hidden flex flex-col items-center justify-center p-6 text-center text-gray-500 gap-3 border border-black/5 rounded-2xl bg-sky-50/10">
+          <span class="animate-spin rounded-full h-8 w-8 border-2 border-[#0071e3] border-t-transparent"></span>
+          <div class="space-y-0.5">
+            <span class="text-xs font-bold text-gray-700">Running OCR & extracting coordinates...</span>
+            <p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">This may take 5-10 seconds for scanned pages</p>
+          </div>
+        </div>
+
+        <!-- Conversion Output Details -->
+        <div id="converter-results" class="hidden space-y-3">
+          <h3 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Extracted Metadata Preview</h3>
+          <div class="bg-gray-50 border border-black/5 p-4 rounded-2xl space-y-2 text-xs font-medium text-gray-500">
+            <div class="flex justify-between border-b border-black/5 pb-2">
+              <span class="text-gray-400 font-bold">Permit ID</span>
+              <span id="conv-permit-id" class="font-mono font-bold text-gray-800">--</span>
+            </div>
+            <div class="flex justify-between border-b border-black/5 pb-2">
+              <span class="text-gray-400 font-bold">Operator Name</span>
+              <span id="conv-operator" class="font-bold text-gray-800">--</span>
+            </div>
+            <div class="flex justify-between border-b border-black/5 pb-2">
+              <span class="text-gray-400 font-bold">Vertical Ceiling Limit</span>
+              <span id="conv-altitude" class="font-bold text-gray-800">--</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400 font-bold">Geofence Coordinates</span>
+              <span id="conv-coords-count" class="font-bold text-emerald-600">--</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Scrollable Document Container -->
-      <div class="flex-1 overflow-y-auto p-6 flex justify-center items-start bg-gray-200">
-        <!-- Printable Paper Container (A4 Printable width approx. 794px) -->
-        <div id="report-paper-container" class="w-[794px] bg-white shadow-xl p-10 text-[11px] text-[#1d1d1f] font-sans border border-black/5 relative select-text leading-relaxed">
-          
-          <!-- Page 1: Administrative Nota Dinas -->
-          <div class="space-y-4 print-page">
-            <!-- Kop Surat / Government Header -->
-            <div class="flex items-center gap-4 border-b-2 border-black pb-3">
-              <!-- Garuda/Ministry Logo Placeholder -->
-              <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center">
-                <svg class="w-10 h-10 text-sky-800" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L2 22h20L12 2zm0 3l7 14H5l7-14z"/>
-                </svg>
-              </div>
-              <div class="text-center flex-1 font-bold text-xs uppercase text-slate-800 tracking-tight">
-                <div class="text-[10px] tracking-wide">KEMENTERIAN PERHUBUNGAN</div>
-                <div class="text-[11px] tracking-normal">DIREKTORAT JENDERAL PERHUBUNGAN UDARA</div>
-                <div class="text-[10px] tracking-wider text-sky-800">KANTOR OTORITAS BANDAR UDARA WILAYAH VI – PADANG</div>
-              </div>
-            </div>
-
-            <!-- Title: Nota Dinas -->
-            <div class="text-center font-bold text-sm tracking-wide mt-2">
-              <u>NOTA DINAS</u>
-              <div class="text-[10px] font-normal mt-0.5">Nomor: <span id="report-nota-num">--/--/--/--</span></div>
-            </div>
-
-            <!-- Address Meta Box -->
-            <table class="w-full text-left border-collapse text-[11px] font-medium border-b border-black/10 pb-2">
-              <tr>
-                <td class="w-24 py-1">Kepada Yth</td>
-                <td class="w-4">:</td>
-                <td class="font-bold py-1">Kepala Kantor Otoritas Bandar Udara Wilayah VI – Padang</td>
-              </tr>
-              <tr>
-                <td class="py-1">Dari</td>
-                <td>:</td>
-                <td class="py-1">Kepala Seksi Pelayanan dan Pengoperasian Bandar Udara</td>
-              </tr>
-              <tr>
-                <td class="py-1">Perihal</td>
-                <td>:</td>
-                <td class="py-1 font-semibold">Laporan Pengawasan Pengoperasian Pesawat Udara Tanpa Awak (PUTA) <span id="report-meta-op-name">PT. Timah, Tbk</span> di <span id="report-meta-location">Bangka Belitung</span></td>
-              </tr>
-              <tr>
-                <td class="py-1">Tanggal</td>
-                <td>:</td>
-                <td class="py-1"><span id="report-meta-date">06 Februari 2023</span></td>
-              </tr>
-            </table>
-
-            <!-- Content intro -->
-            <p class="mt-2 text-justify">
-              Menindaklanjuti Surat Direktur Navigasi Penerbangan perihal Persetujuan Pengoperasian Pesawat Udara Tanpa Awak (PUTA) <span class="font-semibold" id="report-meta-op-name2">PT. Timah, Tbk</span>, dengan hormat terlampir Laporan Pengawasan Pengoperasian PUTA dengan isi sebagai berikut:
-            </p>
-
-            <ol class="list-decimal pl-6 space-y-1 text-justify">
-              <li>Laporan Pengawasan Pengoperasian PUTA;</li>
-              <li>Lampiran 1 Evaluasi Log Pengoperasian PUTA terhadap Batas Ketinggian yang Diizinkan;</li>
-              <li>Lampiran 2 Evaluasi Log Pengoperasian PUTA terhadap Batas Area Ruang Udara yang Diizinkan (Geofencing);</li>
-              <li>Lampiran 3 Evaluasi Log Pengoperasian PUTA terhadap Batas Kecepatan Terbang yang Diizinkan.</li>
-            </ol>
-
-            <!-- Dasar Section -->
-            <div class="mt-4">
-              <span class="font-bold block uppercase tracking-wide">A. Dasar</span>
-              <ol class="list-decimal pl-6 space-y-1 text-justify">
-                <li>Undang-Undang Republik Indonesia Nomor 1 Tahun 2009 tentang Penerbangan;</li>
-                <li>Peraturan Menteri Perhubungan Nomor PM 37 Tahun 2020 tentang Pengoperasian Pesawat Udara Tanpa Awak;</li>
-                <li>Peraturan Menteri Perhubungan Nomor PM 63 Tahun 2021 tentang Peraturan Keselamatan Penerbangan Sipil Bagian 107 (Sistem PUTA Kecil);</li>
-                <li>Surat Persetujuan Pengoperasian PUTA Nomor: <span class="font-semibold text-sky-800" id="report-meta-permit-id">--/--</span>.</li>
-              </ol>
-            </div>
-
-            <!-- Data Objek Section -->
-            <div class="mt-4">
-              <span class="font-bold block uppercase tracking-wide">B. Data Objek Pengawasan</span>
-              <table class="w-full text-left mt-2 border border-slate-200 border-collapse text-[10px]">
-                <tr class="bg-slate-50 border-b border-slate-200">
-                  <td class="p-2 border-r border-slate-200 font-bold w-40">Nama Operator</td>
-                  <td class="p-2 font-semibold text-slate-800" id="report-tbl-operator">PT. Timah, Tbk</td>
-                </tr>
-                <tr class="border-b border-slate-200">
-                  <td class="p-2 border-r border-slate-200 font-bold">Lokasi Pengoperasian</td>
-                  <td class="p-2" id="report-tbl-location">Bangka Belitung</td>
-                </tr>
-                <tr class="bg-slate-50 border-b border-slate-200">
-                  <td class="p-2 border-r border-slate-200 font-bold">Waktu Pengoperasian</td>
-                  <td class="p-2" id="report-tbl-time">20 Desember 2022 s.d 05 Agustus 2023</td>
-                </tr>
-                <tr class="border-b border-slate-200">
-                  <td class="p-2 border-r border-slate-200 font-bold">Registrasi PUTA</td>
-                  <td class="p-2 font-mono" id="report-tbl-registry">BB-11-2-RWL</td>
-                </tr>
-                <tr class="bg-slate-50">
-                  <td class="p-2 border-r border-slate-200 font-bold">Pilot Penguji</td>
-                  <td class="p-2" id="report-tbl-pilots">Supriadi Hari Wibowo</td>
-                </tr>
-              </table>
-            </div>
-
-            <!-- Signature block -->
-            <div class="mt-8 flex justify-between pt-4 border-t border-black/5 text-[10px]">
-              <div class="w-48 text-center space-y-12">
-                <div>Penyusun Laporan,</div>
-                <div class="font-bold">
-                  <u>RHOBEN TAMPUBOLON</u><br>
-                  <span class="font-normal text-gray-500">NIP. 19870414 201012 1 006</span>
-                </div>
-              </div>
-              <div class="w-48 text-center space-y-12">
-                <div>Mengetahui,<br>Kepala Seksi P2B</div>
-                <div class="font-bold">
-                  <u>ALPHADA SATRIANSA</u><br>
-                  <span class="font-normal text-gray-500">NIP. 19700922 199803 1 003</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Page Break visual spacer (hidden during PDF print but nice in UI) -->
-          <div class="my-10 border-t-2 border-dashed border-gray-300 relative h-1 shrink-0 select-none page-break-divider">
-            <span class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 bg-gray-200 rounded-full text-[9px] font-bold text-gray-400">PAGE BREAK</span>
-          </div>
-
-          <!-- Page 2: Graphs & Logs Evaluation -->
-          <div class="space-y-6 print-page">
-            <div class="font-bold text-xs uppercase border-b border-black pb-1">
-              LAMPIRAN 1: EVALUASI LOG PENGOPERASIAN PUTA
-            </div>
-
-            <!-- Altitude Section -->
-            <div class="space-y-2">
-              <span class="font-bold block text-slate-800 text-[10px] uppercase">1. Evaluasi Ketinggian Terbang (Ceiling Limit)</span>
-              <p class="text-justify">
-                Berdasarkan analisa log terbang, ketinggian maksimum yang dicapai adalah <span class="font-bold text-emerald-600" id="report-eval-max-alt">--</span> feet. Ketinggian ini <span class="font-bold" id="report-eval-alt-status">berada di bawah</span> batas ceiling izin yang ditetapkan sebesar <span class="font-semibold" id="report-eval-limit-alt">400</span> feet (120 meter) AGL.
-              </p>
-              <!-- Altitude Chart Container -->
-              <div class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-center">
-                <div class="w-[600px] h-[160px] relative">
-                  <canvas id="chart-report-altitude"></canvas>
-                </div>
-              </div>
-            </div>
-
-            <!-- Speed Section -->
-            <div class="space-y-2">
-              <span class="font-bold block text-slate-800 text-[10px] uppercase">2. Evaluasi Kecepatan Terbang (Speed Limit)</span>
-              <p class="text-justify">
-                Berdasarkan data log, kecepatan maksimum PUTA tercatat sebesar <span class="font-bold text-emerald-600" id="report-eval-max-speed">--</span> knots (<span id="report-eval-max-speed-kmh">--</span> km/jam). Kecepatan ini memenuhi syarat keselamatan penerbangan sipil yang membatasi kecepatan maksimum PUTA kecil sebesar 87 knots (100 mil/jam).
-              </p>
-              <!-- Speed Chart Container -->
-              <div class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-center">
-                <div class="w-[600px] h-[160px] relative">
-                  <canvas id="chart-report-speed"></canvas>
-                </div>
-              </div>
-            </div>
-
-            <!-- Geofencing Section -->
-            <div class="space-y-2">
-              <span class="font-bold block text-slate-800 text-[10px] uppercase">3. Evaluasi Area Ruang Udara (Geofencing Compliance)</span>
-              <p class="text-justify">
-                Rute penerbangan PUTA telah diplot terhadap wilayah izin operasi yang diberikan. Hasil plotting menunjukkan bahwa lintasan drone <span class="font-bold" id="report-eval-geofence-status">100% berada di dalam</span> batas koordinat area kerja yang diizinkan, dan tidak melanggar Kawasan Keselamatan Operasi Penerbangan (KKOP) bandara terdekat.
-              </p>
-              <!-- Geofence Check Details -->
-              <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex justify-between items-center text-[10px]">
-                <div>
-                  <strong>Total Titik Log Evaluasi:</strong> <span id="report-eval-total-points">0</span> titik
-                </div>
-                <div>
-                  <strong>Titik Melanggar Batas (Out of Bounds):</strong> <span id="report-eval-breach-points" class="font-bold text-emerald-600">0 (Compliant)</span>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Summary Conclusion Box -->
-            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl mt-4">
-              <div class="font-bold text-emerald-800 text-[10px] uppercase mb-1">Kesimpulan Evaluasi Pengawasan</div>
-              <p class="text-emerald-700 leading-relaxed text-justify m-0">
-                Secara keseluruhan, operasi pengoperasian PUTA oleh <span class="font-bold" id="report-conclusion-op">PT. Timah, Tbk</span> dinyatakan <strong>MEMENUHI SYARAT KESELAMATAN (COMPLIANT)</strong>. Tidak ditemukan adanya pelanggaran batas ketinggian, batas kecepatan, maupun batas koordinat geofencing. Rekomendasi diberikan untuk melanjutkan operasi dengan tetap mematuhi koordinasi AirNav Indonesia.
-              </p>
-            </div>
-          </div>
-
-        </div>
+      <!-- Modal Footer -->
+      <div class="p-6 border-t border-black/5 flex gap-3 justify-end bg-gray-50/50">
+        <button type="button" id="btn-close-converter" class="px-5 py-2.5 rounded-2xl hover:bg-black/5 border border-transparent text-gray-600 font-bold transition-all">Close</button>
+        <button type="button" id="btn-download-conv-kml" disabled class="px-6 py-2.5 rounded-2xl bg-[#e8e8ed] text-gray-400 font-bold cursor-not-allowed transition-all shadow-sm">Download KML</button>
       </div>
     </div>
   </div>
 
-  <!-- Leaflet GIS Map JS -->
+  <!-- Sleek Custom Notification Toast Center -->
+  <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ============================================================ -->
+  <!-- TELEMETRY ANALYZER MODAL                                      -->
+  <!-- ============================================================ -->
+  <div id="telemetry-modal"
+    class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[9000] flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden scale-95 transition-transform duration-300">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-black/5 flex items-center justify-between shrink-0">
+        <div>
+          <h2 class="text-base font-bold text-[#1d1d1f]">Telemetry Analyzer</h2>
+          <p class="text-[11px] text-gray-400 mt-0.5">Upload a drone telemetry CSV to generate a speed & altitude profile</p>
+        </div>
+        <button onclick="closeTelemetryAnalyzer()" class="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body (scrollable) -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+
+        <!-- Unified File Uploaders Grid -->
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Column 1: CSV -->
+          <div>
+            <!-- CSV Drop Zone -->
+            <div id="telemetry-csv-drop-zone"
+              class="border-2 border-dashed border-indigo-200 rounded-2xl p-6 text-center bg-indigo-50/50 hover:bg-indigo-50 transition-colors cursor-pointer h-[124px] flex flex-col justify-center"
+              onclick="document.getElementById('telemetry-csv-input').click()"
+              ondragover="event.preventDefault(); this.classList.add('border-indigo-400')"
+              ondragleave="this.classList.remove('border-indigo-400')"
+              ondrop="handleTelemetryCsvDrop(event)">
+              
+              <svg class="w-8 h-8 text-indigo-300 mx-auto mb-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <p class="text-xs font-bold text-indigo-600">Drop CSV Telemetry here (Required)</p>
+              <p class="text-[10px] text-gray-400 mt-0.5">or click to browse — Airdata / DJI format</p>
+              <input type="file" id="telemetry-csv-input" accept=".csv" class="hidden" onchange="handleTelemetryCsvUpload(event)">
+            </div>
+            
+            <!-- CSV Info Badge -->
+            <div id="telemetry-csv-file-info" class="hidden flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 h-[124px]">
+              <div class="flex items-center gap-3 min-w-0">
+                <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <div class="min-w-0">
+                  <div id="telemetry-csv-filename" class="text-xs font-bold text-indigo-700 truncate">CSV Log</div>
+                  <div id="telemetry-csv-stats" class="text-[9px] text-gray-400 mt-0.5"></div>
+                </div>
+              </div>
+              <button onclick="clearTelemetryCsv()" class="text-[10px] text-gray-400 hover:text-red-500 font-bold transition-colors ml-2 shrink-0">Clear</button>
+            </div>
+          </div>
+
+          <!-- Column 2: KML -->
+          <div>
+            <!-- KML Drop Zone -->
+            <div id="telemetry-kml-drop-zone"
+              class="border-2 border-dashed border-violet-200 rounded-2xl p-6 text-center bg-violet-50/50 hover:bg-violet-50 transition-colors cursor-pointer h-[124px] flex flex-col justify-center"
+              onclick="document.getElementById('telemetry-kml-input').click()"
+              ondragover="event.preventDefault(); this.classList.add('border-violet-400')"
+              ondragleave="this.classList.remove('border-violet-400')"
+              ondrop="handleTelemetryKmlDrop(event)">
+              
+              <svg class="w-8 h-8 text-violet-300 mx-auto mb-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              <p class="text-xs font-bold text-violet-600">Drop KML Path here (Optional)</p>
+              <p class="text-[10px] text-gray-400 mt-0.5">or click to browse — for route map page</p>
+              <input type="file" id="telemetry-kml-input" accept=".kml" class="hidden" onchange="handleTelemetryKmlUpload(event)">
+            </div>
+
+            <!-- KML Info Badge -->
+            <div id="telemetry-kml-file-info" class="hidden flex items-center justify-between bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3 h-[124px]">
+              <div class="flex items-center gap-3 min-w-0">
+                <svg class="w-5 h-5 text-violet-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                </svg>
+                <div class="min-w-0">
+                  <div id="telemetry-kml-filename" class="text-xs font-bold text-violet-700 truncate">No KML loaded</div>
+                  <div id="telemetry-kml-stats" class="text-[9px] text-gray-400 mt-0.5">Ready for map generation</div>
+                </div>
+              </div>
+              <button onclick="clearTelemetryKml()" class="text-[10px] text-gray-400 hover:text-red-500 font-bold transition-colors ml-2 shrink-0">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart Canvas Area (hidden until data loaded) -->
+        <div id="telemetry-chart-area" class="hidden space-y-3">
+          <div class="flex items-center justify-between border-b border-black/5 pb-2">
+            <!-- Tabs Switcher -->
+            <div class="flex gap-2">
+              <button id="btn-tab-combined" onclick="switchTelemetryTab('combined')" class="text-[11px] font-bold px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 transition-all border border-indigo-100/50">
+                Combined Profile
+              </button>
+              <button id="btn-tab-altitude" onclick="switchTelemetryTab('altitude')" class="text-[11px] font-bold px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 hover:text-gray-700 transition-all border border-transparent">
+                Alt AGL
+              </button>
+              <button id="btn-tab-amsl" onclick="switchTelemetryTab('amsl')" class="text-[11px] font-bold px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 hover:text-gray-700 transition-all border border-transparent">
+                Alt AMSL
+              </button>
+              <button id="btn-tab-speed" onclick="switchTelemetryTab('speed')" class="text-[11px] font-bold px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 hover:text-gray-700 transition-all border border-transparent">
+                Speed
+              </button>
+              <button id="btn-tab-map" onclick="switchTelemetryTab('map')" class="text-[11px] font-bold px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 hover:text-gray-700 transition-all border border-transparent">
+                Flight Route Map
+              </button>
+            </div>
+            
+            <div class="flex gap-2">
+              <button onclick="exportTelemetryChart()"
+                class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export PNG
+              </button>
+            </div>
+          </div>
+
+          <!-- Limit Line Controls -->
+          <div class="flex items-center justify-between bg-slate-50 border border-black/5 rounded-2xl px-4 py-2.5 text-xs select-none">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="enable-limit-lines" checked onchange="handleTelemetryLimitChange()"
+                class="w-3.5 h-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+              <label for="enable-limit-lines" class="font-bold text-gray-700 cursor-pointer">Show Limit Threshold Lines</label>
+            </div>
+            
+            <div class="flex items-center gap-4">
+              <!-- Alt Mode selector + single limit input -->
+              <div class="flex items-center gap-1.5">
+                <span class="text-gray-400 font-semibold">Alt Mode:</span>
+                <select id="select-limit-alt-mode" onchange="handleTelemetryLimitChange()"
+                  class="bg-white border border-gray-200 rounded font-bold text-[11px] px-1.5 py-0.5 text-indigo-600 focus:outline-none focus:border-indigo-400 cursor-pointer">
+                  <option value="agl" selected>AGL</option>
+                  <option value="amsl">AMSL</option>
+                </select>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <span id="label-alt-limit" class="text-gray-400 font-semibold">Alt AGL Limit:</span>
+                <input type="number" id="input-limit-alt" value="1150" oninput="handleTelemetryLimitChange()"
+                  class="w-16 px-1.5 py-0.5 bg-white border border-gray-200 rounded font-bold text-center text-indigo-600 focus:outline-none focus:border-indigo-400">
+                <span class="text-gray-400">ft</span>
+              </div>
+
+              <div class="h-4 w-px bg-black/10"></div>
+
+              <div class="flex items-center gap-1.5">
+                <span class="text-gray-400 font-semibold">Speed Limit:</span>
+                <input type="number" id="input-limit-speed" value="100" oninput="handleTelemetryLimitChange()"
+                  class="w-16 px-1.5 py-0.5 bg-white border border-gray-200 rounded font-bold text-center text-orange-600 focus:outline-none focus:border-orange-400">
+                <span class="text-gray-400">knots</span>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- The Chart.js canvas container -->
+          <div id="telemetry-chart-container" class="bg-white border border-black/5 rounded-2xl p-4 shadow-sm">
+            <!-- Combined Chart Wrapper -->
+            <div id="wrapper-chart-combined" class="relative h-[380px] w-full">
+              <canvas id="telemetry-chart-combined"></canvas>
+            </div>
+            <!-- AGL Altitude Chart Wrapper -->
+            <div id="wrapper-chart-altitude" class="relative h-[380px] w-full hidden">
+              <canvas id="telemetry-chart-altitude"></canvas>
+            </div>
+            <!-- AMSL Altitude Chart Wrapper -->
+            <div id="wrapper-chart-amsl" class="relative h-[380px] w-full hidden">
+              <canvas id="telemetry-chart-amsl"></canvas>
+            </div>
+            <!-- Speed Chart Wrapper -->
+            <div id="wrapper-chart-speed" class="relative h-[380px] w-full hidden">
+              <canvas id="telemetry-chart-speed"></canvas>
+            </div>
+            <!-- Flight Route Map Wrapper -->
+            <div id="wrapper-chart-map" class="relative h-[380px] w-full hidden">
+              <div id="telemetry-analyzer-map" class="w-full h-full rounded-2xl border border-slate-200"></div>
+            </div>
+          </div>
+
+          <!-- Summary Stats Row -->
+          <div id="telemetry-summary-row" class="grid grid-cols-4 gap-3">
+            <!-- Filled dynamically by JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard App -->
+
+  <!-- Leaflet JS (restored for main dashboard) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- MapLibre GL JS -->
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   
   <!-- Main Renderer Logic -->
   <script src="renderer.js"></script>

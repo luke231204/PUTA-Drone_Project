@@ -15,6 +15,33 @@ let flightLogData = null;
 let flightPathPolyline = null;
 let activeCharts = [];
 
+// Telemetry limits state
+let telemetryLimitAgl = 1150;
+let telemetryLimitAmsl = 1150;
+let telemetryLimitSpeed = 100;
+let telemetryLimitEnabled = true;
+let telemetryAltLimitMode = 'agl'; // 'agl' or 'amsl'
+
+// Parsed telemetry file structures
+let uploadedCsvFile = null;
+let uploadedKmlFile = null;
+let uploadedCsvData = null;  // Object with flight stats and points
+let uploadedKmlCoords = null; // List of [lng, lat] for flight path map
+
+// Telemetry Analyzer chart instances
+let telemetryChartCombinedInstance = null;
+let telemetryChartAltitudeInstance = null;
+let telemetryChartAmslInstance = null;
+let telemetryChartSpeedInstance = null;
+let currentActiveTelemetryTab = 'combined';
+
+// Telemetry Analyzer map states
+let telemetryAnalyzerMap = null;
+let telemetryAnalyzerPolylineKml = null;
+let telemetryAnalyzerPolylineCsv = null;
+let telemetryAnalyzerMarkerTakeoff = null;
+
+
 // Web browser fallback mock for local testing outside Electron main process
 if (typeof window !== 'undefined' && !window.api) {
   window.api = {
@@ -630,12 +657,6 @@ function renderInspector() {
             <span id="log-geofence" class="font-bold"></span>
           </div>
         </div>
-        <button id="btn-preview-report" class="w-full py-2.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-bold rounded-2xl text-xs transition-all shadow-md shadow-[#0071e3]/15 flex items-center justify-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          Preview & Cetak Laporan (PDF)
-        </button>
       </div>
     </div>
 
@@ -695,12 +716,6 @@ function renderInspector() {
   if (btnUpload && logInput) {
     btnUpload.addEventListener('click', () => logInput.click());
     logInput.addEventListener('change', handleFlightLogUpload);
-  }
-
-  // Preview report click handler
-  const btnPreview = document.getElementById('btn-preview-report');
-  if (btnPreview) {
-    btnPreview.addEventListener('click', openReportModal);
   }
 
   // Maintain UI persistence if a log was already parsed for this permit
@@ -1032,18 +1047,31 @@ function parseLogData(text, extension) {
   if (extension === 'kml') {
     const parser = new DOMParser();
     const kml = parser.parseFromString(text, 'text/xml');
-    const coordinatesNodes = kml.getElementsByTagName('coordinates');
     
-    if (coordinatesNodes.length === 0) {
-      throw new Error("No coordinate data tags in KML file.");
+    // Search both namespaces/capitalizations and combine the lists
+    let coordinatesNodes = Array.from(kml.getElementsByTagNameNS('*', 'coordinates'))
+      .concat(Array.from(kml.getElementsByTagNameNS('*', 'Coordinates')));
+    
+    // Global regex fallback in case of XML parser failures or namespace issues
+    const regex = /<(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>([\s\S]*?)<\/(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>/g;
+    let match;
+    let regexTexts = [];
+    while ((match = regex.exec(text)) !== null) {
+      regexTexts.push(match[1]);
     }
     
-    // Find the coordinates node containing the actual flight line
+    // Combine text content from DOM nodes and regex matches
+    let allTexts = coordinatesNodes.map(node => node.textContent).concat(regexTexts);
+    
+    if (allTexts.length === 0) {
+      throw new Error("No coordinate data tags found in KML file.");
+    }
+    
+    // Find the coordinates text containing the actual flight line (longest coordinate list)
     let coordText = "";
-    for (let i = 0; i < coordinatesNodes.length; i++) {
-      const val = coordinatesNodes[i].textContent;
-      if (val.trim().split(/\s+/).length > coordText.trim().split(/\s+/).length) {
-        coordText = val;
+    for (const txt of allTexts) {
+      if (txt.trim().split(/\s+/).length > coordText.trim().split(/\s+/).length) {
+        coordText = txt;
       }
     }
     
@@ -1265,267 +1293,1015 @@ function updateEvaluationStatusUI() {
   geoEl.className = flightLogData.geofenceCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600 animate-pulse";
 }
 
-function openReportModal() {
-  const modal = document.getElementById('report-preview-modal');
-  const modalBox = modal.querySelector('div');
-  
-  if (!selectedPermit || !flightLogData) return;
-  
+
+
+// ============================================================
+// TELEMETRY ANALYZER LOGIC
+// ============================================================
+
+function openTelemetryAnalyzer() {
+  const modal = document.getElementById('telemetry-modal');
+  const box = modal.querySelector('div');
   modal.classList.remove('hidden');
   setTimeout(() => {
     modal.classList.remove('opacity-0');
-    modalBox.classList.remove('scale-95');
+    box.classList.remove('scale-95');
   }, 10);
-  
-  // Fill report text fields
-  document.getElementById('report-nota-num').textContent = `45/06/02/PUPB-${selectedPermit.year}`;
-  
-  const opNames = document.querySelectorAll('#report-meta-op-name, #report-meta-op-name2, #report-tbl-operator');
-  opNames.forEach(el => el.textContent = selectedPermit.operator_name);
-  
-  const locations = document.querySelectorAll('#report-meta-location, #report-tbl-location');
-  locations.forEach(el => el.textContent = selectedPermit.location);
-  
-  document.getElementById('report-meta-permit-id').textContent = selectedPermit.permit_id;
-  
-  const formatDateString = (isoStr) => {
-    if (!isoStr) return "";
-    const [y, m, d] = isoStr.split('-');
-    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    return `${d} ${months[parseInt(m) - 1]} ${y}`;
-  };
-  
-  document.getElementById('report-meta-date').textContent = formatDateString(new Date().toISOString().split('T')[0]);
-  document.getElementById('report-tbl-time').textContent = `${formatDateString(selectedPermit.date_start)} s.d ${formatDateString(selectedPermit.date_end)}`;
-  
-  const registries = Array.isArray(selectedPermit.puta_registry) ? selectedPermit.puta_registry.join(', ') : selectedPermit.puta_registry;
-  document.getElementById('report-tbl-registry').textContent = registries || "None";
-  
-  const pilots = Array.isArray(selectedPermit.pilot_name) ? selectedPermit.pilot_name.join(', ') : selectedPermit.pilot_name;
-  document.getElementById('report-tbl-pilots').textContent = pilots || "None";
-  
-  // Metric evaluations
-  document.getElementById('report-eval-max-alt').textContent = Math.round(flightLogData.maxAltitude);
-  document.getElementById('report-eval-limit-alt').textContent = selectedPermit.max_altitude_ft;
-  
-  const altStatusEl = document.getElementById('report-eval-alt-status');
-  if (flightLogData.altCompliant) {
-    altStatusEl.textContent = "memenuhi syarat (berada di bawah)";
-    altStatusEl.className = "font-bold text-emerald-600";
-  } else {
-    altStatusEl.textContent = "MELANGGAR SYARAT (berada di atas)";
-    altStatusEl.className = "font-bold text-red-600";
-  }
-  
-  document.getElementById('report-eval-max-speed').textContent = Math.round(flightLogData.maxSpeed);
-  document.getElementById('report-eval-max-speed-kmh').textContent = Math.round(flightLogData.maxSpeed * 1.852);
-  
-  const speedStatusEl = document.getElementById('report-eval-max-speed');
-  speedStatusEl.className = flightLogData.speedCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600";
-  
-  document.getElementById('report-eval-total-points').textContent = flightLogData.points.length;
-  
-  const breachPointsEl = document.getElementById('report-eval-breach-points');
-  if (flightLogData.geofenceCompliant) {
-    breachPointsEl.textContent = "0 (100% Compliant)";
-    breachPointsEl.className = "font-bold text-emerald-600";
-    document.getElementById('report-eval-geofence-status').textContent = "100% berada di dalam";
-    document.getElementById('report-eval-geofence-status').className = "font-bold text-emerald-600";
-  } else {
-    breachPointsEl.textContent = `${flightLogData.breachCount} titik melanggar (Breach)`;
-    breachPointsEl.className = "font-bold text-red-600";
-    document.getElementById('report-eval-geofence-status').textContent = "MELANGGAR BATAS (terdapat titik di luar)";
-    document.getElementById('report-eval-geofence-status').className = "font-bold text-red-600";
-  }
-  
-  // Update Conclusion block colors & texts
-  const conclusionTextEl = document.querySelector('#report-paper-container div.bg-emerald-50, #report-paper-container div.bg-red-50');
-  const conclusionInnerEl = document.getElementById('report-conclusion-op').parentElement;
-  document.getElementById('report-conclusion-op').textContent = selectedPermit.operator_name;
-  
-  const allCompliant = flightLogData.altCompliant && flightLogData.speedCompliant && flightLogData.geofenceCompliant;
-  
-  if (allCompliant) {
-    if (conclusionTextEl) {
-      conclusionTextEl.className = "p-4 bg-emerald-50 border border-emerald-200 rounded-2xl mt-4";
-    }
-    conclusionInnerEl.innerHTML = `Secara keseluruhan, operasi pengoperasian PUTA oleh <span class="font-bold">${selectedPermit.operator_name}</span> dinyatakan <strong>MEMENUHI SYARAT KESELAMATAN (COMPLIANT)</strong>. Tidak ditemukan adanya pelanggaran batas ketinggian, batas kecepatan, maupun batas koordinat geofencing. Rekomendasi diberikan untuk melanjutkan operasi dengan tetap mematuhi koordinasi AirNav Indonesia.`;
-    conclusionInnerEl.className = "text-emerald-700 leading-relaxed text-justify m-0";
-  } else {
-    if (conclusionTextEl) {
-      conclusionTextEl.className = "p-4 bg-red-50 border border-red-200 rounded-2xl mt-4";
-    }
-    conclusionInnerEl.innerHTML = `Secara keseluruhan, operasi pengoperasian PUTA oleh <span class="font-bold">${selectedPermit.operator_name}</span> dinyatakan <strong>TIDAK MEMENUHI SYARAT KESELAMATAN (NON-COMPLIANT)</strong>. Ditemukan adanya pelanggaran parameter batas izin pengoperasian drone (lihat rincian data evaluasi di atas). Disarankan untuk menangguhkan sementara operasi penerbangan dan meminta klarifikasi tertulis dari operator.`;
-    conclusionInnerEl.className = "text-red-700 leading-relaxed text-justify m-0";
-  }
-  
-  // Render Chart.js charts
-  buildReportCharts();
 }
 
-function closeReportModal() {
-  const modal = document.getElementById('report-preview-modal');
-  const modalBox = modal.querySelector('div');
-  
+function closeTelemetryAnalyzer() {
+  const modal = document.getElementById('telemetry-modal');
+  const box = modal.querySelector('div');
   modal.classList.add('opacity-0');
-  modalBox.classList.add('scale-95');
-  setTimeout(() => {
-    modal.classList.add('hidden');
-  }, 300);
+  box.classList.add('scale-95');
+  setTimeout(() => modal.classList.add('hidden'), 300);
 }
 
-function buildReportCharts() {
-  // Clear previous chart instances
-  activeCharts.forEach(chart => chart.destroy());
-  activeCharts = [];
-  
-  const altCtx = document.getElementById('chart-report-altitude').getContext('2d');
-  const speedCtx = document.getElementById('chart-report-speed').getContext('2d');
-  
-  const limitAlt = selectedPermit.max_altitude_ft || 400;
-  
-  const altLimitLine = Array(flightLogData.altitudes.length).fill(limitAlt);
-  const speedLimitLine = Array(flightLogData.speeds.length).fill(87); // 87 knots civil cap
-  
-  // Altitude Chart
-  const altChart = new Chart(altCtx, {
-    type: 'line',
-    data: {
-      labels: flightLogData.timestamps,
-      datasets: [
-        {
-          label: 'Ketinggian Terbang PUTA (ft)',
-          data: flightLogData.altitudes,
-          borderColor: '#0071e3',
-          borderWidth: 2,
-          fill: false,
-          pointRadius: 0,
-          tension: 0.1
-        },
-        {
-          label: 'Batas Ketinggian Izin (ft)',
-          data: altLimitLine,
-          borderColor: '#ef4444',
-          borderWidth: 1.5,
-          borderDash: [5, 5],
-          fill: false,
-          pointRadius: 0
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, labels: { boxWidth: 12, font: { size: 9 } } }
-      },
-      scales: {
-        x: { display: false },
-        y: {
-          ticks: { font: { size: 8 } },
-          title: { display: true, text: 'Ketinggian (feet)', font: { size: 9 } }
-        }
-      }
-    }
-  });
-  activeCharts.push(altChart);
-  
-  // Speed Chart
-  const speedChart = new Chart(speedCtx, {
-    type: 'line',
-    data: {
-      labels: flightLogData.timestamps,
-      datasets: [
-        {
-          label: 'Kecepatan Terbang PUTA (knots)',
-          data: flightLogData.speeds,
-          borderColor: '#10b981',
-          borderWidth: 2,
-          fill: false,
-          pointRadius: 0,
-          tension: 0.1
-        },
-        {
-          label: 'Batas Kecepatan Izin (87 knots)',
-          data: speedLimitLine,
-          borderColor: '#ef4444',
-          borderWidth: 1.5,
-          borderDash: [5, 5],
-          fill: false,
-          pointRadius: 0
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, labels: { boxWidth: 12, font: { size: 9 } } }
-      },
-      scales: {
-        x: { display: false },
-        y: {
-          ticks: { font: { size: 8 } },
-          title: { display: true, text: 'Kecepatan (knots)', font: { size: 9 } }
-        }
-      }
-    }
-  });
-  activeCharts.push(speedChart);
+function resetTelemetryAnalyzer() {
+  clearTelemetryCsv();
+  clearTelemetryKml();
+  clearTelemetryAnalyzerMap();
+  switchTelemetryTab('combined');
 }
 
-async function exportReportToPDF() {
-  const element = document.getElementById('report-paper-container');
-  if (!element) return;
+function switchTelemetryTab(tabName) {
+  currentActiveTelemetryTab = tabName;
   
-  showToast("Rendering PDF document, please wait...", "info");
+  // Hide all wrappers
+  document.getElementById('wrapper-chart-combined').classList.add('hidden');
+  document.getElementById('wrapper-chart-altitude').classList.add('hidden');
+  document.getElementById('wrapper-chart-amsl').classList.add('hidden');
+  document.getElementById('wrapper-chart-speed').classList.add('hidden');
+  document.getElementById('wrapper-chart-map').classList.add('hidden');
   
-  const dividers = element.querySelectorAll('.page-break-divider');
-  dividers.forEach(el => el.style.opacity = '0'); // hide dividers in print output
-  
-  try {
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff'
-    });
-    
-    // Restore dividers in UI
-    dividers.forEach(el => el.style.opacity = '1');
-    
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    
-    const pageHeightCanvas = (imgWidth / pdfWidth) * pdfHeight;
-    let heightLeft = imgHeight;
-    let position = 0;
-    
-    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, (imgHeight * pdfWidth) / imgWidth);
-    heightLeft -= pageHeightCanvas;
-    
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position * (pdfWidth / imgWidth), pdfWidth, (imgHeight * pdfWidth) / imgWidth);
-      heightLeft -= pageHeightCanvas;
+  // Reset active classes on all tab buttons
+  const tabs = ['combined', 'altitude', 'amsl', 'speed', 'map'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`btn-tab-${t}`);
+    if (btn) {
+      btn.className = "text-[11px] font-bold px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 hover:text-gray-700 transition-all border border-transparent";
     }
-    
-    const sanitizedId = selectedPermit.permit_id.replace(/[\/\\?%*:|"<>\s]/g, '_');
-    pdf.save(`Laporan_Pengawasan_PUTA_${sanitizedId}.pdf`);
-    
-    showToast("PDF report saved successfully!", "success");
-  } catch (error) {
-    console.error("PDF Export error:", error);
-    showToast("Failed to render PDF report.", "error");
-    dividers.forEach(el => el.style.opacity = '1');
+  });
+  
+  // Show active wrapper and set active styles
+  const activeWrapper = document.getElementById(`wrapper-chart-${tabName}`);
+  if (activeWrapper) activeWrapper.classList.remove('hidden');
+  
+  const activeBtn = document.getElementById(`btn-tab-${tabName}`);
+  if (activeBtn) {
+    activeBtn.className = "text-[11px] font-bold px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 transition-all border border-indigo-100/50";
+  }
+
+  if (tabName === 'map') {
+    initTelemetryAnalyzerMap();
   }
 }
+
+function handleTelemetryCsvDrop(event) {
+  event.preventDefault();
+  document.getElementById('telemetry-csv-drop-zone').classList.remove('border-indigo-400');
+  const file = event.dataTransfer.files[0];
+  if (file && file.name.endsWith('.csv')) {
+    processTelemetryCsv(file);
+  } else {
+    showToast('Please drop a valid .csv file.', 'error');
+  }
+}
+
+function handleTelemetryKmlDrop(event) {
+  event.preventDefault();
+  document.getElementById('telemetry-kml-drop-zone').classList.remove('border-violet-400');
+  const file = event.dataTransfer.files[0];
+  if (file && file.name.endsWith('.kml')) {
+    processTelemetryKml(file);
+  } else {
+    showToast('Please drop a valid .kml file.', 'error');
+  }
+}
+
+function handleTelemetryCsvUpload(event) {
+  const file = event.target.files[0];
+  if (file) processTelemetryCsv(file);
+}
+
+function handleTelemetryKmlUpload(event) {
+  const file = event.target.files[0];
+  if (file) processTelemetryKml(file);
+}
+
+function clearTelemetryCsv() {
+  uploadedCsvFile = null;
+  uploadedCsvData = null;
+  document.getElementById('telemetry-csv-file-info').classList.add('hidden');
+  document.getElementById('telemetry-csv-drop-zone').classList.remove('hidden');
+  document.getElementById('telemetry-csv-input').value = '';
+  
+  if (telemetryChartCombinedInstance) {
+    telemetryChartCombinedInstance.destroy();
+    telemetryChartCombinedInstance = null;
+  }
+  if (telemetryChartAltitudeInstance) {
+    telemetryChartAltitudeInstance.destroy();
+    telemetryChartAltitudeInstance = null;
+  }
+  if (telemetryChartAmslInstance) {
+    telemetryChartAmslInstance.destroy();
+    telemetryChartAmslInstance = null;
+  }
+  if (telemetryChartSpeedInstance) {
+    telemetryChartSpeedInstance.destroy();
+    telemetryChartSpeedInstance = null;
+  }
+
+  clearTelemetryAnalyzerMap();
+  updateTelemetryAnalyzerUI();
+}
+
+function clearTelemetryKml() {
+  uploadedKmlFile = null;
+  uploadedKmlCoords = null;
+  document.getElementById('telemetry-kml-file-info').classList.add('hidden');
+  document.getElementById('telemetry-kml-drop-zone').classList.remove('hidden');
+  document.getElementById('telemetry-kml-input').value = '';
+  
+  if (map && flightPathPolyline) {
+    map.removeLayer(flightPathPolyline);
+    flightPathPolyline = null;
+  }
+
+  clearTelemetryAnalyzerMap();
+  updateTelemetryAnalyzerUI();
+}
+
+function processTelemetryCsv(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      const rows = text.trim().split('\n');
+      if (rows.length < 2) throw new Error('CSV file appears empty.');
+
+      const header = rows[0].split(',').map(h => h.trim().toLowerCase());
+
+      // --- Column Index Detection ---
+      const timeIdx = header.findIndex(h => h.includes('time(millisecond)') || h === 'time(ms)' || h === 'time');
+      
+      // Speed (mph / ms / knots)
+      let speedIdx = header.findIndex(h => h.includes('speed(knots)') || h.includes('speed(kts)') || h === 'speed_knots' || h === 'speed_kts');
+      let speedUnit = 'knots';
+      if (speedIdx === -1) {
+        speedIdx = header.findIndex(h => h.includes('speed(mph)') || h === 'speed_mph' || h === 'speed');
+        speedUnit = 'mph';
+      }
+      if (speedIdx === -1) {
+        speedIdx = header.findIndex(h => h.includes('speed(m/s)') || h === 'speed_ms');
+        speedUnit = 'm/s';
+      }
+
+      // Altitude (AGL vs AMSL)
+      let aglIdx = header.findIndex(h => h.includes('height_above_takeoff') || h.includes('height_above_ground') || h === 'height' || h === 'agl');
+      let amslIdx = header.findIndex(h => h.includes('altitude_above_sealevel') || h.includes('altitude') || h === 'amsl');
+
+      // Coordinate columns (latitude/longitude)
+      const latIdx = header.findIndex(h => h === 'latitude' || h === 'lat');
+      const lngIdx = header.findIndex(h => h === 'longitude' || h === 'lon' || h === 'lng');
+
+      if (timeIdx === -1) throw new Error("Could not find a 'time(millisecond)' column.");
+      if (speedIdx === -1) throw new Error("Could not find a 'speed' column.");
+      if (aglIdx === -1 && amslIdx === -1) throw new Error("Could not find an altitude (AGL or AMSL) column.");
+
+      const timeData = [];
+      const speedData = [];
+      const aglData = [];
+      const amslData = [];
+      const coords = [];
+      let filteredPreFlight = 0;
+      let dateVal = "";
+      let timeVal = "";
+
+      const datetimeIdx = header.findIndex(h => h.includes('datetime') || h.includes('date') || h.includes('time_utc'));
+
+      for (let i = 1; i < rows.length; i++) {
+        if (!rows[i].trim()) continue;
+        const cols = rows[i].split(',');
+        if (cols.length < header.length) continue;
+
+        const timeMs = parseFloat(cols[timeIdx]);
+        let speed = parseFloat(cols[speedIdx]);
+        let aglAlt = aglIdx !== -1 ? parseFloat(cols[aglIdx]) : null;
+        let amslAlt = amslIdx !== -1 ? parseFloat(cols[amslIdx]) : null;
+        const lat = latIdx !== -1 ? parseFloat(cols[latIdx]) : null;
+        const lng = lngIdx !== -1 ? parseFloat(cols[lngIdx]) : null;
+
+        if (isNaN(timeMs) || isNaN(speed)) continue;
+
+        // Fallbacks if one altitude column is missing
+        if (aglAlt === null || isNaN(aglAlt)) {
+          aglAlt = amslAlt !== null && !isNaN(amslAlt) ? amslAlt : 0;
+        }
+        if (amslAlt === null || isNaN(amslAlt)) {
+          amslAlt = aglAlt;
+        }
+
+        // Convert speed to knots
+        if (speedUnit === 'mph') {
+          speed = speed * 0.868976;
+        } else if (speedUnit === 'm/s') {
+          speed = speed * 1.94384;
+        }
+
+        // Clean noise readings
+        if (aglAlt < -100 || aglAlt > 10000) aglAlt = 0;
+        if (amslAlt < -100 || amslAlt > 10000) amslAlt = 0;
+        if (speed < 0 || speed > 300) speed = 0;
+
+        // Pre-Flight Ground Filter: skip rows where speed=0 AND AGL altitude<=0
+        if (speed === 0 && aglAlt <= 0) {
+          filteredPreFlight++;
+          continue;
+        }
+
+        // Convert ms to decimal minutes for X-axis
+        const timeMinutes = timeMs / 60000.0;
+
+        timeData.push(parseFloat(timeMinutes.toFixed(3)));
+        speedData.push(parseFloat(speed.toFixed(2)));
+        aglData.push(parseFloat(aglAlt.toFixed(1)));
+        amslData.push(parseFloat(amslAlt.toFixed(1)));
+        
+        if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+          coords.push([lat, lng]);
+        }
+
+        // Auto-extract date and time from the first valid record
+        if (datetimeIdx !== -1 && !dateVal && cols[datetimeIdx]) {
+          const dtStr = cols[datetimeIdx].trim();
+          const parts = dtStr.split(' ');
+          if (parts.length >= 2) {
+            dateVal = parts[0];
+            timeVal = parts[1];
+          } else {
+            dateVal = dtStr;
+          }
+        }
+      }
+
+      if (timeData.length === 0) throw new Error('No valid flight data found after filtering.');
+
+      // Summary statistics
+      const maxSpeed = Math.max(...speedData);
+      const maxAgl = Math.max(...aglData);
+      const maxAmsl = Math.max(...amslData);
+      const duration = timeData[timeData.length - 1];
+      const avgSpeed = speedData.reduce((a, b) => a + b, 0) / speedData.length;
+
+      // Save parsed CSV structure globally
+      uploadedCsvFile = file;
+      uploadedCsvData = {
+        filename: file.name,
+        timeData,
+        speedData,
+        aglData,
+        amslData,
+        coords,
+        maxSpeed,
+        maxAgl,
+        maxAmsl,
+        duration,
+        avgSpeed,
+        hasAgl: aglIdx !== -1,
+        hasAmsl: amslIdx !== -1,
+        date: dateVal,
+        time: timeVal
+      };
+
+      // Show results in UI
+      showTelemetryFileInfo(file.name, timeData.length, filteredPreFlight, maxSpeed, maxAgl, maxAmsl, duration, avgSpeed);
+      renderTelemetryChart(timeData, speedData, aglData, amslData, aglIdx !== -1, amslIdx !== -1);
+      updateTelemetryAnalyzerUI();
+
+    } catch (err) {
+      console.error('Telemetry parse error:', err);
+      showToast(err.message || 'Failed to parse CSV file.', 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showTelemetryFileInfo(filename, points, filtered, maxSpeed, maxAgl, maxAmsl, duration, avgSpeed) {
+  // Hide drop zone, show info
+  document.getElementById('telemetry-csv-drop-zone').classList.add('hidden');
+  const infoEl = document.getElementById('telemetry-csv-file-info');
+  infoEl.classList.remove('hidden');
+
+  document.getElementById('telemetry-csv-filename').textContent = filename;
+  document.getElementById('telemetry-csv-stats').textContent =
+    `${points.toLocaleString()} points · ${filtered} pre-flight rows filtered`;
+
+  // Summary stats row
+  const summaryRow = document.getElementById('telemetry-summary-row');
+  summaryRow.innerHTML = `
+    <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 text-center">
+      <div class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Flight Duration</div>
+      <div class="text-lg font-bold text-indigo-700 mt-1">${duration.toFixed(2)}</div>
+      <div class="text-[9px] text-gray-400">minutes</div>
+    </div>
+    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-3 text-center">
+      <div class="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Max Speed</div>
+      <div class="text-lg font-bold text-orange-600 mt-1">${maxSpeed.toFixed(1)}</div>
+      <div class="text-[9px] text-gray-400">knots</div>
+    </div>
+    <div class="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-center">
+      <div class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Max Altitude AGL</div>
+      <div class="text-lg font-bold text-sky-600 mt-1">${maxAgl.toFixed(0)}</div>
+      <div class="text-[9px] text-gray-400">feet</div>
+    </div>
+    <div class="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center">
+      <div class="text-[10px] font-bold text-violet-400 uppercase tracking-wider">Max Altitude AMSL</div>
+      <div class="text-lg font-bold text-violet-600 mt-1">${maxAmsl.toFixed(0)}</div>
+      <div class="text-[9px] text-gray-400">feet</div>
+    </div>
+  `;
+}
+
+function processTelemetryKml(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      const parser = new DOMParser();
+      const kml = parser.parseFromString(text, 'text/xml');
+      
+      // Search both namespaces/capitalizations and combine the lists
+      let coordinatesNodes = Array.from(kml.getElementsByTagNameNS('*', 'coordinates'))
+        .concat(Array.from(kml.getElementsByTagNameNS('*', 'Coordinates')));
+      
+      // Global regex fallback in case of parsing failures or prefix issues
+      const regex = /<(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>([\s\S]*?)<\/(?:[a-zA-Z0-9_-]+:)?(?:[Cc]oordinates)>/g;
+      let match;
+      let regexTexts = [];
+      while ((match = regex.exec(text)) !== null) {
+        regexTexts.push(match[1]);
+      }
+      
+      let allTexts = coordinatesNodes.map(node => node.textContent).concat(regexTexts);
+      
+      if (allTexts.length === 0) {
+        throw new Error("No coordinate data tags found in KML file.");
+      }
+      
+      let coordText = "";
+      for (const txt of allTexts) {
+        if (txt.trim().split(/\s+/).length > coordText.trim().split(/\s+/).length) {
+          coordText = txt;
+        }
+      }
+      
+      const lines = coordText.trim().split(/\s+/);
+      const points = [];
+      lines.forEach(line => {
+        const parts = line.split(',');
+        if (parts.length >= 2) {
+          const lng = parseFloat(parts[0]);
+          const lat = parseFloat(parts[1]);
+          if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+            points.push([lat, lng]);
+          }
+        }
+      });
+      
+      if (points.length === 0) throw new Error("No valid coordinates found in KML.");
+      
+      uploadedKmlFile = file;
+      uploadedKmlCoords = points;
+      
+      // Update UI file badge
+      document.getElementById('telemetry-kml-drop-zone').classList.add('hidden');
+      const infoEl = document.getElementById('telemetry-kml-file-info');
+      infoEl.classList.remove('hidden');
+      
+      document.getElementById('telemetry-kml-filename').textContent = file.name;
+      document.getElementById('telemetry-kml-stats').textContent = `${points.length} boundary coordinates parsed`;
+      
+      // Plot immediate feedback on the main map
+      if (map) {
+        if (flightPathPolyline) {
+          map.removeLayer(flightPathPolyline);
+        }
+        flightPathPolyline = L.polyline(points, {
+          color: '#8b5cf6', // Violet color for geofence/route path
+          weight: 3,
+          opacity: 0.85,
+          dashArray: '5, 5'
+        }).addTo(map);
+        map.fitBounds(flightPathPolyline.getBounds(), { padding: [40, 40] });
+      }
+      
+      showToast("KML flight path loaded and plotted on map!", "success");
+      updateTelemetryAnalyzerUI();
+      
+    } catch (err) {
+      console.error("KML parse error:", err);
+      showToast(err.message || "Failed to parse KML file.", "error");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function handleTelemetryLimitChange() {
+  const checkbox = document.getElementById('enable-limit-lines');
+  telemetryLimitEnabled = checkbox ? checkbox.checked : true;
+
+  const modeSelect = document.getElementById('select-limit-alt-mode');
+  telemetryAltLimitMode = modeSelect ? modeSelect.value : 'agl';
+
+  // Update the label to reflect selected mode
+  const altLabel = document.getElementById('label-alt-limit');
+  if (altLabel) {
+    altLabel.textContent = telemetryAltLimitMode === 'agl' ? 'Alt AGL Limit:' : 'Alt AMSL Limit:';
+  }
+
+  // Read from the single unified alt limit input
+  const altInput = document.getElementById('input-limit-alt');
+  const altVal = altInput ? (parseFloat(altInput.value) || 1150) : 1150;
+
+  // Apply the value to the active mode
+  if (telemetryAltLimitMode === 'agl') {
+    telemetryLimitAgl = altVal;
+  } else {
+    telemetryLimitAmsl = altVal;
+  }
+
+  const speedInput = document.getElementById('input-limit-speed');
+  if (speedInput) telemetryLimitSpeed = parseFloat(speedInput.value) || 100;
+
+  // Reactively update charts
+  if (uploadedCsvData) {
+    updateTelemetryChartsLimits();
+  }
+}
+
+function updateTelemetryChartsLimits() {
+  if (!uploadedCsvData) return;
+  
+  const labels = telemetryChartCombinedInstance ? telemetryChartCombinedInstance.data.labels : [];
+  
+  // 1. Update Combined Chart
+  if (telemetryChartCombinedInstance) {
+    const datasets = telemetryChartCombinedInstance.data.datasets;
+    const cleanDatasets = datasets.filter(d => !d.label.includes('Limit'));
+    
+    if (telemetryLimitEnabled) {
+      const activeAltLimit = telemetryAltLimitMode === 'agl' ? telemetryLimitAgl : telemetryLimitAmsl;
+      const activeAltLabel = telemetryAltLimitMode === 'agl' ? 'Alt AGL Limit (ft)' : 'Alt AMSL Limit (ft)';
+      
+      cleanDatasets.push({
+        label: activeAltLabel,
+        data: Array(labels.length).fill(activeAltLimit),
+        borderColor: '#ef4444',
+        borderWidth: 1.5,
+        borderDash: [5, 5],
+        fill: false,
+        pointRadius: 0,
+        yAxisID: 'yAlt',
+      });
+      
+      cleanDatasets.push({
+        label: 'Speed Limit (knots)',
+        data: Array(labels.length).fill(telemetryLimitSpeed),
+        borderColor: '#f43f5e',
+        borderWidth: 1.5,
+        borderDash: [5, 5],
+        fill: false,
+        pointRadius: 0,
+        yAxisID: 'ySpeed',
+      });
+    }
+    
+    telemetryChartCombinedInstance.data.datasets = cleanDatasets;
+    telemetryChartCombinedInstance.update();
+  }
+  
+  // 2. Update Altitude AGL Chart
+  if (telemetryChartAltitudeInstance) {
+    const cleanDatasets = telemetryChartAltitudeInstance.data.datasets.filter(d => !d.label.includes('Limit'));
+    if (telemetryLimitEnabled) {
+      cleanDatasets.push({
+        label: 'Altitude AGL Limit (ft)',
+        data: Array(labels.length).fill(telemetryLimitAgl),
+        borderColor: '#ef4444',
+        borderWidth: 1.5,
+        borderDash: [5, 5],
+        fill: false,
+        pointRadius: 0
+      });
+    }
+    telemetryChartAltitudeInstance.data.datasets = cleanDatasets;
+    telemetryChartAltitudeInstance.update();
+  }
+
+  // 3. Update Altitude AMSL Chart
+  if (telemetryChartAmslInstance) {
+    const cleanDatasets = telemetryChartAmslInstance.data.datasets.filter(d => !d.label.includes('Limit'));
+    if (telemetryLimitEnabled) {
+      cleanDatasets.push({
+        label: 'Altitude AMSL Limit (ft)',
+        data: Array(labels.length).fill(telemetryLimitAmsl),
+        borderColor: '#ef4444',
+        borderWidth: 1.5,
+        borderDash: [5, 5],
+        fill: false,
+        pointRadius: 0
+      });
+    }
+    telemetryChartAmslInstance.data.datasets = cleanDatasets;
+    telemetryChartAmslInstance.update();
+  }
+
+  // 4. Update Speed Chart
+  if (telemetryChartSpeedInstance) {
+    const cleanDatasets = telemetryChartSpeedInstance.data.datasets.filter(d => !d.label.includes('Limit'));
+    if (telemetryLimitEnabled) {
+      cleanDatasets.push({
+        label: 'Speed Limit (knots)',
+        data: Array(labels.length).fill(telemetryLimitSpeed),
+        borderColor: '#f43f5e',
+        borderWidth: 1.5,
+        borderDash: [5, 5],
+        fill: false,
+        pointRadius: 0
+      });
+    }
+    telemetryChartSpeedInstance.data.datasets = cleanDatasets;
+    telemetryChartSpeedInstance.update();
+  }
+}
+
+function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, hasAmsl) {
+  // ---- Destroy previous chart instances ----
+  if (telemetryChartCombinedInstance) {
+    telemetryChartCombinedInstance.destroy();
+    telemetryChartCombinedInstance = null;
+  }
+  if (telemetryChartAltitudeInstance) {
+    telemetryChartAltitudeInstance.destroy();
+    telemetryChartAltitudeInstance = null;
+  }
+  if (telemetryChartAmslInstance) {
+    telemetryChartAmslInstance.destroy();
+    telemetryChartAmslInstance = null;
+  }
+  if (telemetryChartSpeedInstance) {
+    telemetryChartSpeedInstance.destroy();
+    telemetryChartSpeedInstance = null;
+  }
+
+  // ---- Show chart area and hide AMSL tab if no AMSL data ----
+  document.getElementById('telemetry-chart-area').classList.remove('hidden');
+  const amslTabBtn = document.getElementById('btn-tab-amsl');
+  const amslWrapper = document.getElementById('wrapper-chart-amsl');
+  if (amslTabBtn) amslTabBtn.style.display = hasAmsl ? '' : 'none';
+  if (amslWrapper) amslWrapper.classList.add('hidden');
+
+  // ---- Downsample if too many points (keep max 600 for performance) ----
+  let labels = timeData;
+  let speeds = speedData;
+  let agls   = aglData;
+  let amsls  = amslData;
+  if (timeData.length > 600) {
+    const step = Math.ceil(timeData.length / 600);
+    labels = timeData.filter((_, i)  => i % step === 0);
+    speeds = speedData.filter((_, i) => i % step === 0);
+    agls   = aglData.filter((_, i)   => i % step === 0);
+    amsls  = amslData.filter((_, i)  => i % step === 0);
+  }
+
+  // ---- Common X-axis scale ----
+  const commonXScale = {
+    title: {
+      display: true,
+      text: 'Elapsed Time (minutes)',
+      font: { size: 12, weight: 'bold' },
+      color: '#6b7280'
+    },
+    ticks: {
+      maxTicksLimit: 14,
+      font: { size: 11 },
+      color: '#9ca3af'
+    },
+    grid: { color: 'rgba(0,0,0,0.04)' }
+  };
+
+  const commonPlugins = {
+    legend: {
+      position: 'top',
+      labels: { font: { size: 12, weight: 'bold' }, boxWidth: 14 }
+    },
+    tooltip: {
+      callbacks: {
+        title: (items) => `T+${items[0].label} min`,
+        label: (item) => {
+          if (item.dataset.label.includes('Limit')) return null;
+          const unit = item.dataset.label.includes('Speed') || item.dataset.label.includes('Kecepatan') ? ' knots' : ' ft';
+          return ` ${item.dataset.label}: ${item.formattedValue}${unit}`;
+        }
+      }
+    }
+  };
+
+  // 1. COMBINED PROFILE CHART
+  const combinedCtx = document.getElementById('telemetry-chart-combined').getContext('2d');
+  const combinedDatasets = [];
+  
+  combinedDatasets.push({
+    label: 'Altitude AGL (ft)',
+    data: agls,
+    borderColor: '#3b82f6',
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    fill: true,
+    tension: 0.3,
+    borderWidth: 2,
+    pointRadius: 0,
+    pointHoverRadius: 5,
+    yAxisID: 'yAlt',
+  });
+
+  if (hasAmsl) {
+    combinedDatasets.push({
+      label: 'Altitude AMSL (ft)',
+      data: amsls,
+      borderColor: '#8b5cf6',
+      backgroundColor: 'rgba(139, 92, 246, 0.03)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 1.5,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      yAxisID: 'yAlt',
+    });
+  }
+
+  combinedDatasets.push({
+    label: 'Ground Speed (knots)',
+    data: speeds,
+    borderColor: '#f97316',
+    backgroundColor: 'rgba(249, 115, 22, 0.04)',
+    fill: true,
+    tension: 0.3,
+    borderWidth: 2,
+    pointRadius: 0,
+    pointHoverRadius: 5,
+    yAxisID: 'ySpeed',
+  });
+
+  if (telemetryLimitEnabled) {
+    const activeAltLimit = telemetryAltLimitMode === 'agl' ? telemetryLimitAgl : telemetryLimitAmsl;
+    const activeAltLabel = telemetryAltLimitMode === 'agl' ? 'Alt AGL Limit (ft)' : 'Alt AMSL Limit (ft)';
+    
+    combinedDatasets.push({
+      label: activeAltLabel,
+      data: Array(labels.length).fill(activeAltLimit),
+      borderColor: '#ef4444',
+      borderWidth: 1.5,
+      borderDash: [5, 5],
+      fill: false,
+      pointRadius: 0,
+      yAxisID: 'yAlt',
+    });
+
+    combinedDatasets.push({
+      label: 'Speed Limit (knots)',
+      data: Array(labels.length).fill(telemetryLimitSpeed),
+      borderColor: '#f43f5e',
+      borderWidth: 1.5,
+      borderDash: [5, 5],
+      fill: false,
+      pointRadius: 0,
+      yAxisID: 'ySpeed',
+    });
+  }
+
+  telemetryChartCombinedInstance = new Chart(combinedCtx, {
+    type: 'line',
+    data: { labels: labels, datasets: combinedDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: commonPlugins,
+      scales: {
+        x: commonXScale,
+        yAlt: {
+          type: 'linear',
+          position: 'left',
+          title: { display: true, text: 'Altitude (feet)', font: { size: 12, weight: 'bold' }, color: '#3b82f6' },
+          ticks: { color: '#3b82f6', font: { size: 10 } },
+          grid: { color: 'rgba(59,130,246,0.07)' }
+        },
+        ySpeed: {
+          type: 'linear',
+          position: 'right',
+          title: { display: true, text: 'Ground Speed (knots)', font: { size: 12, weight: 'bold' }, color: '#f97316' },
+          ticks: { color: '#f97316', font: { size: 10 } },
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+
+  // 2. ALTITUDE AGL PROFILE CHART
+  const altCtx = document.getElementById('telemetry-chart-altitude').getContext('2d');
+  const altDatasets = [{
+    label: 'Altitude AGL (ft)',
+    data: agls,
+    borderColor: '#3b82f6',
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    fill: true,
+    tension: 0.3,
+    borderWidth: 2.5,
+    pointRadius: 0,
+    pointHoverRadius: 5,
+  }];
+
+  if (telemetryLimitEnabled) {
+    altDatasets.push({
+      label: 'Altitude AGL Limit (ft)',
+      data: Array(labels.length).fill(telemetryLimitAgl),
+      borderColor: '#ef4444',
+      borderWidth: 1.5,
+      borderDash: [5, 5],
+      fill: false,
+      pointRadius: 0
+    });
+  }
+
+  telemetryChartAltitudeInstance = new Chart(altCtx, {
+    type: 'line',
+    data: { labels: labels, datasets: altDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: commonPlugins,
+      scales: {
+        x: commonXScale,
+        y: {
+          type: 'linear',
+          title: { display: true, text: 'Altitude AGL (feet)', font: { size: 12, weight: 'bold' } },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        }
+      }
+    }
+  });
+
+  // 3. ALTITUDE AMSL PROFILE CHART
+  if (hasAmsl) {
+    const amslCtx = document.getElementById('telemetry-chart-amsl').getContext('2d');
+    const amslDatasets = [{
+      label: 'Altitude AMSL (ft)',
+      data: amsls,
+      borderColor: '#8b5cf6',
+      backgroundColor: 'rgba(139, 92, 246, 0.08)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+    }];
+
+    if (telemetryLimitEnabled) {
+      amslDatasets.push({
+        label: 'Altitude AMSL Limit (ft)',
+        data: Array(labels.length).fill(telemetryLimitAmsl),
+        borderColor: '#ef4444',
+        borderWidth: 1.5,
+        borderDash: [5, 5],
+        fill: false,
+        pointRadius: 0
+      });
+    }
+
+    telemetryChartAmslInstance = new Chart(amslCtx, {
+      type: 'line',
+      data: { labels: labels, datasets: amslDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: commonPlugins,
+        scales: {
+          x: commonXScale,
+          y: {
+            type: 'linear',
+            title: { display: true, text: 'Altitude AMSL (feet)', font: { size: 12, weight: 'bold' } },
+            grid: { color: 'rgba(0,0,0,0.04)' }
+          }
+        }
+      }
+    });
+  }
+
+  // 4. SPEED PROFILE CHART
+  const speedCtx = document.getElementById('telemetry-chart-speed').getContext('2d');
+  const speedDatasets = [{
+    label: 'Ground Speed (knots)',
+    data: speeds,
+    borderColor: '#f97316',
+    backgroundColor: 'rgba(249, 115, 22, 0.08)',
+    fill: true,
+    tension: 0.3,
+    borderWidth: 2.5,
+    pointRadius: 0,
+    pointHoverRadius: 5,
+  }];
+
+  if (telemetryLimitEnabled) {
+    speedDatasets.push({
+      label: 'Speed Limit (knots)',
+      data: Array(labels.length).fill(telemetryLimitSpeed),
+      borderColor: '#f43f5e',
+      borderWidth: 1.5,
+      borderDash: [5, 5],
+      fill: false,
+      pointRadius: 0
+    });
+  }
+
+  telemetryChartSpeedInstance = new Chart(speedCtx, {
+    type: 'line',
+    data: { labels: labels, datasets: speedDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: commonPlugins,
+      scales: {
+        x: commonXScale,
+        y: {
+          type: 'linear',
+          title: { display: true, text: 'Speed (knots)', font: { size: 12, weight: 'bold' } },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        }
+      }
+    }
+  });
+
+  // Keep showing current active tab wrapper
+  switchTelemetryTab(currentActiveTelemetryTab);
+}
+
+async function exportTelemetryChart() {
+  const activeWrapper = document.getElementById(`wrapper-chart-${currentActiveTelemetryTab}`);
+  if (!activeWrapper) return;
+  try {
+    showToast('Generating HD chart image...', 'info');
+    // Render at scale 3 for HD output
+    const canvas = await html2canvas(activeWrapper, { scale: 3, backgroundColor: '#ffffff' });
+    const link = document.createElement('a');
+    link.download = `PUTA_Telemetry_${currentActiveTelemetryTab.toUpperCase()}_Profile_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('HD Chart exported successfully!', 'success');
+  } catch (err) {
+    console.error('Export error:', err);
+    showToast('Failed to export chart.', 'error');
+  }
+}
+
+
+
+// ============================================================
+// TELEMETRY ROUTE MAP & LIMIT INTERACTIVE GRAPH FUNCTIONS
+// ============================================================
+
+function initTelemetryAnalyzerMap() {
+  const mapContainer = document.getElementById('telemetry-analyzer-map');
+  if (!mapContainer) return;
+
+  if (!telemetryAnalyzerMap) {
+    // Initialize Leaflet map
+    telemetryAnalyzerMap = L.map('telemetry-analyzer-map').setView([-0.94, 100.35], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(telemetryAnalyzerMap);
+  }
+
+  // Force map invalidation to trigger correct rendering in dynamic/hidden containers
+  setTimeout(() => {
+    telemetryAnalyzerMap.invalidateSize();
+    
+    // Clear old layers
+    if (telemetryAnalyzerPolylineKml) {
+      telemetryAnalyzerMap.removeLayer(telemetryAnalyzerPolylineKml);
+      telemetryAnalyzerPolylineKml = null;
+    }
+    if (telemetryAnalyzerPolylineCsv) {
+      telemetryAnalyzerMap.removeLayer(telemetryAnalyzerPolylineCsv);
+      telemetryAnalyzerPolylineCsv = null;
+    }
+    if (telemetryAnalyzerMarkerTakeoff) {
+      telemetryAnalyzerMap.removeLayer(telemetryAnalyzerMarkerTakeoff);
+      telemetryAnalyzerMarkerTakeoff = null;
+    }
+
+    const bounds = [];
+
+    // Plot KML coordinates if loaded (stored as [lat, lng])
+    if (uploadedKmlCoords && uploadedKmlCoords.length > 0) {
+      telemetryAnalyzerPolylineKml = L.polyline(uploadedKmlCoords, {
+        color: '#ef4444',
+        weight: 3.5,
+        opacity: 0.85,
+        dashArray: '5, 5'
+      }).addTo(telemetryAnalyzerMap);
+      
+      uploadedKmlCoords.forEach(pt => bounds.push(pt));
+    }
+
+    // Plot CSV flight path coordinates if loaded (stored as [lat, lng])
+    if (uploadedCsvData && uploadedCsvData.coords && uploadedCsvData.coords.length > 0) {
+      telemetryAnalyzerPolylineCsv = L.polyline(uploadedCsvData.coords, {
+        color: '#8b5cf6',
+        weight: 3.5,
+        opacity: 0.9
+      }).addTo(telemetryAnalyzerMap);
+
+      uploadedCsvData.coords.forEach(pt => bounds.push(pt));
+
+      // Add takeoff marker
+      const takeoff = uploadedCsvData.coords[0];
+      telemetryAnalyzerMarkerTakeoff = L.marker(takeoff).addTo(telemetryAnalyzerMap)
+        .bindPopup("Takeoff Point");
+    }
+
+    if (bounds.length > 0) {
+      telemetryAnalyzerMap.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
+    }
+  }, 100);
+}
+
+function clearTelemetryAnalyzerMap() {
+  if (telemetryAnalyzerPolylineKml && telemetryAnalyzerMap) {
+    telemetryAnalyzerMap.removeLayer(telemetryAnalyzerPolylineKml);
+    telemetryAnalyzerPolylineKml = null;
+  }
+  if (telemetryAnalyzerPolylineCsv && telemetryAnalyzerMap) {
+    telemetryAnalyzerMap.removeLayer(telemetryAnalyzerPolylineCsv);
+    telemetryAnalyzerPolylineCsv = null;
+  }
+  if (telemetryAnalyzerMarkerTakeoff && telemetryAnalyzerMap) {
+    telemetryAnalyzerMap.removeLayer(telemetryAnalyzerMarkerTakeoff);
+    telemetryAnalyzerMarkerTakeoff = null;
+  }
+}
+
+function updateTelemetryAnalyzerUI() {
+  const chartArea = document.getElementById('telemetry-chart-area');
+  if (!chartArea) return;
+
+  const hasCsv = !!uploadedCsvData;
+  const hasKml = uploadedKmlCoords && uploadedKmlCoords.length > 0;
+
+  if (hasCsv || hasKml) {
+    chartArea.classList.remove('hidden');
+  } else {
+    chartArea.classList.add('hidden');
+    return;
+  }
+
+  // Update tabs visibility
+  const combinedTab = document.getElementById('btn-tab-combined');
+  const altitudeTab = document.getElementById('btn-tab-altitude');
+  const amslTab = document.getElementById('btn-tab-amsl');
+  const speedTab = document.getElementById('btn-tab-speed');
+  const mapTab = document.getElementById('btn-tab-map');
+
+  if (hasCsv) {
+    if (combinedTab) combinedTab.style.display = '';
+    if (altitudeTab) altitudeTab.style.display = '';
+    if (amslTab) amslTab.style.display = uploadedCsvData.hasAmsl ? '' : 'none';
+    if (speedTab) speedTab.style.display = '';
+  } else {
+    if (combinedTab) combinedTab.style.display = 'none';
+    if (altitudeTab) altitudeTab.style.display = 'none';
+    if (amslTab) amslTab.style.display = 'none';
+    if (speedTab) speedTab.style.display = 'none';
+  }
+
+  // Map is available if KML is loaded or if CSV has coordinates
+  const mapAvailable = hasKml || (hasCsv && uploadedCsvData.coords && uploadedCsvData.coords.length > 0);
+  if (mapTab) mapTab.style.display = mapAvailable ? '' : 'none';
+
+  // If we just uploaded a KML first, or if map tab was open, auto-select map
+  if (!hasCsv && hasKml) {
+    switchTelemetryTab('map');
+  } else if (currentActiveTelemetryTab === 'map' && !mapAvailable) {
+    switchTelemetryTab('combined');
+  } else if (hasCsv && currentActiveTelemetryTab === 'combined') {
+    // Make sure we keep showing combined
+    switchTelemetryTab('combined');
+  }
+}
+
+
+
