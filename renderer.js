@@ -147,26 +147,29 @@ function getEmergencyTower(locationStr) {
 }
 
 // All airports under OTBAN Wilayah VI authority — for KKOP visualization and compliance checks
+// Coordinates verified against resmi kemenhub.go.id (Indonesian Directorate General of Civil Aviation)
 const REGION_AIRPORTS = [
   // --- Sumatera Barat ---
-  { name: "Bandar Udara Internasional Minangkabau (PDG)", lat: -0.787999, lng: 100.28677, code: "PDG" },
-  { name: "Bandar Udara Rokot Sipora (RKI)",              lat: -2.09910,  lng: 99.70580,  code: "RKI" },
-  { name: "Bandar Udara Kerinci / Depati Parbo (KRC)",    lat: -2.09222,  lng: 101.46806, code: "KRC" },
-  { name: "Bandar Udara Muko-Muko (MPC)",                 lat: -2.53972,  lng: 101.08778, code: "MPC" },
+  { name: "Bandar Udara Internasional Minangkabau (PDG)", lat: -0.786670, lng: 100.28056, code: "PDG" }, // ICAO: WIEE
+  { name: "Bandar Udara Rokot Sipora (RKI)",              lat: -2.099058, lng: 99.705758, code: "RKI" }, // ICAO: WIBR
+  { name: "Bandar Udara Kerinci / Depati Parbo (KRC)",    lat: -2.094231, lng: 101.470808, code: "KRC" }, // ICAO: WIPH
+  { name: "Bandar Udara Muko-Muko (MPC)",                 lat: -2.541092, lng: 101.088678, code: "MPC" }, // ICAO: WIGM
   // --- Bengkulu ---
-  { name: "Bandar Udara Fatmawati Soekarno (BKS)",        lat: -3.86128,  lng: 102.33967, code: "BKS" },
-  { name: "Bandar Udara Enggano (ENE)",                   lat: -5.85972,  lng: 102.39444, code: "ENE" },
+  { name: "Bandar Udara Fatmawati Soekarno (BKS)",        lat: -3.861280, lng: 102.339670, code: "BKS" }, // ICAO: WIGG
+  { name: "Bandar Udara Enggano (ENG)",                   lat: -5.306639, lng: 102.189564, code: "ENG" }, // ICAO: WIGE
   // --- Jambi ---
-  { name: "Bandar Udara Sultan Thaha (DJB)",              lat: -1.63506,  lng: 103.64601, code: "DJB" },
-  { name: "Bandar Udara Muara Bungo (BUU)",               lat: -1.12778,  lng: 102.13472, code: "BUU" },
+  { name: "Bandar Udara Sultan Thaha (DJB)",              lat: -1.635060, lng: 103.646010, code: "DJB" }, // ICAO: WIPA
+  { name: "Bandar Udara Muara Bungo (BUU)",               lat: -1.543333, lng: 102.178611, code: "BUU" }, // ICAO: WIJB
   // --- Sumatera Selatan ---
-  { name: "Bandar Udara Internasional Sultan Mahmud Badaruddin II (PLM)", lat: -2.89615, lng: 104.70697, code: "PLM" },
-  { name: "Bandar Udara Atung Bungsu / Pagar Alam (PXA)", lat: -4.02750,  lng: 103.25000, code: "PXA" },
-  { name: "Bandar Udara Silampari / Lubuk Linggau (LLJ)", lat: -3.26278,  lng: 103.12028, code: "LLJ" },
+  { name: "Bandar Udara Internasional Sultan Mahmud Badaruddin II (PLM)", lat: -2.896150, lng: 104.706970, code: "PLM" }, // ICAO: WIPP
+  { name: "Bandar Udara Atung Bungsu / Pagar Alam (PXA)", lat: -4.024300, lng: 103.379170, code: "PXA" }, // ICAO: WIPY
+  { name: "Bandar Udara Silampari / Lubuk Linggau (LLJ)", lat: -3.280000, lng: 102.917200, code: "LLJ" }, // ICAO: WIPB
   // --- Kepulauan Bangka Belitung ---
-  { name: "Bandar Udara Depati Amir / Pangkal Pinang (PGK)", lat: -2.16063, lng: 106.14173, code: "PGK" },
-  { name: "Bandar Udara H.AS. Hanandjoeddin / Tanjung Pandan (TJQ)", lat: -2.74528, lng: 107.75472, code: "TJQ" },
+  { name: "Bandar Udara Depati Amir / Pangkal Pinang (PGK)", lat: -2.160630, lng: 106.141730, code: "PGK" }, // ICAO: WIPK
+  { name: "Bandar Udara H.AS. Hanandjoeddin / Tanjung Pandan (TJQ)", lat: -2.745280, lng: 107.753060, code: "TJQ" }, // ICAO: WIKT
 ];
+
+
 
 
 // Initialize application when loaded
