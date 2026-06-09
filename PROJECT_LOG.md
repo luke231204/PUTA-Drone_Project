@@ -1,6 +1,7 @@
 # PUTA-Monitor — AI Context & System Guide
 **Last Updated:** 2026-06-09 | **Version:** post-cleanup (commit `aefa693`)
 **Repo:** https://github.com/luke231204/PUTA-Drone_Project
+**Developer & Copyright:** &copy; 2026 Lukman Yudand Hidayat
 
 ---
 
