@@ -337,3 +337,22 @@ body {
 .dark .text-amber-700 {
   color: #fcd34d !important;
 }
+
+/* Drawer overlay style overrides and animations */
+#inspector-panel {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s, border-color 0.3s !important;
+}
+
+/* Ensure drawer is hidden when translated out on DOM load */
+#inspector-panel.translate-x-full {
+  transform: translateX(100%) !important;
+}
+
+#inspector-panel.translate-x-0 {
+  transform: translateX(0) !important;
+}
+
+/* Floating toolbar glassmorphism style overrides for dark mode compatibility */
+.glass-panel {
+  backdrop-filter: blur(20px) saturate(160%) !important;
+}
