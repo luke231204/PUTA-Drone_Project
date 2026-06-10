@@ -52,6 +52,21 @@ body {
   font-family: var(--font-outfit) !important;
 }
 
+/* Custom highly-visible map cursors (dark charcoal with white outline) */
+.leaflet-grab {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%231d1d1f' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2a4 4 0 0 0-4 4v6.5l-1.5-1.5a1.5 1.5 0 0 0-2.1 2.1l4.5 4.5A6 6 0 0 0 13 22h3a5 5 0 0 0 5-5V9a3 3 0 0 0-3-3h-1V5a3 3 0 0 0-3-3h-2z'/></svg>") 12 12, grab !important;
+}
+
+.leaflet-dragging .leaflet-grab,
+.leaflet-dragging .leaflet-grab .leaflet-interactive,
+.leaflet-dragging .leaflet-marker-icon {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%231d1d1f' stroke='white' stroke-width='1.5' stroke-linejoin='round' stroke-linecap='round'><path d='M12 10V5a2 2 0 0 0-2-2h0a2 2 0 0 0-2 2v7'/><path d='M8 10V7a2 2 0 0 0-2-2h0a2 2 0 0 0-2 2v8'/><path d='M4 10v4a5 5 0 0 0 5 5h4a6 6 0 0 0 6-6v-2a2 2 0 0 0-2-2h0a2 2 0 0 0-2 2v3'/><path d='M16 11V9a2 2 0 0 0-2-2h0a2 2 0 0 0-2 2v3'/></svg>") 12 12, grabbing !important;
+}
+
+.leaflet-interactive {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M4.5 3v15.2l4.7-4.7 3.5 8.1 3-1.3-3.5-8.1 6.3-.3L4.5 3z" fill="%231d1d1f" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>') 4 3, pointer !important;
+}
+
 .leaflet-bar {
   border: 1px solid var(--border-apple) !important;
   box-shadow: var(--shadow-apple) !important;
@@ -121,4 +136,204 @@ body {
 
 .pulse-active {
   animation: pulse-glow 2s infinite ease-in-out;
+}
+
+/* --- Premium Dark Mode Design Overrides --- */
+
+/* Standard dark theme variables */
+.dark {
+  --bg-light: #0d0d0f;
+  --text-charcoal: #f5f5f7;
+  --text-secondary: #86868b;
+  --panel-apple: rgba(22, 22, 23, 0.75);
+  --border-apple: rgba(255, 255, 255, 0.08);
+  --shadow-apple: 0 8px 30px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dark body {
+  background-color: var(--bg-light);
+  color: var(--text-charcoal);
+}
+
+/* Header & Sidebar panels */
+.dark header,
+.dark aside,
+.dark #inspector-panel,
+.dark .bg-white,
+.dark .bg-white\/70,
+.dark .bg-white\/80,
+.dark .bg-white\/95 {
+  background-color: var(--panel-apple) !important;
+  color: var(--text-charcoal) !important;
+}
+
+/* Borders */
+.dark .border,
+.dark .border-t,
+.dark .border-b,
+.dark .border-r,
+.dark .border-l,
+.dark .border-black\/5,
+.dark .border-gray-200 {
+  border-color: var(--border-apple) !important;
+}
+
+/* Typography elements */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark p,
+.dark span,
+.dark select,
+.dark option,
+.dark .text-gray-800,
+.dark .text-gray-900,
+.dark .text-\[\#1d1d1f\] {
+  color: var(--text-charcoal) !important;
+}
+
+/* Secondary descriptions */
+.dark .text-gray-500,
+.dark .text-gray-400,
+.dark .text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+/* Text fields and forms */
+.dark input,
+.dark select,
+.dark textarea,
+.dark select option {
+  background-color: rgba(30, 30, 32, 0.9) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Inner containers and list items */
+.dark .bg-gray-50,
+.dark .bg-gray-50\/50,
+.dark .bg-slate-50,
+.dark .bg-\[\#f5f5f7\],
+.dark .bg-\[\#e8e8ed\]\/80,
+.dark .bg-\[\#e8e8ed\],
+.dark .bg-indigo-50\/50,
+.dark .bg-violet-50\/50,
+.dark .bg-amber-50\/70,
+.dark .bg-emerald-50\/70 {
+  background-color: rgba(30, 30, 32, 0.8) !important;
+}
+
+/* Override specific text buttons or titles */
+.dark .text-\[\#1d1d1f\] {
+  color: #f5f5f7 !important;
+}
+
+.dark #active-filters-banner {
+  background-color: rgba(0, 113, 227, 0.15) !important;
+  color: #4da3ff !important;
+}
+
+/* Modal backgrounds */
+.dark #add-permit-modal > div,
+.dark #kml-converter-modal > div,
+.dark #telemetry-modal > div {
+  background-color: rgba(30, 30, 32, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark .bg-white\/95 {
+  background-color: rgba(30, 30, 32, 0.95) !important;
+}
+
+.dark .bg-gray-50\/50 {
+  background-color: rgba(20, 20, 22, 0.5) !important;
+}
+
+.dark .text-gray-900 {
+  color: #ffffff !important;
+}
+
+/* Custom Scrollbar override for Dark Mode */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Leaflet dark mode overrides for popup and zoom bar */
+.dark .leaflet-bar {
+  background: rgba(30, 30, 32, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .leaflet-bar a {
+  color: #ffffff !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .leaflet-bar a:hover {
+  color: #4da3ff !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark .leaflet-popup-content-wrapper {
+  background: rgba(30, 30, 32, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.dark .leaflet-popup-tip {
+  background: rgba(30, 30, 32, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Dark mode compliance/emergency overrides */
+.dark .bg-red-50,
+.dark .bg-red-50\/60 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: #f87171 !important;
+}
+
+.dark .text-red-600 {
+  color: #fca5a5 !important;
+}
+
+.dark .bg-indigo-50,
+.dark .bg-indigo-50\/70 {
+  background-color: rgba(79, 70, 229, 0.15) !important;
+  border-color: rgba(79, 70, 229, 0.3) !important;
+}
+
+.dark .text-indigo-700 {
+  color: #a5b4fc !important;
+}
+
+.dark .bg-emerald-50,
+.dark .bg-emerald-50\/70 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.dark .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-50\/70 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.dark .text-amber-700 {
+  color: #fcd34d !important;
 }

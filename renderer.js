@@ -14,6 +14,8 @@ let currentStatusFilter = 'All'; // 'All', 'ACTIVE', 'PENDING', or 'EXPIRED'
 // Flight evaluation global states
 let satelliteLayer = null;
 let streetLayer = null;
+let darkLayer = null;
+let telemetryMapTileLayer = null;
 let activeTileMode = 'streets';
 let flightLogData = null;
 let flightPathPolyline = null;
@@ -360,6 +362,7 @@ const REGION_AIRPORTS = [
 
 // Initialize application when loaded
 window.addEventListener('DOMContentLoaded', async () => {
+  initDarkMode();
   initMap();
   await loadAndRenderData();
   setupEventListeners();
@@ -380,7 +383,14 @@ function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     subdomains: 'abcd',
     maxZoom: 20
-  }).addTo(map);
+  });
+
+  // Load sleek dark theme map tiles from CartoDB Dark Matter
+  darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+  });
 
   // Load satellite tiles
   satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -388,20 +398,38 @@ function initMap() {
     maxZoom: 20
   });
 
+  // Add initial street or dark layer based on current theme preference
+  const isDarkModeInit = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
+  if (isDarkModeInit) {
+    darkLayer.addTo(map);
+  } else {
+    streetLayer.addTo(map);
+  }
+
   // Map Tile Toggle
   const mapToggle = document.getElementById('map-toggle-satellite');
   const mapToggleText = document.getElementById('map-toggle-text');
   if (mapToggle) {
     mapToggle.addEventListener('click', () => {
       if (activeTileMode === 'streets') {
-        map.removeLayer(streetLayer);
+        const isCurrentDark = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
+        if (isCurrentDark) {
+          map.removeLayer(darkLayer);
+        } else {
+          map.removeLayer(streetLayer);
+        }
         satelliteLayer.addTo(map);
         activeTileMode = 'satellite';
         mapToggleText.textContent = "Street Map";
         mapToggle.classList.add('text-[#0071e3]');
       } else {
         map.removeLayer(satelliteLayer);
-        streetLayer.addTo(map);
+        const isCurrentDark = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
+        if (isCurrentDark) {
+          darkLayer.addTo(map);
+        } else {
+          streetLayer.addTo(map);
+        }
         activeTileMode = 'streets';
         mapToggleText.textContent = "Satellite Map";
         mapToggle.classList.remove('text-[#0071e3]');
@@ -409,12 +437,12 @@ function initMap() {
     });
   }
 
-  // Plot KKOP Airport Safety zones (red border rings) & Interactive IATA code badges
+  // Plot KKOP Airport Safety zones (indigo border rings) & Interactive IATA code badges
   REGION_AIRPORTS.forEach(airport => {
     // 5km Ring (No Fly Zone buffer)
     const nfzRing = L.circle([airport.lat, airport.lng], {
-      color: '#ef4444',
-      fillColor: '#ef4444',
+      color: '#4f46e5',
+      fillColor: '#4f46e5',
       fillOpacity: 0.08,
       weight: 1.5,
       dashArray: '4, 4',
@@ -424,7 +452,7 @@ function initMap() {
     // Create a beautiful custom HTML marker with the 3-letter IATA code
     const airportIcon = L.divIcon({
       html: `
-        <div class="flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-bold text-[9px] shadow-md shadow-red-500/20 border border-white hover:scale-110 active:scale-95 transition-all cursor-pointer">
+        <div class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-[9px] shadow-md shadow-indigo-600/20 border border-white hover:scale-110 active:scale-95 transition-all cursor-pointer">
           ${airport.code}
         </div>`,
       className: 'custom-airport-icon',
@@ -499,6 +527,12 @@ function getPermitStatus(permit) {
 
 // Setup filters and searches
 function setupEventListeners() {
+  // Dark mode button handler
+  const btnDarkMode = document.getElementById('btn-toggle-dark-mode');
+  if (btnDarkMode) {
+    btnDarkMode.addEventListener('click', toggleDarkMode);
+  }
+
   // Debounced search input — avoids re-rendering on every single keypress
   const searchInput = document.getElementById('search-input');
   let searchDebounceTimer;
@@ -779,8 +813,8 @@ function highlightAirportOnMap(airportCode) {
     if (layers) {
       const isSelected = airportCode && ap.code === airportCode;
       layers.ring.setStyle({
-        color: isSelected ? '#b45309' : '#ef4444', // brand gold when selected, red otherwise
-        fillColor: isSelected ? '#b45309' : '#ef4444',
+        color: isSelected ? '#b45309' : '#4f46e5', // brand gold when selected, indigo otherwise
+        fillColor: isSelected ? '#b45309' : '#4f46e5',
         fillOpacity: isSelected ? 0.2 : 0.08,
         weight: isSelected ? 3 : 1.5,
         dashArray: isSelected ? '0' : '4, 4'
@@ -793,7 +827,7 @@ function highlightAirportOnMap(airportCode) {
           if (isSelected) {
             div.className = "flex items-center justify-center w-9 h-9 rounded-full bg-[#b45309] text-white font-extrabold text-[10px] shadow-lg shadow-amber-700/40 border border-white scale-110 transition-all cursor-pointer";
           } else {
-            div.className = "flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-bold text-[9px] shadow-md shadow-red-500/20 border border-white hover:scale-110 active:scale-95 transition-all cursor-pointer";
+            div.className = "flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-[9px] shadow-md shadow-indigo-600/20 border border-white hover:scale-110 active:scale-95 transition-all cursor-pointer";
           }
         }
       }
@@ -2578,26 +2612,31 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
     amsls  = amslData.filter((_, i)  => i % step === 0);
   }
 
+  const isDarkMode = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
+  const textColor = isDarkMode ? '#9ca3af' : '#6b7280';
+  const labelColor = isDarkMode ? '#d1d5db' : '#9ca3af';
+  const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
+
   // ---- Common X-axis scale ----
   const commonXScale = {
     title: {
       display: true,
       text: 'Elapsed Time (minutes)',
       font: { size: 12, weight: 'bold' },
-      color: '#6b7280'
+      color: textColor
     },
     ticks: {
       maxTicksLimit: 14,
       font: { size: 11 },
-      color: '#9ca3af'
+      color: labelColor
     },
-    grid: { color: 'rgba(0,0,0,0.04)' }
+    grid: { color: gridColor }
   };
 
   const commonPlugins = {
     legend: {
       position: 'top',
-      labels: { font: { size: 12, weight: 'bold' }, boxWidth: 14 }
+      labels: { font: { size: 12, weight: 'bold' }, boxWidth: 14, color: isDarkMode ? '#e8e8ed' : '#1d1d1f' }
     },
     tooltip: {
       callbacks: {
@@ -2698,7 +2737,7 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
           position: 'left',
           title: { display: true, text: 'Altitude (feet)', font: { size: 12, weight: 'bold' }, color: '#3b82f6' },
           ticks: { color: '#3b82f6', font: { size: 10 } },
-          grid: { color: 'rgba(59,130,246,0.07)' }
+          grid: { color: isDarkMode ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.07)' }
         },
         ySpeed: {
           type: 'linear',
@@ -2749,8 +2788,9 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
         x: commonXScale,
         y: {
           type: 'linear',
-          title: { display: true, text: 'Altitude AGL (feet)', font: { size: 12, weight: 'bold' } },
-          grid: { color: 'rgba(0,0,0,0.04)' }
+          title: { display: true, text: 'Altitude AGL (feet)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8e8ed' : '#374151' },
+          ticks: { color: labelColor },
+          grid: { color: gridColor }
         }
       }
     }
@@ -2795,8 +2835,9 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
           x: commonXScale,
           y: {
             type: 'linear',
-            title: { display: true, text: 'Altitude AMSL (feet)', font: { size: 12, weight: 'bold' } },
-            grid: { color: 'rgba(0,0,0,0.04)' }
+            title: { display: true, text: 'Altitude AMSL (feet)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8e8ed' : '#374151' },
+            ticks: { color: labelColor },
+            grid: { color: gridColor }
           }
         }
       }
@@ -2841,8 +2882,9 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
         x: commonXScale,
         y: {
           type: 'linear',
-          title: { display: true, text: 'Speed (knots)', font: { size: 12, weight: 'bold' } },
-          grid: { color: 'rgba(0,0,0,0.04)' }
+          title: { display: true, text: 'Speed (knots)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8e8ed' : '#374151' },
+          ticks: { color: labelColor },
+          grid: { color: gridColor }
         }
       }
     }
@@ -2883,8 +2925,14 @@ function initTelemetryAnalyzerMap() {
   if (!telemetryAnalyzerMap) {
     // Initialize Leaflet map
     telemetryAnalyzerMap = L.map('telemetry-analyzer-map').setView([-0.94, 100.35], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
+    const isDark = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
+    const tileUrl = isDark 
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' 
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    telemetryMapTileLayer = L.tileLayer(tileUrl, {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
     }).addTo(telemetryAnalyzerMap);
   }
 
@@ -3002,6 +3050,85 @@ function updateTelemetryAnalyzerUI() {
   } else if (hasCsv && currentActiveTelemetryTab === 'combined') {
     // Make sure we keep showing combined
     switchTelemetryTab('combined');
+  }
+}
+
+// --- Premium Dark Mode Functions ---
+function initDarkMode() {
+  const savedMode = localStorage.getItem('darkMode');
+  const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  
+  const isDark = savedMode === 'enabled' || (savedMode === null && systemPrefersDark);
+  
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+    document.body.classList.add('dark');
+    const sunIcon = document.getElementById('dark-mode-icon-sun');
+    const moonIcon = document.getElementById('dark-mode-icon-moon');
+    if (sunIcon) sunIcon.classList.remove('hidden');
+    if (moonIcon) moonIcon.classList.add('hidden');
+  } else {
+    document.documentElement.classList.remove('dark');
+    document.body.classList.remove('dark');
+    const sunIcon = document.getElementById('dark-mode-icon-sun');
+    const moonIcon = document.getElementById('dark-mode-icon-moon');
+    if (sunIcon) sunIcon.classList.add('hidden');
+    if (moonIcon) moonIcon.classList.remove('hidden');
+  }
+}
+
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle('dark');
+  document.documentElement.classList.toggle('dark', isDark);
+  
+  localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+  
+  const sunIcon = document.getElementById('dark-mode-icon-sun');
+  const moonIcon = document.getElementById('dark-mode-icon-moon');
+  
+  if (isDark) {
+    if (sunIcon) sunIcon.classList.remove('hidden');
+    if (moonIcon) moonIcon.classList.add('hidden');
+    
+    // Swap Leaflet map layers to CartoDB Dark Matter
+    if (map && activeTileMode === 'streets') {
+      map.removeLayer(streetLayer);
+      darkLayer.addTo(map);
+    }
+  } else {
+    if (sunIcon) sunIcon.classList.add('hidden');
+    if (moonIcon) moonIcon.classList.remove('hidden');
+    
+    // Swap Leaflet map layers to CartoDB Positron
+    if (map && activeTileMode === 'streets') {
+      map.removeLayer(darkLayer);
+      streetLayer.addTo(map);
+    }
+  }
+
+  // Update lazy-loaded telemetry analyzer map tiles if initialized
+  if (telemetryAnalyzerMap && telemetryMapTileLayer) {
+    telemetryAnalyzerMap.removeLayer(telemetryMapTileLayer);
+    const tileUrl = isDark 
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' 
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    telemetryMapTileLayer = L.tileLayer(tileUrl, {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(telemetryAnalyzerMap);
+  }
+
+  // Trigger telemetry charts re-render if loaded
+  if (uploadedCsvData) {
+    // Redraw charts with the new color schemes
+    renderTelemetryChart(
+      uploadedCsvData.timeData,
+      uploadedCsvData.speedData,
+      uploadedCsvData.aglData,
+      uploadedCsvData.amslData,
+      uploadedCsvData.hasAmsl
+    );
   }
 }
 

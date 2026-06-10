@@ -22,6 +22,7 @@
   <!-- Custom Tailwind config for custom values -->
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
@@ -80,6 +81,22 @@
         </div>
       </div>
       
+      <!-- Dark Mode Toggle Button -->
+      <button
+        id="btn-toggle-dark-mode"
+        class="w-10 h-10 rounded-2xl bg-[#e8e8ed]/80 hover:bg-[#e8e8ed] text-gray-500 hover:text-[#1d1d1f] flex items-center justify-center transition-all active:scale-95 shrink-0"
+        title="Toggle Dark Mode"
+      >
+        <!-- Sun icon (shown in dark mode) -->
+        <svg id="dark-mode-icon-sun" class="w-5 h-5 text-amber-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+        </svg>
+        <!-- Moon icon (shown in light mode) -->
+        <svg id="dark-mode-icon-moon" class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+      </button>
+
       <!-- Telemetry Analyzer Button -->
       <button
         onclick="openTelemetryAnalyzer()"
@@ -180,7 +197,7 @@
       <!-- Overlay controls for map filters (Light Glass Theme) -->
       <div class="absolute bottom-4 left-4 z-[1000] glass-panel rounded-2xl px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold select-none bg-white/80 border-black/5 text-[#1d1d1f] max-w-[calc(100%-2rem)]">
         <div class="flex items-center gap-2">
-          <span class="w-3.5 h-3.5 rounded bg-red-500/10 border border-red-500/40 inline-block"></span>
+          <span class="w-3.5 h-3.5 rounded bg-indigo-500/10 border border-indigo-500/40 inline-block"></span>
           <span>Airport Buffer Zones (KKOP)</span>
         </div>
         <div class="w-px h-4 bg-black/10"></div>

@@ -157,7 +157,7 @@ Key locations (lowercase string → `[lat, lng]`):
 | PGK | WIPK | Depati Amir | Kepulauan Bangka Belitung | -2.160630 | 106.141730 |
 | TJQ | WIKT | H.AS. Hanandjoeddin | Kepulauan Bangka Belitung | -2.745280 | 107.753060 |
 
-Each drawn as a **5 km red dashed ring** on the Leaflet map. All 13 are checked in `runComplianceChecks()` for KKOP proximity.
+Each drawn as a **5 km indigo dashed ring** on the Leaflet map. All 13 are checked in `runComplianceChecks()` for KKOP proximity.
 
 ### `getEmergencyTower(location)` — AirNav tower routing
 Maps location string to nearest tower + phone:
