@@ -361,26 +361,56 @@ body {
 /* PORTAL AND MENUS PAGE STYLES                                 */
 /* ============================================================ */
 
-/* Animated grid background for portal */
-.portal-grid-bg {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-  background-position: center center;
-  mask-image: radial-gradient(circle, #000 60%, transparent 100%);
-  -webkit-mask-image: radial-gradient(circle, #000 60%, transparent 100%);
-  animation: grid-pulse 8s infinite alternate ease-in-out;
+/* Portal landing page base is now #f5f5f7 (handled by Tailwind classes) */
+
+/* Portal topbar nav backdrop */
+#portal-container nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-@keyframes grid-pulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.08;
-  }
-  100% {
-    transform: scale(1.05);
-    opacity: 0.14;
-  }
+/* Hero section animate */
+.portal-hero-animate {
+  animation: heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes heroFadeUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Staggered Card Animation - refined for light theme */
+.stagger-card {
+  opacity: 0;
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+#portal-card-gis { animation-delay: 0.08s; }
+#portal-card-telemetry { animation-delay: 0.16s; }
+#portal-card-converter { animation-delay: 0.24s; }
+#portal-card-regulations { animation-delay: 0.32s; }
+#portal-card-adsb { animation-delay: 0.40s; }
+#portal-card-author { animation-delay: 0.48s; }
+
+@keyframes slideUpFade {
+  0% { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* View Transition Utility Classes */
+.view-transition {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.view-fade-out {
+  opacity: 0 !important;
+  transform: scale(0.98) !important;
+  pointer-events: none;
+}
+.view-fade-in {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  pointer-events: auto;
 }
 
 /* Animations */
@@ -434,4 +464,75 @@ body {
 .dark #regulations-content-area {
   background-color: rgba(21, 21, 23, 1) !important;
   color: #d1d1d6 !important;
+}
+
+/* Processing animations for the application logo */
+@keyframes logo-process-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(0, 113, 227, 0.3), 0 0 3px rgba(0, 113, 227, 0.1);
+    border-color: rgba(0, 113, 227, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 113, 227, 0.7), 0 0 10px rgba(0, 113, 227, 0.3);
+    border-color: rgba(0, 113, 227, 0.8);
+    transform: scale(1.05);
+  }
+}
+
+.logo-processing {
+  animation: logo-process-glow 1.5s infinite ease-in-out !important;
+  border-color: #0071e3 !important;
+}
+
+/* ============================================================
+   ADS-B LIVE MONITOR STYLES
+   ============================================================ */
+
+/* Leaflet plane icon — no background box, just the emoji */
+.adsb-plane-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ADS-B modal map — override leaflet container bg */
+#adsb-map .leaflet-container {
+  background: #f0f4f8 !important;
+}
+
+/* Custom ADSB popup style */
+#adsb-map .leaflet-popup-content-wrapper {
+  border-radius: 14px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  padding: 10px 12px !important;
+}
+
+#adsb-map .leaflet-popup-content {
+  margin: 0 !important;
+  font-family: 'Outfit', sans-serif !important;
+}
+
+#adsb-map .leaflet-popup-tip {
+  background: white !important;
+}
+
+/* Flight card highlight when selected */
+.adsb-flight-card.selected,
+.adsb-flight-card:focus {
+  outline: 2px solid #0ea5e9 !important;
+  outline-offset: 1px;
+}
+
+/* Smooth scroll in flight list */
+#adsb-flight-list {
+  scroll-behavior: smooth;
+}
+
+/* Pulse dot in header (live indicator) */
+@keyframes adsb-pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.9; }
+  70% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }

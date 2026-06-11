@@ -48,6 +48,21 @@ let telemetryAnalyzerPolylineKml = null;
 let telemetryAnalyzerPolylineCsv = null;
 let telemetryAnalyzerMarkerTakeoff = null;
 
+// ADS-B Live Monitor state
+let adsbMap = null;
+let adsbMapTile = null;
+let adsbMarkers = {}; // icao24 -> L.marker
+let adsbFlightData = []; // latest fetched flight array
+let adsbPollingInterval = null;
+let adsbCountdownInterval = null;
+let adsbCountdownSeconds = 12;
+let adsbSelectedIcao = null;
+let adsbSearchQuery = '';
+
+// OpenSky Network REST API — Sumatra bounding box
+const OPENSKY_URL = 'https://opensky-network.org/api/states/all?lamin=-6.0&lomin=95.0&lamax=6.0&lomax=109.0';
+const ADSB_REFRESH_INTERVAL = 12000; // 12 seconds (respects OpenSky anonymous rate limit)
+
 
 // Web browser fallback mock for local testing outside Electron main process
 if (typeof window !== 'undefined' && !window.api) {
@@ -487,6 +502,8 @@ async function loadAndRenderData() {
     permits.sort((a, b) => b.year - a.year || a.permit_id.localeCompare(b.permit_id));
     
     renderDashboard();
+    // Pre-populate portal stats so they're ready when portal is shown
+    setTimeout(updatePortalStats, 100);
   } catch (error) {
     console.error("Failed to load permits data:", error);
     document.getElementById('permits-list-container').innerHTML = `
@@ -594,6 +611,40 @@ function setupEventListeners() {
     btnHome.addEventListener('click', showPortal);
   }
 
+  // Interactive Portal Status Card click listeners
+  const statCardActive = document.getElementById('portal-stat-card-active');
+  if (statCardActive) {
+    statCardActive.addEventListener('click', () => {
+      showDashboard();
+      const tabActive = document.getElementById('status-active');
+      if (tabActive) {
+        tabActive.click();
+      }
+    });
+  }
+
+  const statCardPending = document.getElementById('portal-stat-card-pending');
+  if (statCardPending) {
+    statCardPending.addEventListener('click', () => {
+      showDashboard();
+      const tabPending = document.getElementById('status-pending');
+      if (tabPending) {
+        tabPending.click();
+      }
+    });
+  }
+
+  const statCardExpired = document.getElementById('portal-stat-card-expired');
+  if (statCardExpired) {
+    statCardExpired.addEventListener('click', () => {
+      showDashboard();
+      const tabExpired = document.getElementById('status-expired');
+      if (tabExpired) {
+        tabExpired.click();
+      }
+    });
+  }
+
   // Portal Card Click Listeners
   const cardGis = document.getElementById('portal-card-gis');
   if (cardGis) {
@@ -623,9 +674,32 @@ function setupEventListeners() {
 
   const cardAdsb = document.getElementById('portal-card-adsb');
   if (cardAdsb) {
-    cardAdsb.addEventListener('click', () => {
-      showDashboard();
-      showToast("Real-time ADS-B Airspace Monitor is initializing...", "info");
+    cardAdsb.addEventListener('click', openAdsbMonitor);
+  }
+
+  // Author card and footer profile listeners
+  const cardAuthor = document.getElementById('portal-card-author');
+  if (cardAuthor) {
+    cardAuthor.addEventListener('click', openAuthorModal);
+  }
+
+  const btnFooterAuthor = document.getElementById('btn-footer-author');
+  if (btnFooterAuthor) {
+    btnFooterAuthor.addEventListener('click', openAuthorModal);
+  }
+
+  const btnSidebarAuthor = document.getElementById('btn-sidebar-author');
+  if (btnSidebarAuthor) {
+    btnSidebarAuthor.addEventListener('click', openAuthorModal);
+  }
+
+  // Close author modal if clicking on the background overlay
+  const authorModal = document.getElementById('author-modal');
+  if (authorModal) {
+    authorModal.addEventListener('click', (e) => {
+      if (e.target === authorModal) {
+        closeAuthorModal();
+      }
     });
   }
 
@@ -2227,6 +2301,7 @@ function clearTelemetryKml() {
 }
 
 function processTelemetryCsv(file) {
+  startLogoProcessing();
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
@@ -2409,10 +2484,12 @@ function processTelemetryCsv(file) {
       showTelemetryFileInfo(file.name, timeData.length, filteredPreFlight, maxSpeed, maxAgl, maxAmsl, duration, avgSpeed, avgAgl, avgAmsl);
       renderTelemetryChart(timeData, speedData, aglData, amslData, aglIdx !== -1, amslIdx !== -1);
       updateTelemetryAnalyzerUI();
+      stopLogoProcessing();
 
     } catch (err) {
       console.error('Telemetry parse error:', err);
       showToast(err.message || 'Failed to parse CSV file.', 'error');
+      stopLogoProcessing();
     }
   };
   reader.readAsText(file);
@@ -2466,6 +2543,7 @@ function showTelemetryFileInfo(filename, points, filtered, maxSpeed, maxAgl, max
 }
 
 function processTelemetryKml(file) {
+  startLogoProcessing();
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
@@ -2514,10 +2592,12 @@ function processTelemetryKml(file) {
       
       showToast("KML flight path loaded and plotted on map!", "success");
       updateTelemetryAnalyzerUI();
+      stopLogoProcessing();
       
     } catch (err) {
       console.error("KML parse error:", err);
       showToast(err.message || "Failed to parse KML file.", "error");
+      stopLogoProcessing();
     }
   };
   reader.readAsText(file);
@@ -3231,31 +3311,87 @@ window.showPortal = function() {
   const appWorkspace = document.getElementById('app-workspace-container');
   
   if (portal && appWorkspace) {
-    appWorkspace.classList.add('hidden');
-    portal.classList.remove('hidden');
+    // Start transition
+    appWorkspace.classList.add('view-transition', 'view-fade-out');
     
-    // Clear selected permit or state if returning to portal
-    selectedPermit = null;
-    selectedAirport = null;
-    renderDashboard();
-    renderInspector();
+    setTimeout(() => {
+      appWorkspace.classList.add('hidden');
+      appWorkspace.classList.remove('view-transition', 'view-fade-out');
+      
+      portal.classList.remove('hidden');
+      portal.classList.add('view-fade-out');
+      
+      // Force reflow
+      void portal.offsetWidth;
+      
+      portal.classList.add('view-transition');
+      portal.classList.remove('view-fade-out');
+      portal.classList.add('view-fade-in');
+      
+      setTimeout(() => {
+        portal.classList.remove('view-transition', 'view-fade-in');
+      }, 300);
+      
+      // Clear selected permit or state if returning to portal
+      selectedPermit = null;
+      selectedAirport = null;
+      renderDashboard();
+      renderInspector();
+      
+      // Update portal live stats
+      updatePortalStats();
+    }, 300);
   }
 };
+
+// Populate the system status card on the portal with live permit counts
+function updatePortalStats() {
+  let active = 0, pending = 0, expired = 0;
+  permits.forEach(p => {
+    const s = getPermitStatus(p);
+    if (s === 'ACTIVE') active++;
+    else if (s === 'PENDING') pending++;
+    else expired++;
+  });
+  const el = (id) => document.getElementById(id);
+  if (el('portal-stat-active')) el('portal-stat-active').textContent = active;
+  if (el('portal-stat-pending')) el('portal-stat-pending').textContent = pending;
+  if (el('portal-stat-expired')) el('portal-stat-expired').textContent = expired;
+}
 
 window.showDashboard = function() {
   const portal = document.getElementById('portal-container');
   const appWorkspace = document.getElementById('app-workspace-container');
   
   if (portal && appWorkspace) {
-    portal.classList.add('hidden');
-    appWorkspace.classList.remove('hidden');
+    // Start transition
+    portal.classList.add('view-transition', 'view-fade-out');
     
-    // Invalidate Leaflet map size to ensure tiles are loaded and centered properly
-    if (map) {
+    setTimeout(() => {
+      portal.classList.add('hidden');
+      portal.classList.remove('view-transition', 'view-fade-out');
+      
+      appWorkspace.classList.remove('hidden');
+      appWorkspace.classList.add('view-fade-out');
+      
+      // Force reflow
+      void appWorkspace.offsetWidth;
+      
+      appWorkspace.classList.add('view-transition');
+      appWorkspace.classList.remove('view-fade-out');
+      appWorkspace.classList.add('view-fade-in');
+      
       setTimeout(() => {
-        map.invalidateSize(true);
-      }, 50);
-    }
+        appWorkspace.classList.remove('view-transition', 'view-fade-in');
+      }, 300);
+      
+      // Invalidate Leaflet map size to ensure tiles are loaded and centered properly
+      if (map) {
+        setTimeout(() => {
+          map.invalidateSize(true);
+        }, 50);
+      }
+    }, 300);
   }
 };
 
@@ -3310,6 +3446,7 @@ window.processConverterFile = async function(file) {
   errorAlert.classList.add('hidden');
   results.classList.add('hidden');
   loader.classList.remove('hidden');
+  startLogoProcessing();
   
   try {
     // Check if window.api.convertToKml exists (meaning we're inside Electron)
@@ -3323,6 +3460,7 @@ window.processConverterFile = async function(file) {
     const res = await window.api.convertToKml(file.path);
     
     loader.classList.add('hidden');
+    stopLogoProcessing();
     
     if (res && res.success) {
       generatedKmlContent = res.kml_content;
@@ -3348,6 +3486,7 @@ window.processConverterFile = async function(file) {
     console.error("Conversion failed:", err);
     loader.classList.add('hidden');
     dropZone.classList.remove('hidden');
+    stopLogoProcessing();
     
     errorAlert.textContent = `Error: ${err.message}`;
     errorAlert.classList.remove('hidden');
@@ -3518,5 +3657,450 @@ window.switchRegulationTab = function(tabId) {
   }
 };
 
+window.openAuthorModal = function() {
+  const modal = document.getElementById('author-modal');
+  const box = modal.querySelector('div');
+  
+  switchAuthorTab('dev');
+  
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.remove('opacity-0');
+    box.classList.remove('scale-95');
+  }, 10);
+};
+
+window.closeAuthorModal = function() {
+  const modal = document.getElementById('author-modal');
+  const box = modal.querySelector('div');
+  
+  modal.classList.add('opacity-0');
+  box.classList.add('scale-95');
+  setTimeout(() => modal.classList.add('hidden'), 300);
+};
+
+window.switchAuthorTab = function(tabId) {
+  const btnDev = document.getElementById('btn-author-tab-dev');
+  const btnOkc = document.getElementById('btn-author-tab-okc');
+  const panelDev = document.getElementById('author-panel-dev');
+  const panelOkc = document.getElementById('author-panel-okc');
+  
+  if (tabId === 'dev') {
+    if (btnDev) btnDev.className = "py-2.5 text-xs font-bold text-[#0071e3] border-b-2 border-[#0071e3] transition-all focus:outline-none";
+    if (btnOkc) btnOkc.className = "py-2.5 text-xs font-bold text-gray-500 hover:text-gray-800 transition-all focus:outline-none";
+    if (panelDev) panelDev.classList.remove('hidden');
+    if (panelOkc) panelOkc.classList.add('hidden');
+  } else if (tabId === 'okc') {
+    if (btnDev) btnDev.className = "py-2.5 text-xs font-bold text-gray-500 hover:text-gray-800 transition-all focus:outline-none";
+    if (btnOkc) btnOkc.className = "py-2.5 text-xs font-bold text-[#007AC1] border-b-2 border-[#007AC1] transition-all focus:outline-none";
+    if (panelDev) panelDev.classList.add('hidden');
+    if (panelOkc) panelOkc.classList.remove('hidden');
+    
+    // Reset OKC sub-panels to default stats view
+    const statsPanel = document.getElementById('okc-stats-view');
+    const rosterPanel = document.getElementById('okc-roster-view');
+    const btnToggle = document.getElementById('btn-toggle-okc-roster');
+    if (statsPanel && rosterPanel && btnToggle) {
+      statsPanel.classList.remove('hidden');
+      rosterPanel.classList.add('hidden');
+      btnToggle.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        </svg>
+        <span>Show Full Roster & Front Office</span>
+      `;
+      btnToggle.className = "w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none";
+    }
+  }
+};
+
+window.toggleOkcRoster = function() {
+  const statsPanel = document.getElementById('okc-stats-view');
+  const rosterPanel = document.getElementById('okc-roster-view');
+  const btnToggle = document.getElementById('btn-toggle-okc-roster');
+  
+  if (rosterPanel.classList.contains('hidden')) {
+    statsPanel.classList.add('hidden');
+    rosterPanel.classList.remove('hidden');
+    btnToggle.innerHTML = `
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      <span>Back to Team Overview</span>
+    `;
+    btnToggle.className = "w-full mt-3 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold transition-all border border-black/5 flex items-center justify-center gap-2 focus:outline-none";
+  } else {
+    statsPanel.classList.remove('hidden');
+    rosterPanel.classList.add('hidden');
+    btnToggle.innerHTML = `
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+      </svg>
+      <span>Show Full Roster & Front Office</span>
+    `;
+    btnToggle.className = "w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none";
+  }
+};
+
+window.startLogoProcessing = function() {
+  const containers = [
+    document.getElementById('nav-logo-container'),
+    document.getElementById('hero-logo-container'),
+    document.getElementById('workspace-logo-container'),
+    document.getElementById('author-logo-container')
+  ];
+  containers.forEach(c => {
+    if (c) c.classList.add('logo-processing');
+  });
+};
+
+window.stopLogoProcessing = function() {
+  const containers = [
+    document.getElementById('nav-logo-container'),
+    document.getElementById('hero-logo-container'),
+    document.getElementById('workspace-logo-container'),
+    document.getElementById('author-logo-container')
+  ];
+  containers.forEach(c => {
+    if (c) c.classList.remove('logo-processing');
+  });
+};
+
+
+
+// ============================================================
+// ADS-B LIVE MONITOR — OpenSky Network Integration
+// ============================================================
+
+// OpenSky state vector field indexes
+const OPENSKY_FIELDS = {
+  ICAO24: 0, CALLSIGN: 1, ORIGIN_COUNTRY: 2, TIME_POS: 3, LAST_CONTACT: 4,
+  LON: 5, LAT: 6, BARO_ALT: 7, ON_GROUND: 8, VELOCITY: 9,
+  HEADING: 10, VERTICAL_RATE: 11, GEO_ALT: 13, SQUAWK: 14
+};
+
+function openAdsbMonitor() {
+  const modal = document.getElementById('adsb-modal');
+  const box = modal.querySelector('div');
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.remove('opacity-0');
+    box.classList.remove('scale-95');
+  }, 10);
+
+  // Initialize map if not already done
+  if (!adsbMap) {
+    initAdsbMap();
+  } else {
+    setTimeout(() => adsbMap.invalidateSize(), 100);
+  }
+
+  // Wire manual refresh button
+  const btnRefresh = document.getElementById('btn-adsb-refresh');
+  if (btnRefresh) {
+    btnRefresh.onclick = () => fetchAdsbData(true);
+  }
+
+  // Wire search input
+  const searchInput = document.getElementById('adsb-search');
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      adsbSearchQuery = e.target.value.toLowerCase().trim();
+      renderAdsbFlightList(adsbFlightData);
+    };
+  }
+
+  // Initial fetch + start polling
+  fetchAdsbData(true);
+  startAdsbPolling();
+}
+
+window.closeAdsbMonitor = function() {
+  const modal = document.getElementById('adsb-modal');
+  const box = modal.querySelector('div');
+  modal.classList.add('opacity-0');
+  box.classList.add('scale-95');
+  setTimeout(() => modal.classList.add('hidden'), 300);
+  stopAdsbPolling();
+};
+
+function initAdsbMap() {
+  const mapContainer = document.getElementById('adsb-map');
+  if (!mapContainer) return;
+
+  adsbMap = L.map('adsb-map', { zoomControl: true }).setView([-0.5, 102.0], 6);
+  L.control.zoom({ position: 'bottomright' }).addTo(adsbMap);
+
+  const isDark = document.body.classList.contains('dark');
+  const tileUrl = isDark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+  adsbMapTile = L.tileLayer(tileUrl, {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 18
+  }).addTo(adsbMap);
+
+  setTimeout(() => adsbMap.invalidateSize(), 150);
+}
+
+async function fetchAdsbData(isManual = false) {
+  // Reset countdown display
+  adsbCountdownSeconds = 12;
+  updateAdsbCountdown();
+
+  const errorOverlay = document.getElementById('adsb-error-overlay');
+  if (errorOverlay) errorOverlay.classList.add('hidden');
+
+  try {
+    const response = await fetch(OPENSKY_URL, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000) // 10s timeout
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+    const states = data.states || [];
+
+    // Filter out entries with no position
+    adsbFlightData = states.filter(s => s[OPENSKY_FIELDS.LAT] !== null && s[OPENSKY_FIELDS.LON] !== null);
+
+    renderAdsbFlightList(adsbFlightData);
+    renderAdsbMapMarkers(adsbFlightData);
+    updateAdsbHeaderCounts(adsbFlightData);
+    checkAdsbKkopConflicts(adsbFlightData);
+
+    if (isManual) showToast(`ADS-B data refreshed — ${adsbFlightData.length} aircraft in Sumatra airspace`, 'success');
+
+  } catch (err) {
+    console.error('OpenSky fetch failed:', err);
+    if (errorOverlay) errorOverlay.classList.remove('hidden');
+    if (isManual) showToast('Failed to reach OpenSky Network. Check your connection.', 'error');
+  }
+}
+
+function startAdsbPolling() {
+  stopAdsbPolling(); // Clear any existing
+
+  // Countdown ticker (1 second)
+  adsbCountdownInterval = setInterval(() => {
+    adsbCountdownSeconds--;
+    if (adsbCountdownSeconds <= 0) adsbCountdownSeconds = 12;
+    updateAdsbCountdown();
+  }, 1000);
+
+  // Data fetch every 12 seconds
+  adsbPollingInterval = setInterval(() => fetchAdsbData(false), ADSB_REFRESH_INTERVAL);
+}
+
+function stopAdsbPolling() {
+  if (adsbPollingInterval) { clearInterval(adsbPollingInterval); adsbPollingInterval = null; }
+  if (adsbCountdownInterval) { clearInterval(adsbCountdownInterval); adsbCountdownInterval = null; }
+}
+
+function updateAdsbCountdown() {
+  const el = document.getElementById('adsb-refresh-countdown');
+  if (el) el.textContent = `${adsbCountdownSeconds}s`;
+}
+
+function updateAdsbHeaderCounts(flights) {
+  const airborne = flights.filter(f => !f[OPENSKY_FIELDS.ON_GROUND]).length;
+  const ground = flights.filter(f => f[OPENSKY_FIELDS.ON_GROUND]).length;
+
+  const elAir = document.getElementById('adsb-count-airborne');
+  const elGnd = document.getElementById('adsb-count-ground');
+  if (elAir) elAir.textContent = airborne;
+  if (elGnd) elGnd.textContent = ground;
+}
+
+function renderAdsbFlightList(flights) {
+  const listEl = document.getElementById('adsb-flight-list');
+  if (!listEl) return;
+
+  const filtered = adsbSearchQuery
+    ? flights.filter(f => {
+        const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').toLowerCase();
+        const icao = (f[OPENSKY_FIELDS.ICAO24] || '').toLowerCase();
+        return callsign.includes(adsbSearchQuery) || icao.includes(adsbSearchQuery);
+      })
+    : flights;
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `
+      <div class="flex flex-col items-center justify-center h-32 text-gray-400 text-center gap-2">
+        <svg class="w-8 h-8 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <p class="text-xs font-semibold">No aircraft match your search.</p>
+      </div>`;
+    return;
+  }
+
+  // Sort: airborne first, then by altitude desc
+  const sorted = [...filtered].sort((a, b) => {
+    if (a[OPENSKY_FIELDS.ON_GROUND] !== b[OPENSKY_FIELDS.ON_GROUND]) {
+      return a[OPENSKY_FIELDS.ON_GROUND] ? 1 : -1;
+    }
+    return (b[OPENSKY_FIELDS.BARO_ALT] || 0) - (a[OPENSKY_FIELDS.BARO_ALT] || 0);
+  });
+
+  listEl.innerHTML = sorted.map(f => {
+    const icao = f[OPENSKY_FIELDS.ICAO24] || '???';
+    const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').trim() || icao.toUpperCase();
+    const country = f[OPENSKY_FIELDS.ORIGIN_COUNTRY] || 'Unknown';
+    const onGround = f[OPENSKY_FIELDS.ON_GROUND];
+    const altM = f[OPENSKY_FIELDS.BARO_ALT];
+    const altFt = altM !== null ? Math.round(altM * 3.28084) : null;
+    const velMs = f[OPENSKY_FIELDS.VELOCITY];
+    const speedKts = velMs !== null ? Math.round(velMs * 1.94384) : null;
+    const heading = f[OPENSKY_FIELDS.HEADING];
+    const isConflict = checkSingleFlightKkop(f);
+    const isSelected = icao === adsbSelectedIcao;
+
+    const statusColor = isConflict
+      ? 'border-red-200 bg-red-50'
+      : onGround
+        ? 'border-black/[0.04] bg-white'
+        : 'border-sky-100 bg-white';
+
+    const iconColor = isConflict ? '#ef4444' : onGround ? '#9ca3af' : '#0ea5e9';
+    const selectedBorder = isSelected ? 'ring-2 ring-sky-400' : '';
+
+    return `
+      <div class="adsb-flight-card p-2.5 rounded-xl border ${statusColor} ${selectedBorder} cursor-pointer hover:shadow-sm transition-all text-xs"
+           data-icao="${icao}" onclick="selectAdsbFlight('${icao}')"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span style="color:${iconColor};transform:rotate(${heading || 0}deg);display:inline-block;font-size:14px;line-height:1;">✈</span>
+            <span class="font-extrabold text-[#1d1d1f] tracking-tight">${callsign}</span>
+            ${isConflict ? '<span class="text-[8px] font-extrabold text-red-600 bg-red-100 px-1 py-0.5 rounded uppercase">KKOP</span>' : ''}
+          </div>
+          <span class="text-[9px] font-bold text-gray-400 uppercase">${onGround ? 'Ground' : 'Airborne'}</span>
+        </div>
+        <div class="mt-1.5 flex items-center gap-3 text-[10px] text-gray-500 font-semibold">
+          <span>${altFt !== null ? altFt.toLocaleString() + ' ft' : 'Alt N/A'}</span>
+          <span>${speedKts !== null ? speedKts + ' kts' : ''}</span>
+          <span class="ml-auto text-[9px] text-gray-300 font-mono">${icao.toUpperCase()}</span>
+        </div>
+        <div class="mt-0.5 text-[9px] text-gray-300 font-semibold">${country}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderAdsbMapMarkers(flights) {
+  if (!adsbMap) return;
+
+  // Remove stale markers (ICAOs no longer in feed)
+  const currentIcaos = new Set(flights.map(f => f[OPENSKY_FIELDS.ICAO24]));
+  for (const [icao, marker] of Object.entries(adsbMarkers)) {
+    if (!currentIcaos.has(icao)) {
+      adsbMap.removeLayer(marker);
+      delete adsbMarkers[icao];
+    }
+  }
+
+  flights.forEach(f => {
+    const icao = f[OPENSKY_FIELDS.ICAO24];
+    const lat = f[OPENSKY_FIELDS.LAT];
+    const lon = f[OPENSKY_FIELDS.LON];
+    const onGround = f[OPENSKY_FIELDS.ON_GROUND];
+    const heading = f[OPENSKY_FIELDS.HEADING] || 0;
+    const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').trim() || icao.toUpperCase();
+    const altM = f[OPENSKY_FIELDS.BARO_ALT];
+    const altFt = altM !== null ? Math.round(altM * 3.28084) : null;
+    const velMs = f[OPENSKY_FIELDS.VELOCITY];
+    const speedKts = velMs !== null ? Math.round(velMs * 1.94384) : null;
+    const isConflict = checkSingleFlightKkop(f);
+
+    const color = isConflict ? '#ef4444' : onGround ? '#9ca3af' : '#0ea5e9';
+    const size = onGround ? 16 : 20;
+
+    const icon = L.divIcon({
+      html: `<div style="color:${color};font-size:${size}px;transform:rotate(${heading}deg);line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2));" title="${callsign}">✈</div>`,
+      className: 'adsb-plane-icon',
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2]
+    });
+
+    const popupContent = `
+      <div class="text-xs space-y-1" style="min-width:160px">
+        <div class="font-bold text-[#1d1d1f]">${callsign}</div>
+        <div class="font-mono text-gray-400 text-[10px]">${icao.toUpperCase()}</div>
+        <div class="flex justify-between pt-1 border-t border-black/5">
+          <span class="text-gray-500">Status</span>
+          <span class="font-bold ${onGround ? 'text-gray-500' : 'text-sky-600'}">${onGround ? 'On Ground' : 'Airborne'}</span>
+        </div>
+        ${altFt !== null ? `<div class="flex justify-between"><span class="text-gray-500">Altitude</span><span class="font-bold">${altFt.toLocaleString()} ft</span></div>` : ''}
+        ${speedKts !== null ? `<div class="flex justify-between"><span class="text-gray-500">Speed</span><span class="font-bold">${speedKts} kts</span></div>` : ''}
+        ${heading ? `<div class="flex justify-between"><span class="text-gray-500">Heading</span><span class="font-bold">${Math.round(heading)}°</span></div>` : ''}
+        ${isConflict ? '<div class="mt-1 text-[10px] font-bold text-red-600 bg-red-50 rounded px-1.5 py-0.5">⚠ KKOP Proximity Alert</div>' : ''}
+      </div>`;
+
+    if (adsbMarkers[icao]) {
+      adsbMarkers[icao].setLatLng([lat, lon]);
+      adsbMarkers[icao].setIcon(icon);
+      adsbMarkers[icao].setPopupContent(popupContent);
+    } else {
+      const marker = L.marker([lat, lon], { icon })
+        .bindPopup(popupContent, { maxWidth: 220 })
+        .addTo(adsbMap);
+      marker.on('click', () => selectAdsbFlight(icao));
+      adsbMarkers[icao] = marker;
+    }
+  });
+}
+
+function checkSingleFlightKkop(flight) {
+  const lat = flight[OPENSKY_FIELDS.LAT];
+  const lon = flight[OPENSKY_FIELDS.LON];
+  if (lat === null || lon === null) return false;
+
+  for (const airport of REGION_AIRPORTS) {
+    const inside = isPointInCircle([lat, lon], [airport.lat, airport.lng], 5000);
+    if (inside) return true; // Within 5km KKOP zone
+  }
+  return false;
+}
+
+function checkAdsbKkopConflicts(flights) {
+  const conflictingFlights = flights.filter(f => checkSingleFlightKkop(f));
+  const conflictCount = conflictingFlights.length;
+
+  const elCount = document.getElementById('adsb-count-conflicts');
+  if (elCount) elCount.textContent = conflictCount;
+
+  const banner = document.getElementById('adsb-conflict-banner');
+  const bannerText = document.getElementById('adsb-conflict-text');
+
+  if (conflictCount > 0 && banner && bannerText) {
+    const names = conflictingFlights
+      .slice(0, 3)
+      .map(f => ((f[OPENSKY_FIELDS.CALLSIGN] || '').trim() || f[OPENSKY_FIELDS.ICAO24].toUpperCase()))
+      .join(', ');
+    bannerText.textContent = `${names}${conflictCount > 3 ? ` +${conflictCount - 3} more` : ''} within 5km KKOP zones.`;
+    banner.classList.remove('hidden');
+  } else if (banner) {
+    banner.classList.add('hidden');
+  }
+}
+
+window.selectAdsbFlight = function(icao) {
+  adsbSelectedIcao = icao;
+
+  // Pan map to aircraft
+  const flight = adsbFlightData.find(f => f[OPENSKY_FIELDS.ICAO24] === icao);
+  if (flight && adsbMap) {
+    const lat = flight[OPENSKY_FIELDS.LAT];
+    const lon = flight[OPENSKY_FIELDS.LON];
+    if (lat !== null && lon !== null) {
+      adsbMap.setView([lat, lon], 10, { animate: true, duration: 0.8 });
+      if (adsbMarkers[icao]) adsbMarkers[icao].openPopup();
+    }
+  }
+
+  // Highlight selected card in list
+  renderAdsbFlightList(adsbFlightData);
+};
 
 

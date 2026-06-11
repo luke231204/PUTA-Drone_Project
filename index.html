@@ -39,141 +39,236 @@
 </head>
 <body class="h-screen flex flex-col bg-[#f5f5f7] text-[#1d1d1f]">
 
-  <!-- Portal Landing Page Container -->
-  <div id="portal-container" class="flex-1 flex flex-col justify-center items-center p-6 bg-[#0f172a] text-white relative overflow-hidden select-none">
+  <!-- Portal Landing Page Container — White Apple Style -->
+  <div id="portal-container" class="flex-1 flex flex-col overflow-hidden bg-[#f5f5f7] select-none">
     
-    <!-- Background Animated Elements -->
-    <div class="portal-grid-bg absolute inset-0 opacity-10"></div>
-    <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/30 rounded-full blur-[120px] pointer-events-none"></div>
-    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[#b45309]/20 rounded-full blur-[120px] pointer-events-none"></div>
-    
-    <div class="z-10 flex flex-col items-center max-w-5xl w-full text-center space-y-8 animate-fade-in">
-      
-      <!-- Brand Logo / Header -->
-      <div class="flex flex-col items-center space-y-4">
-        <div class="w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border border-white/10 shrink-0 transform hover:scale-105 transition-transform duration-300">
-          <img src="Logo/logo drone.png" alt="PUTA Logo" class="w-full h-full object-cover">
+    <!-- Topbar -->
+    <nav class="h-14 bg-white/80 backdrop-blur-md border-b border-black/[0.06] px-8 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-3">
+        <div id="nav-logo-container" class="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-black/5 shrink-0 transition-all duration-300">
+          <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
         </div>
-        <div class="space-y-1">
-          <h1 class="text-4xl font-extrabold tracking-tight text-white flex items-center justify-center gap-3">
-            PUTA-Monitor 
-            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/10 text-white/75 border border-white/10">v1.0</span>
-          </h1>
-          <p class="text-xs font-bold text-[#b45309] uppercase tracking-widest">
-            Kantor Otoritas Bandar Udara Wilayah VI Padang
-          </p>
-          <p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
-            Airspace Management & Regulatory Compliance System
-          </p>
-        </div>
+        <span class="text-sm font-bold text-[#1d1d1f] tracking-tight">PUTA-Monitor</span>
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/5 text-black/40 border border-black/5">v1.0</span>
       </div>
+      <div class="text-[10px] font-bold text-[#b45309] uppercase tracking-widest hidden md:block">
+        Kantor Otoritas Bandar Udara Wilayah VI Padang
+      </div>
+      <div class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+        Airspace Management System
+      </div>
+    </nav>
 
-      <!-- Feature Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mt-6 text-left">
+    <!-- Hero Section -->
+    <div class="flex flex-col items-center pt-12 pb-8 px-6 text-center portal-hero-animate">
+      <!-- Logo Badge -->
+      <div id="hero-logo-container" class="w-20 h-20 rounded-[22px] overflow-hidden shadow-xl border border-black/5 mb-6 hover:scale-105 transition-all duration-300 cursor-default">
+        <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
+      </div>
+      <h1 class="text-4xl font-extrabold tracking-tight text-[#1d1d1f] leading-tight mb-3">
+        Drone Airspace Control
+      </h1>
+      <p class="text-sm text-[#86868b] font-medium max-w-md leading-relaxed">
+        Unified platform for permit management, telemetry analysis, and Indonesian aviation regulatory compliance.
+      </p>
+    </div>
+
+    <!-- Expanded System Status Dashboard Panel -->
+    <div class="max-w-5xl mx-auto w-full px-6 mb-8 select-none portal-hero-animate" style="animation-delay: 0.05s;">
+      <div class="bg-white dark:bg-[#1c1c1e] border border-black/[0.06] dark:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col lg:flex-row items-stretch justify-between gap-6 shadow-md shadow-black/[0.02]">
         
-        <!-- Card 1: GIS Map Dashboard -->
-        <div id="portal-card-gis" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-indigo-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
-          <div class="space-y-4">
-            <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"/>
-              </svg>
+        <!-- Left: Status & Authority Summary -->
+        <div class="flex flex-col justify-between space-y-4 lg:w-2/5 shrink-0">
+          <div class="space-y-2.5">
+            <div class="flex items-center gap-2">
+              <span class="relative flex h-3 w-3">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <span class="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">System Online</span>
             </div>
-            <div class="space-y-1.5">
-              <h3 class="text-base font-bold text-white group-hover:text-indigo-400 transition-colors">Drone Permit GIS Dashboard</h3>
-              <p class="text-xs text-gray-400 leading-relaxed">Interactive 3D-assisted Leaflet GIS map plotting active flight permits, airport safety buffers (KKOP), and regional airspace corridors.</p>
+            <h2 class="text-xl font-extrabold text-[#1d1d1f] dark:text-white tracking-tight leading-tight">Region VI Airspace Secure</h2>
+            <p class="text-xs text-[#86868b] dark:text-gray-400 leading-relaxed font-medium">
+              Live status dashboard and safety compliance tracker for drone flight operations under OTBAN Wilayah VI Padang authority.
+            </p>
+          </div>
+          <div class="pt-2 border-t border-black/[0.04] dark:border-white/5 flex items-center gap-2">
+            <span class="text-[9px] font-bold text-[#b45309] dark:text-amber-500 uppercase tracking-wider">Base Command: OTBAN VI</span>
+            <span class="text-[8px] text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-widest">&bull; Padang &bull; Jambi &bull; Palembang</span>
+          </div>
+        </div>
+
+        <!-- Right: Status Metrics Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-grow lg:pl-8 lg:border-l lg:border-black/[0.05] dark:lg:border-white/5">
+          <!-- Active Permits Card -->
+          <div id="portal-stat-card-active" class="group border border-black/[0.04] dark:border-white/5 bg-emerald-500/[0.01] hover:bg-emerald-500/[0.04] hover:border-emerald-500/20 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow">
+            <div class="text-[9px] uppercase text-[#86868b] dark:text-gray-400 font-bold tracking-wider group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">Active Permits</div>
+            <div class="mt-4 flex items-baseline justify-between">
+              <div id="portal-stat-active" class="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">—</div>
+              <div class="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">Explore &rarr;</div>
             </div>
           </div>
-          <div class="mt-6 flex items-center justify-between text-xs font-bold text-indigo-400 group-hover:text-indigo-300">
-            <span>Launch Dashboard</span>
-            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          
+          <!-- Pending Review Card -->
+          <div id="portal-stat-card-pending" class="group border border-black/[0.04] dark:border-white/5 bg-amber-500/[0.01] hover:bg-amber-500/[0.04] hover:border-amber-500/20 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow">
+            <div class="text-[9px] uppercase text-[#86868b] dark:text-gray-400 font-bold tracking-wider group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">Pending Review</div>
+            <div class="mt-4 flex items-baseline justify-between">
+              <div id="portal-stat-pending" class="text-3xl font-black text-amber-600 dark:text-amber-400 tracking-tight">—</div>
+              <div class="text-[8px] text-amber-600 dark:text-amber-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">Explore &rarr;</div>
+            </div>
+          </div>
+          
+          <!-- Expired Permits Card -->
+          <div id="portal-stat-card-expired" class="group border border-black/[0.04] dark:border-white/5 bg-gray-500/[0.01] hover:bg-gray-500/[0.04] hover:border-gray-500/20 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow">
+            <div class="text-[9px] uppercase text-[#86868b] dark:text-gray-400 font-bold tracking-wider group-hover:text-gray-700 dark:group-hover:text-gray-400 transition-colors">Expired Permits</div>
+            <div class="mt-4 flex items-baseline justify-between">
+              <div id="portal-stat-expired" class="text-3xl font-black text-gray-500 dark:text-gray-400 tracking-tight">—</div>
+              <div class="text-[8px] text-gray-500 dark:text-gray-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">Explore &rarr;</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Feature Grid -->
+    <div class="flex-1 overflow-y-auto px-6 pb-8">
+      <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <!-- Card 1: GIS Map Dashboard -->
+        <div id="portal-card-gis" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-[#0071e3]/20 transition-all duration-250">
+          <div class="space-y-3">
+            <div class="w-11 h-11 rounded-xl bg-[#0071e3]/8 flex items-center justify-center text-[#0071e3] group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"/>
+              </svg>
+            </div>
+            <div class="space-y-1">
+              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors">GIS Permit Dashboard</h3>
+              <p class="text-xs text-[#86868b] leading-relaxed">Interactive Leaflet map plotting active permits, KKOP airport buffers, and regional airspace corridors.</p>
+            </div>
+          </div>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-[#0071e3] uppercase tracking-wider">Launch</span>
+            <div class="w-7 h-7 rounded-full bg-[#0071e3]/8 flex items-center justify-center group-hover:bg-[#0071e3] transition-colors duration-200">
+              <svg class="w-3.5 h-3.5 text-[#0071e3] group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </div>
           </div>
         </div>
 
         <!-- Card 2: Telemetry Analyzer -->
-        <div id="portal-card-telemetry" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-violet-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-violet-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
-          <div class="space-y-4">
-            <div class="w-12 h-12 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        <div id="portal-card-telemetry" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-violet-500/20 transition-all duration-250">
+          <div class="space-y-3">
+            <div class="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500 group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
               </svg>
             </div>
-            <div class="space-y-1.5">
-              <h3 class="text-base font-bold text-white group-hover:text-violet-400 transition-colors">Flight Telemetry Analyzer</h3>
-              <p class="text-xs text-gray-400 leading-relaxed">Upload DJI and Airdata CSV flight logs to verify velocity compliance, vertical ceilings (AMSL/AGL), and generate high-density audit reports.</p>
+            <div class="space-y-1">
+              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-violet-600 transition-colors">Flight Telemetry Analyzer</h3>
+              <p class="text-xs text-[#86868b] leading-relaxed">Upload DJI/Airdata CSV logs to verify velocity compliance, altitude ceilings, and generate audit reports.</p>
             </div>
           </div>
-          <div class="mt-6 flex items-center justify-between text-xs font-bold text-violet-400 group-hover:text-violet-300">
-            <span>Analyze Flight Logs</span>
-            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-violet-500 uppercase tracking-wider">Analyze</span>
+            <div class="w-7 h-7 rounded-full bg-violet-50 flex items-center justify-center group-hover:bg-violet-500 transition-colors duration-200">
+              <svg class="w-3.5 h-3.5 text-violet-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </div>
           </div>
         </div>
 
         <!-- Card 3: KML Converter -->
-        <div id="portal-card-converter" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-amber-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-amber-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
-          <div class="space-y-4">
-            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+        <div id="portal-card-converter" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-amber-500/20 transition-all duration-250">
+          <div class="space-y-3">
+            <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
               </svg>
             </div>
-            <div class="space-y-1.5">
-              <h3 class="text-base font-bold text-white group-hover:text-amber-400 transition-colors">KML Document Converter</h3>
-              <p class="text-xs text-gray-400 leading-relaxed">Convert digital PDF/image permissions into standardized 3D GIS polygons (KML) using optical character recognition (OCR) and geo-extraction.</p>
+            <div class="space-y-1">
+              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-amber-600 transition-colors">KML Document Converter</h3>
+              <p class="text-xs text-[#86868b] leading-relaxed">Convert PDF/image permits into standardized 3D GIS polygons (KML) using OCR and geo-extraction.</p>
             </div>
           </div>
-          <div class="mt-6 flex items-center justify-between text-xs font-bold text-amber-400 group-hover:text-amber-300">
-            <span>Open Converter</span>
-            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Convert</span>
+            <div class="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center group-hover:bg-amber-500 transition-colors duration-200">
+              <svg class="w-3.5 h-3.5 text-amber-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </div>
           </div>
         </div>
 
         <!-- Card 4: Regulations Library -->
-        <div id="portal-card-regulations" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-emerald-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-emerald-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
-          <div class="space-y-4">
-            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        <div id="portal-card-regulations" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-emerald-500/20 transition-all duration-250">
+          <div class="space-y-3">
+            <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
               </svg>
             </div>
-            <div class="space-y-1.5">
-              <h3 class="text-base font-bold text-white group-hover:text-emerald-400 transition-colors">Aviation Regulations Library</h3>
-              <p class="text-xs text-gray-400 leading-relaxed">Integrated compliance reader summarizing Indonesian aviation guidelines: PM 37/2020 (Airspace), PM 63/2021 (CASR Part 107), and KP 242/2017.</p>
+            <div class="space-y-1">
+              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-emerald-600 transition-colors">Aviation Regulations Library</h3>
+              <p class="text-xs text-[#86868b] leading-relaxed">Compliance reader for PM 37/2020, PM 63/2021 (CASR Part 107), and KP 242/2017 Indonesian aviation rules.</p>
             </div>
           </div>
-          <div class="mt-6 flex items-center justify-between text-xs font-bold text-emerald-400 group-hover:text-emerald-300">
-            <span>Browse Library</span>
-            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Browse</span>
+            <div class="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 transition-colors duration-200">
+              <svg class="w-3.5 h-3.5 text-emerald-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </div>
           </div>
         </div>
 
         <!-- Card 5: Real-time ADS-B Airspace Monitor -->
-        <div id="portal-card-adsb" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-sky-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-sky-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
-          <div class="space-y-4">
-            <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11a13.92 13.92 0 00-2.138-7.402m.902 11.779A11.97 11.97 0 019 11c0-1.664-.34-3.248-.956-4.688M12 11a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        <div id="portal-card-adsb" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-sky-500/20 transition-all duration-250">
+          <div class="space-y-3">
+            <div class="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center text-sky-500 group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11a13.92 13.92 0 00-2.138-7.402m.902 11.779A11.97 11.97 0 019 11c0-1.664-.34-3.248-.956-4.688M12 11a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
-            <div class="space-y-1.5 flex items-start gap-2 flex-wrap">
+            <div class="space-y-1">
               <div class="flex items-center gap-1.5">
-                <h3 class="text-base font-bold text-white group-hover:text-sky-400 transition-colors">Real-time ADS-B Monitor</h3>
-                <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 tracking-widest uppercase">Beta</span>
+                <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-sky-600 transition-colors">ADS-B Live Monitor</h3>
+                <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-500 border border-sky-200 tracking-widest uppercase">Beta</span>
               </div>
-              <p class="text-xs text-gray-400 leading-relaxed">Track local flight traffic in real-time. Combines live OpenSky Network Sumatra API feeds and a local conflict collision warning system.</p>
+              <p class="text-xs text-[#86868b] leading-relaxed">Real-time local flight traffic via OpenSky Network Sumatra feeds with collision conflict detection.</p>
             </div>
           </div>
-          <div class="mt-6 flex items-center justify-between text-xs font-bold text-sky-400 group-hover:text-sky-300">
-            <span>Scan Live Traffic</span>
-            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-sky-500 uppercase tracking-wider">Monitor</span>
+            <div class="w-7 h-7 rounded-full bg-sky-50 flex items-center justify-center group-hover:bg-sky-500 transition-colors duration-200">
+              <svg class="w-3.5 h-3.5 text-sky-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 6: Developer Profile & Credentials -->
+        <div id="portal-card-author" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-amber-500/20 transition-all duration-250">
+          <div class="space-y-3">
+            <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </div>
+            <div class="space-y-1">
+              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-amber-600 transition-colors">Developer & License</h3>
+              <p class="text-xs text-[#86868b] leading-relaxed">View developer credentials, organization base details, licensing, and personal showcase tabs.</p>
+            </div>
+          </div>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Profile</span>
+            <div class="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center group-hover:bg-amber-500 transition-colors duration-200">
+              <svg class="w-3.5 h-3.5 text-amber-600 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </div>
           </div>
         </div>
 
       </div>
 
-      <!-- Quick Credits Footer -->
-      <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-6">
-        &copy; 2026 Lukman Yudand Hidayat &bull; Kantor Otoritas Bandar Udara Wilayah VI Padang
+      <!-- Footer -->
+      <p class="text-center text-[10px] text-[#86868b] font-semibold uppercase tracking-wider mt-8 pb-2">
+        <span id="btn-footer-author" class="hover:text-[#0071e3] cursor-pointer transition-colors">&copy; 2026 Lukman Yudand Hidayat &bull; Kantor Otoritas Bandar Udara Wilayah VI Padang</span>
       </p>
     </div>
   </div>
@@ -184,8 +279,8 @@
   <!-- Top Navigation Header (Apple Style White) -->
   <header class="h-20 border-b border-black/5 bg-white/80 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10 shadow-sm shadow-black/[0.01]">
     <div class="flex items-center gap-4">
-      <div class="w-12 h-12 rounded-2xl overflow-hidden shadow-md border border-black/5 dark:border-white/10 shrink-0">
-        <img src="Logo/logo drone.png" alt="PUTA Logo" class="w-full h-full object-cover">
+      <div id="workspace-logo-container" class="w-12 h-12 rounded-2xl overflow-hidden shadow-md border border-black/5 dark:border-white/10 shrink-0 transition-all duration-300">
+        <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
       </div>
       <div>
         <h1 class="text-xl font-bold tracking-tight text-[#1d1d1f]">
@@ -285,7 +380,7 @@
       </div>
       <!-- Sidebar Footer -->
       <footer class="p-3 border-t border-black/5 bg-white/50 text-[10px] text-gray-400 font-bold text-center select-none shrink-0">
-        &copy; 2026 Lukman Yudand Hidayat. All Rights Reserved.
+        <span id="btn-sidebar-author" class="hover:text-[#0071e3] cursor-pointer transition-colors">&copy; 2026 Lukman Yudand Hidayat. All Rights Reserved.</span>
       </footer>
     </aside>
 
@@ -308,27 +403,6 @@
           <svg id="dark-mode-icon-moon" class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
           </svg>
-        </button>
-
-        <!-- KML Converter Button -->
-        <button id="btn-open-converter" class="glass-panel bg-white/90 dark:bg-[#1c1c1e]/90 text-gray-700 dark:text-gray-200 border border-black/5 dark:border-white/10 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95 shrink-0">
-          <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-          </svg>
-          KML Converter
-        </button>
-
-        <!-- Telemetry Analyzer Button -->
-        <button
-          onclick="openTelemetryAnalyzer()"
-          id="btn-telemetry-analyzer"
-          class="glass-panel bg-white/90 dark:bg-[#1c1c1e]/90 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-500/20 px-4 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-1.5 shadow-md hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all active:scale-95 shrink-0"
-        >
-          <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-          </svg>
-          Telemetry Analyzer
         </button>
 
         <!-- Add Permit button -->
@@ -839,6 +913,430 @@
       <div class="px-6 py-4 border-t border-black/5 dark:border-white/5 flex justify-end bg-gray-50 dark:bg-[#1c1c1e] shrink-0">
         <button onclick="closeRegulationsLibrary()" class="px-5 py-2.5 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 border border-transparent text-gray-600 dark:text-gray-300 font-bold text-xs transition-all">Close Library</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DEVELOPER PROFILE & SHOWCASE MODAL                           -->
+  <!-- ============================================================ -->
+  <div id="author-modal"
+    class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[9000] flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden scale-95 transition-transform duration-300">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-black/5 flex items-center justify-between shrink-0">
+        <div>
+          <h2 class="text-base font-bold text-[#1d1d1f]">Developer & Info Portal</h2>
+          <p class="text-[11px] text-gray-400 mt-0.5">Application developer details, licensing, and personal showcases</p>
+        </div>
+        <button onclick="closeAuthorModal()" class="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Tab Selection Bar inside Modal -->
+      <div class="px-6 border-b border-black/5 bg-gray-50 flex gap-4 shrink-0 select-none">
+        <button id="btn-author-tab-dev" onclick="switchAuthorTab('dev')" class="py-2.5 text-xs font-bold text-[#0071e3] border-b-2 border-[#0071e3] transition-all focus:outline-none">
+          Developer Profile
+        </button>
+        <button id="btn-author-tab-okc" onclick="switchAuthorTab('okc')" class="py-2.5 text-xs font-bold text-gray-500 hover:text-gray-800 transition-all focus:outline-none">
+          Oklahoma City Thunder ⚡
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="flex-1 overflow-y-auto p-6">
+        
+        <!-- Tab 1: Developer Info -->
+        <div id="author-panel-dev" class="flex flex-col md:flex-row gap-6 items-center md:items-stretch">
+          
+          <!-- Left Badge (Apple Style Profile Card) -->
+          <div class="w-full md:w-56 bg-gradient-to-b from-amber-500/10 via-amber-500/[0.03] to-white border border-amber-500/10 rounded-2xl p-5 flex flex-col items-center justify-between text-center select-none shadow-sm relative overflow-hidden shrink-0">
+            <!-- Decorative circle -->
+            <div class="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-amber-500/5 blur-xl"></div>
+            
+            <div class="space-y-3 flex-1 flex flex-col items-center justify-center py-4">
+              <!-- Avatar Placeholder / Drone Logo -->
+              <div id="author-logo-container" class="w-16 h-16 rounded-2xl overflow-hidden shadow-md border border-black/5 bg-white flex items-center justify-center shrink-0 transition-all duration-300">
+                <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
+              </div>
+              <div class="space-y-0.5">
+                <h3 class="text-sm font-bold text-[#1d1d1f]">Lukman Yudand H.</h3>
+                <p class="text-[10px] text-amber-600 font-extrabold uppercase tracking-wider">System Developer</p>
+              </div>
+              <p class="text-[10px] text-gray-400 font-bold max-w-[150px] leading-normal uppercase">
+                Kantor Otoritas Bandar Udara Wilayah VI
+              </p>
+            </div>
+            
+            <div class="text-[9px] text-gray-400 font-bold border-t border-black/5 w-full pt-3 mt-2">
+              &copy; 2026 OTBAN Region VI
+            </div>
+          </div>
+          
+          <!-- Right Content (Details & Description) -->
+          <div class="flex-1 space-y-4 text-xs font-semibold text-gray-600 leading-relaxed">
+            <div class="space-y-2">
+              <h4 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">About PUTA-Monitor</h4>
+              <p class="text-gray-600 font-medium font-sans">
+                PUTA-Monitor was developed as a specialized utility for <strong>Kantor Otoritas Bandar Udara Wilayah VI Padang</strong>. Its primary objective is to streamline the processing, visualization, and safety compliance auditing of drone operation permits (PUTA) within the region's airspace.
+              </p>
+            </div>
+            
+            <div class="space-y-2.5">
+              <h4 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Developer Credentials</h4>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-medium font-sans">
+                <div class="border-b border-black/[0.04] pb-1.5">
+                  <span class="text-gray-400 font-bold block text-[9px] uppercase">Lead Developer</span>
+                  <span class="text-gray-800 font-semibold">Lukman Yudand Hidayat</span>
+                </div>
+                <div class="border-b border-black/[0.04] pb-1.5">
+                  <span class="text-gray-400 font-bold block text-[9px] uppercase">Organization</span>
+                  <span class="text-gray-800 font-semibold">OTBAN Wilayah VI Padang</span>
+                </div>
+                <div class="border-b border-black/[0.04] pb-1.5">
+                  <span class="text-gray-400 font-bold block text-[9px] uppercase">Application Version</span>
+                  <span class="text-gray-800 font-semibold">v1.0 (Stable Release)</span>
+                </div>
+                <div class="border-b border-black/[0.04] pb-1.5">
+                  <span class="text-gray-400 font-bold block text-[9px] uppercase">Operation Base</span>
+                  <span class="text-gray-800 font-semibold">Padang, Sumatra, ID</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div> <!-- Closes author-panel-dev -->
+
+        <!-- Tab 2: OKC Thunder Showcase -->
+        <div id="author-panel-okc" class="hidden flex flex-col md:flex-row gap-6 items-center md:items-stretch">
+          
+          <!-- Left Badge (OKC Team Card) -->
+          <div class="w-full md:w-56 bg-gradient-to-b from-[#007AC1]/10 via-[#007AC1]/[0.02] to-white border border-[#007AC1]/20 rounded-2xl p-5 flex flex-col items-center justify-between text-center select-none shadow-sm relative overflow-hidden shrink-0">
+            <!-- Decorative background elements -->
+            <div class="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-[#EF3B24]/5 blur-xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-24 h-24 rounded-full bg-[#FDBB30]/5 blur-xl"></div>
+            
+            <div class="space-y-4 flex-1 flex flex-col items-center justify-center py-4">
+              <!-- OKC Team Shield SVG -->
+              <div class="w-16 h-16 rounded-2xl bg-white shadow-md border border-black/5 flex items-center justify-center shrink-0 overflow-hidden select-none p-1.5">
+                <img src="Logo/Oklahoma_City_Thunder.svg" alt="OKC Logo" class="w-full h-full object-contain">
+              </div>
+              
+              <div class="space-y-1">
+                <h3 class="text-sm font-extrabold text-[#002D62]">OKC THUNDER</h3>
+                <p class="text-[10px] text-[#EF3B24] font-extrabold uppercase tracking-widest">Western Conference</p>
+              </div>
+              
+              <div class="flex flex-col items-center">
+                <div class="px-3 py-1 rounded-full bg-[#007AC1]/10 border border-[#007AC1]/20 text-[10px] font-bold text-[#007AC1] tracking-wide animate-pulse">
+                  Thunder Up! ⚡
+                </div>
+                <a href="https://www.nba.com/thunder/" target="_blank" class="mt-2 text-[10px] text-[#007AC1] hover:underline font-bold flex items-center gap-1 select-text">
+                  <span>nba.com/thunder</span>
+                  <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </a>
+              </div>
+            </div>
+            
+            <div class="text-[9px] text-[#002D62] font-bold border-t border-black/5 w-full pt-3 mt-2 uppercase tracking-wider">
+              Est. 2008
+            </div>
+          </div>
+          
+          <!-- Right Content Column -->
+          <div class="flex-1 flex flex-col justify-between min-h-[300px]">
+            
+            <!-- Views: Stats/Overview View vs. Full Directory View -->
+            <div class="flex-1">
+              
+              <!-- 1. Stats and Core Roster View -->
+              <div id="okc-stats-view" class="space-y-4 text-xs font-semibold text-gray-600 leading-relaxed">
+                <div class="space-y-1.5">
+                  <h4 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Franchise History</h4>
+                  <p class="text-gray-600 font-medium font-sans">
+                    The **Oklahoma City Thunder** is an American professional basketball team based in Oklahoma City. The team plays at the <strong>Paycom Center</strong> and recently reached the **NBA Finals in 2025** with their explosive young squad led by Shai Gilgeous-Alexander, Chet Holmgren, and Jalen Williams.
+                  </p>
+                </div>
+                
+                <div class="space-y-2">
+                  <h4 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">The Triple-Threat Young Core</h4>
+                  <div class="space-y-2 font-sans font-medium text-gray-700">
+                    <div class="flex items-center justify-between border-b border-black/[0.04] pb-1.5">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-[#007AC1] text-white flex items-center justify-center text-[9px] font-bold shrink-0">#2</span>
+                        <div>
+                          <span class="font-bold text-gray-800 block">Shai Gilgeous-Alexander</span>
+                          <span class="text-[9px] text-gray-400 font-bold block uppercase">Point Guard &bull; Back-to-Back NBA MVP (2025 &bull; 2026)</span>
+                        </div>
+                      </div>
+                      <span class="text-[10px] font-bold text-[#EF3B24] bg-[#EF3B24]/5 px-2 py-0.5 rounded-md border border-[#EF3B24]/10 shrink-0">SGA</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between border-b border-black/[0.04] pb-1.5">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-[#EF3B24] text-white flex items-center justify-center text-[9px] font-bold shrink-0">#7</span>
+                        <div>
+                          <span class="font-bold text-gray-800 block">Chet Holmgren</span>
+                          <span class="text-[9px] text-gray-400 font-bold block uppercase">Center/Forward &bull; Defensive Anchor</span>
+                        </div>
+                      </div>
+                      <span class="text-[10px] font-bold text-[#007AC1] bg-[#007AC1]/5 px-2 py-0.5 rounded-md border border-[#007AC1]/10 shrink-0">CHET</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between border-b border-black/[0.04] pb-1.5">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-[#FDBB30] text-[#002D62] flex items-center justify-center text-[9px] font-bold shrink-0">#8</span>
+                        <div>
+                          <span class="font-bold text-gray-800 block">Jalen Williams</span>
+                          <span class="text-[9px] text-gray-400 font-bold block uppercase">Forward &bull; Rising Star &bull; Clutch Scorer</span>
+                        </div>
+                      </div>
+                      <span class="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md border border-black/5 shrink-0">J-DUB</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 pt-1">
+                  <div class="bg-gray-50 border border-black/5 p-2 rounded-xl text-center">
+                    <div class="text-[8px] uppercase text-gray-400 font-extrabold">NBA Finals</div>
+                    <div class="text-xs font-bold text-gray-800 mt-0.5">2 Titles</div>
+                    <div class="text-[7px] text-gray-400 font-semibold mt-0.5">1979 &bull; 2025</div>
+                  </div>
+                  <div class="bg-gray-50 border border-black/5 p-2 rounded-xl text-center">
+                    <div class="text-[8px] uppercase text-gray-400 font-extrabold">Conf. Titles</div>
+                    <div class="text-xs font-bold text-gray-800 mt-0.5">5 Western</div>
+                    <div class="text-[7px] text-gray-400 font-semibold mt-0.5">Last in 2025</div>
+                  </div>
+                  <div class="bg-[#007AC1]/5 border border-[#007AC1]/10 p-2 rounded-xl text-center">
+                    <div class="text-[8px] uppercase text-[#007AC1] font-extrabold">Division</div>
+                    <div class="text-xs font-bold text-[#002D62] mt-0.5">13 Titles</div>
+                    <div class="text-[7px] text-[#007AC1] font-bold mt-0.5">Last in 2025</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Full Directory View (Roster + Staff) -->
+              <div id="okc-roster-view" class="hidden space-y-4 text-xs font-semibold text-gray-600 leading-relaxed">
+                <div class="grid grid-cols-2 gap-4">
+                  <!-- Front Office & Coaches -->
+                  <div class="space-y-2">
+                    <h4 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Leadership & Coaching</h4>
+                    <div class="bg-gray-50 border border-black/5 p-2.5 rounded-xl space-y-2 text-[11px] font-sans font-medium text-gray-700">
+                      <div>
+                        <span class="text-gray-400 font-bold block text-[8px] uppercase">Team Chairman</span>
+                        <span class="text-gray-900 font-semibold">Clay Bennett</span>
+                      </div>
+                      <div class="border-t border-black/[0.04] pt-1.5">
+                        <span class="text-gray-400 font-bold block text-[8px] uppercase">EVP & General Manager</span>
+                        <span class="text-gray-900 font-semibold">Sam Presti</span>
+                      </div>
+                      <div class="border-t border-black/[0.04] pt-1.5">
+                        <span class="text-gray-400 font-bold block text-[8px] uppercase">Head Coach</span>
+                        <span class="text-gray-900 font-semibold">Mark Daigneault</span>
+                        <span class="text-[8.5px] text-gray-400 block font-semibold">(2024 Coach of the Year)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Roster List -->
+                  <div class="space-y-2">
+                    <h4 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Active Roster</h4>
+                    <div class="bg-gray-50 border border-black/5 p-2.5 rounded-xl text-[10.5px] font-sans font-medium text-gray-700 space-y-1.5 max-h-[170px] overflow-y-auto">
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Shai Gilgeous-Alexander</span><span class="font-bold font-mono text-[#007AC1]">#2 SG</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Chet Holmgren</span><span class="font-bold font-mono text-[#EF3B24]">#7 C</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Jalen Williams</span><span class="font-bold font-mono text-[#002D62]">#8 SF</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Isaiah Hartenstein</span><span class="font-bold font-mono text-gray-500">#55 C</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Alex Caruso</span><span class="font-bold font-mono text-gray-500">#9 PG</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Luguentz Dort</span><span class="font-bold font-mono text-gray-500">#5 SF</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Cason Wallace</span><span class="font-bold font-mono text-gray-500">#22 PG</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Isaiah Joe</span><span class="font-bold font-mono text-gray-500">#11 SG</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Aaron Wiggins</span><span class="font-bold font-mono text-gray-500">#21 SG</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Jaylin Williams</span><span class="font-bold font-mono text-gray-500">#6 PF</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Kenrich Williams</span><span class="font-bold font-mono text-gray-500">#34 SG</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Nikola Topic</span><span class="font-bold font-mono text-gray-500">#44 PG</span>
+                      </div>
+                      <div class="flex justify-between border-b border-black/[0.03] pb-0.5">
+                        <span>Ajay Mitchell</span><span class="font-bold font-mono text-gray-500">#18 PG</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Interactive Action Button -->
+            <button id="btn-toggle-okc-roster" onclick="toggleOkcRoster()" class="w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+              <span>Show Full Roster & Front Office</span>
+            </button>
+            
+          </div>
+          
+        </div> <!-- Closes author-panel-okc -->
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-black/5 flex justify-end bg-gray-50 shrink-0">
+        <button onclick="closeAuthorModal()" class="px-5 py-2.5 rounded-2xl hover:bg-black/5 border border-transparent text-gray-600 font-bold text-xs transition-all">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- ADS-B LIVE MONITOR MODAL                                    -->
+  <!-- ============================================================ -->
+  <div id="adsb-modal"
+    class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[9000] flex items-center justify-center p-3 opacity-0 transition-opacity duration-300">
+
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden scale-95 transition-transform duration-300">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-black/5 flex items-center justify-between shrink-0 bg-white">
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <span id="adsb-status-dot" class="relative flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-sky-500"></span>
+            </span>
+            <h2 class="text-base font-bold text-[#1d1d1f]">ADS-B Live Airspace Monitor</h2>
+            <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-500 border border-sky-200 tracking-widest uppercase">Beta</span>
+          </div>
+          <!-- Live Counts -->
+          <div class="hidden md:flex items-center gap-3 pl-4 border-l border-black/5">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Airborne</span>
+              <span id="adsb-count-airborne" class="text-sm font-black text-sky-600">—</span>
+            </div>
+            <div class="h-4 w-px bg-black/5"></div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">On Ground</span>
+              <span id="adsb-count-ground" class="text-sm font-black text-gray-500">—</span>
+            </div>
+            <div class="h-4 w-px bg-black/5"></div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Conflicts</span>
+              <span id="adsb-count-conflicts" class="text-sm font-black text-red-500">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- Refresh timer -->
+          <div class="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refreshes in <span id="adsb-refresh-countdown" class="text-sky-500">12s</span>
+          </div>
+          <!-- Manual Refresh Button -->
+          <button id="btn-adsb-refresh" class="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 active:scale-95">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+          <button onclick="closeAdsbMonitor()" class="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Workspace: Left Flight List, Right Live Map -->
+      <div class="flex-1 flex overflow-hidden">
+
+        <!-- Left: Flight List Sidebar -->
+        <aside class="w-80 border-r border-black/5 bg-gray-50/50 flex flex-col shrink-0">
+          <div class="p-3 border-b border-black/5">
+            <input type="text" id="adsb-search" placeholder="Search callsign or ICAO..." class="w-full bg-white border border-black/5 rounded-xl px-3 py-2 text-xs text-[#1d1d1f] placeholder-gray-400 focus:outline-none focus:border-sky-400 transition-colors font-semibold">
+          </div>
+
+          <!-- Conflict Alert Banner (hidden by default) -->
+          <div id="adsb-conflict-banner" class="hidden px-3 py-2.5 border-b border-red-200 bg-red-50 flex items-start gap-2">
+            <svg class="w-4 h-4 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div>
+              <div class="text-[9px] font-extrabold text-red-700 uppercase tracking-wider">KKOP Conflict Detected</div>
+              <div id="adsb-conflict-text" class="text-[10px] text-red-600 font-semibold mt-0.5"></div>
+            </div>
+          </div>
+
+          <!-- Flight Cards List -->
+          <div id="adsb-flight-list" class="flex-1 overflow-y-auto p-2 space-y-1.5">
+            <div id="adsb-loading-state" class="flex flex-col items-center justify-center h-48 text-gray-400 gap-2.5 text-center">
+              <svg class="w-10 h-10 text-gray-200 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <p class="text-xs font-semibold">Fetching Sumatra airspace data<br>from OpenSky Network...</p>
+            </div>
+          </div>
+
+          <!-- Sidebar Footer: Data Source -->
+          <div class="p-3 border-t border-black/5 bg-white shrink-0">
+            <div class="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a3 3 0 013 3v2.83"/></svg>
+              Source: OpenSky Network · Sumatra Region
+            </div>
+            <div class="text-[8px] text-gray-300 mt-0.5">Lat -6° to 6° · Lon 95° to 109° · Refresh 12s</div>
+          </div>
+        </aside>
+
+        <!-- Right: Live Map -->
+        <div class="flex-1 relative">
+          <div id="adsb-map" class="w-full h-full z-0"></div>
+
+          <!-- Map Legend Overlay -->
+          <div class="absolute bottom-4 left-4 z-[1000] bg-white/90 backdrop-blur-md border border-black/5 rounded-xl px-3 py-2 text-[10px] font-bold text-gray-600 flex gap-3 shadow-sm select-none">
+            <div class="flex items-center gap-1">
+              <span class="text-sky-500">✈</span>
+              <span>Airborne</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="text-gray-400">✈</span>
+              <span>Ground</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="text-red-500">✈</span>
+              <span>KKOP Conflict</span>
+            </div>
+          </div>
+
+          <!-- Error Overlay (hidden) -->
+          <div id="adsb-error-overlay" class="hidden absolute inset-0 z-[500] flex items-center justify-center bg-white/80 backdrop-blur-sm">
+            <div class="text-center space-y-2 p-8">
+              <svg class="w-10 h-10 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+              <p class="text-sm font-bold text-gray-500">OpenSky Network Unreachable</p>
+              <p class="text-xs text-gray-400">Check your internet connection and try refreshing.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   </div>
 
