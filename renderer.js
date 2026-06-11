@@ -536,10 +536,12 @@ function setupEventListeners() {
   // Debounced search input — avoids re-rendering on every single keypress
   const searchInput = document.getElementById('search-input');
   let searchDebounceTimer;
-  searchInput.addEventListener('input', () => {
-    clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = setTimeout(renderDashboard, 300);
-  });
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(renderDashboard, 300);
+    });
+  }
 
   // Year filter tabs
   const yearTabs = ['all', '2026', '2025', '2024'];
@@ -585,6 +587,87 @@ function setupEventListeners() {
 
   const form = document.getElementById('add-permit-form');
   if (form) form.addEventListener('submit', handleAddPermitSubmit);
+
+  // Back to Portal / Home button
+  const btnHome = document.getElementById('btn-back-to-portal');
+  if (btnHome) {
+    btnHome.addEventListener('click', showPortal);
+  }
+
+  // Portal Card Click Listeners
+  const cardGis = document.getElementById('portal-card-gis');
+  if (cardGis) {
+    cardGis.addEventListener('click', showDashboard);
+  }
+
+  const cardTelemetry = document.getElementById('portal-card-telemetry');
+  if (cardTelemetry) {
+    cardTelemetry.addEventListener('click', () => {
+      showDashboard();
+      openTelemetryAnalyzer();
+    });
+  }
+
+  const cardConverter = document.getElementById('portal-card-converter');
+  if (cardConverter) {
+    cardConverter.addEventListener('click', () => {
+      showDashboard();
+      openConverterModal();
+    });
+  }
+
+  const cardRegulations = document.getElementById('portal-card-regulations');
+  if (cardRegulations) {
+    cardRegulations.addEventListener('click', openRegulationsLibrary);
+  }
+
+  const cardAdsb = document.getElementById('portal-card-adsb');
+  if (cardAdsb) {
+    cardAdsb.addEventListener('click', () => {
+      showDashboard();
+      showToast("Real-time ADS-B Airspace Monitor is initializing...", "info");
+    });
+  }
+
+  // KML Converter Modal listeners
+  const btnOpenConverter = document.getElementById('btn-open-converter');
+  if (btnOpenConverter) btnOpenConverter.addEventListener('click', openConverterModal);
+
+  const btnCloseConv1 = document.getElementById('close-converter-modal');
+  if (btnCloseConv1) btnCloseConv1.addEventListener('click', closeConverterModal);
+
+  const btnCloseConv2 = document.getElementById('btn-close-converter');
+  if (btnCloseConv2) btnCloseConv2.addEventListener('click', closeConverterModal);
+
+  const converterDropZone = document.getElementById('converter-drop-zone');
+  const converterFileInput = document.getElementById('converter-file-input');
+  
+  if (converterDropZone && converterFileInput) {
+    converterDropZone.addEventListener('click', () => converterFileInput.click());
+    converterFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) processConverterFile(file);
+    });
+    
+    converterDropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      converterDropZone.classList.add('border-indigo-400');
+    });
+    
+    converterDropZone.addEventListener('dragleave', () => {
+      converterDropZone.classList.remove('border-indigo-400');
+    });
+    
+    converterDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      converterDropZone.classList.remove('border-indigo-400');
+      const file = e.dataTransfer.files[0];
+      if (file) processConverterFile(file);
+    });
+  }
+
+  const btnDownloadKml = document.getElementById('btn-download-conv-kml');
+  if (btnDownloadKml) btnDownloadKml.addEventListener('click', downloadConvertedKml);
 }
 
 // Calculate distance in meters between two lat/lng coordinates (Haversine formula)
@@ -3141,6 +3224,299 @@ function toggleDarkMode() {
     );
   }
 }
+
+// --- Premium View Switching and Portal Navigation Logic ---
+window.showPortal = function() {
+  const portal = document.getElementById('portal-container');
+  const appWorkspace = document.getElementById('app-workspace-container');
+  
+  if (portal && appWorkspace) {
+    appWorkspace.classList.add('hidden');
+    portal.classList.remove('hidden');
+    
+    // Clear selected permit or state if returning to portal
+    selectedPermit = null;
+    selectedAirport = null;
+    renderDashboard();
+    renderInspector();
+  }
+};
+
+window.showDashboard = function() {
+  const portal = document.getElementById('portal-container');
+  const appWorkspace = document.getElementById('app-workspace-container');
+  
+  if (portal && appWorkspace) {
+    portal.classList.add('hidden');
+    appWorkspace.classList.remove('hidden');
+    
+    // Invalidate Leaflet map size to ensure tiles are loaded and centered properly
+    if (map) {
+      setTimeout(() => {
+        map.invalidateSize(true);
+      }, 50);
+    }
+  }
+};
+
+// ============================================================
+// KML CONVERTER MODAL CONTROLLER                             
+// ============================================================
+let generatedKmlContent = null;
+let generatedKmlFilename = "";
+
+window.openConverterModal = function() {
+  const modal = document.getElementById('kml-converter-modal');
+  const box = modal.querySelector('div');
+  
+  // Reset fields
+  generatedKmlContent = null;
+  generatedKmlFilename = "";
+  document.getElementById('converter-drop-zone').classList.remove('hidden');
+  document.getElementById('converter-loader').classList.add('hidden');
+  document.getElementById('converter-results').classList.add('hidden');
+  document.getElementById('converter-error-alert').classList.add('hidden');
+  
+  const dlBtn = document.getElementById('btn-download-conv-kml');
+  dlBtn.disabled = true;
+  dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#e8e8ed] text-gray-400 font-bold cursor-not-allowed transition-all shadow-sm";
+  
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.remove('opacity-0');
+    box.classList.remove('scale-95');
+  }, 10);
+};
+
+window.closeConverterModal = function() {
+  const modal = document.getElementById('kml-converter-modal');
+  const box = modal.querySelector('div');
+  modal.classList.add('opacity-0');
+  box.classList.add('scale-95');
+  setTimeout(() => modal.classList.add('hidden'), 300);
+};
+
+window.processConverterFile = async function(file) {
+  if (!file) return;
+  
+  const dropZone = document.getElementById('converter-drop-zone');
+  const loader = document.getElementById('converter-loader');
+  const results = document.getElementById('converter-results');
+  const errorAlert = document.getElementById('converter-error-alert');
+  const dlBtn = document.getElementById('btn-download-conv-kml');
+  
+  // Hide drop zone, show loader
+  dropZone.classList.add('hidden');
+  errorAlert.classList.add('hidden');
+  results.classList.add('hidden');
+  loader.classList.remove('hidden');
+  
+  try {
+    // Check if window.api.convertToKml exists (meaning we're inside Electron)
+    if (!window.api || !window.api.convertToKml) {
+      throw new Error("KML conversion requires running in the Electron desktop environment.");
+    }
+    
+    showToast(`Converting ${file.name} to KML...`, "info");
+    
+    // Call Electron main process handler via contextBridge
+    const res = await window.api.convertToKml(file.path);
+    
+    loader.classList.add('hidden');
+    
+    if (res && res.success) {
+      generatedKmlContent = res.kml_content;
+      generatedKmlFilename = `PUTA_Safety_Boundary_${res.permit_id.replace(/[\/\\:]/g, '_')}.kml`;
+      
+      // Update UI labels
+      document.getElementById('conv-permit-id').textContent = res.permit_id;
+      document.getElementById('conv-operator').textContent = res.operator;
+      document.getElementById('conv-altitude').textContent = `${res.max_altitude_ft} ft AGL`;
+      document.getElementById('conv-coords-count').textContent = `${res.coords_count} coordinates extracted`;
+      
+      results.classList.remove('hidden');
+      
+      // Enable download button
+      dlBtn.disabled = false;
+      dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#0071e3] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#0071e3]/15";
+      
+      showToast("Document converted successfully!", "success");
+    } else {
+      throw new Error(res ? res.error : "Unknown conversion error.");
+    }
+  } catch (err) {
+    console.error("Conversion failed:", err);
+    loader.classList.add('hidden');
+    dropZone.classList.remove('hidden');
+    
+    errorAlert.textContent = `Error: ${err.message}`;
+    errorAlert.classList.remove('hidden');
+    showToast("Conversion failed.", "error");
+  }
+};
+
+window.downloadConvertedKml = function() {
+  if (!generatedKmlContent) return;
+  
+  try {
+    const blob = new Blob([generatedKmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = generatedKmlFilename;
+    link.click();
+    showToast("KML file downloaded!", "success");
+    closeConverterModal();
+  } catch (err) {
+    console.error("Download failed:", err);
+    showToast("Failed to save file.", "error");
+  }
+};
+
+// ============================================================
+// REGULATIONS LIBRARY CONTROLLER                             
+// ============================================================
+const REGULATION_TEXTS = {
+  pm37: `
+    <div class="space-y-4">
+      <h2 class="text-base font-bold text-gray-900 dark:text-white border-b border-black/5 dark:border-white/5 pb-2">PM 37 Tahun 2020 Summary</h2>
+      <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Official Title: <em>Pengoperasian Pesawat Udara Tanpa Awak di Ruang Udara yang Dilayani Indonesia</em></p>
+      
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">1. Airspace & Altitude Limits (Butir 2.1)</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Uncontrolled Airspace (&le; 400 ft / 120 m AGL):</strong> Permitted without DGCA approval.</li>
+          <li><strong>Uncontrolled Airspace (&gt; 400 ft / 120 m AGL):</strong> Requires Director General of Civil Aviation approval.</li>
+          <li><strong>Controlled Airspace:</strong> Always requires DGCA approval regardless of altitude.</li>
+        </ul>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">2. Controlled Zones & Buffer Zones (Butir 2.2 & 3.13)</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>KKOP (Kawasan Keselamatan Operasi Penerbangan):</strong> Strict No-Fly Zone within lateral airport boundaries unless explicitly authorized.</li>
+          <li><strong>Helipad Buffers:</strong> Operating within a <strong>3 Nautical Mile (5.56 km)</strong> radius of a helipad outside KKOP requires official approval.</li>
+          <li><strong>Camera Drone Buffers:</strong> Drones equipped with cameras must maintain a minimum <strong>500-meter buffer</strong> from the boundaries of Prohibited or Restricted military/national security zones.</li>
+        </ul>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">3. Operational Requirements & Timelines (Butir 3.6, 3.7, 3.12, 4.3 & 4.9)</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Daylight Only:</strong> Operations are limited from sunrise to sunset unless a dedicated safety assessment is approved.</li>
+          <li><strong>AirNav Coordination:</strong> Operators must submit flight coordination notices to the local Air Traffic Services (ATS) unit at least <strong>24 hours prior</strong> to take-off.</li>
+          <li><strong>New Permit Application Lead Time:</strong> Must be submitted at least <strong>14 working days</strong> prior to flight.</li>
+          <li><strong>Flight Plan Time Modification Lead Time:</strong> Must be submitted at least <strong>7 working days</strong> prior to flight.</li>
+        </ul>
+      </div>
+    </div>
+  `,
+  pm63: `
+    <div class="space-y-4">
+      <h2 class="text-base font-bold text-gray-900 dark:text-white border-b border-black/5 dark:border-white/5 pb-2">PM 63 Tahun 2021 Summary</h2>
+      <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Official Title: <em>Sistem Pesawat Udara Kecil Tanpa Awak (CASR Part 107)</em></p>
+      
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">1. Small Unmanned Aircraft (sUA) Operating Limits</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Maximum Speed:</strong> <strong>87 knots (100 mph / 161 km/h)</strong> calibrated airspeed.</li>
+          <li><strong>Maximum Altitude:</strong> <strong>400 feet (120 meters) AGL</strong> (unless flying within a 400 ft radius of a structure and not higher than 400 ft above the structure's top).</li>
+          <li><strong>Weather Minimums:</strong> Flight visibility must be at least <strong>3 miles (4.8 km)</strong> from the control station.</li>
+          <li><strong>Cloud Clearance:</strong> Must remain at least <strong>500 feet below</strong> and <strong>2,000 feet horizontally</strong> away from any clouds.</li>
+        </ul>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">2. Operational Restrictions</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Operations Over People:</strong> Prohibited from flying directly over any non-participating person unless they are under a safe shelter or vehicle.</li>
+          <li><strong>Visual Line of Sight (VLOS):</strong> Must maintain direct, unaided visual contact at all times. Visual observers do not satisfy the pilot's VLOS duty.</li>
+          <li><strong>Multi-UAS:</strong> A single remote pilot cannot operate more than one drone at a time.</li>
+        </ul>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">3. Licenses & Reporting</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Remote Pilot License:</strong> Mandatory certification from DGCA, valid for <strong>24 months</strong>. Recurrency check required.</li>
+          <li><strong>Accident Reporting:</strong> Must report any drone incident resulting in serious injury, loss of consciousness, or property damage exceeding $500 (or equivalent) to the DGCA/nearest Airport Authority within <strong>10 calendar days</strong>.</li>
+        </ul>
+      </div>
+    </div>
+  `,
+  kp242: `
+    <div class="space-y-4">
+      <h2 class="text-base font-bold text-gray-900 dark:text-white border-b border-black/5 dark:border-white/5 pb-2">KP 242 Tahun 2017 Summary</h2>
+      <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Official Title: <em>Staff Instruction (SI) 8900-12.01: Pendaftaran Pesawat Udara Kecil Tanpa Awak</em></p>
+      
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">1. Registration Criteria</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Applicability:</strong> Mandatory registration for all small Unmanned Aircraft (sUA) weighing <strong>between 250 grams and 25 kg</strong>. Drones under 250 grams are exempt.</li>
+          <li><strong>Ownership Eligibility:</strong> Restricted to Indonesian citizens (WNI), government agencies, or Indonesian legal entities.</li>
+          <li><strong>Validity:</strong> The Registration Certificate (Tanda Pendaftaran) is valid for <strong>3 years</strong>.</li>
+        </ul>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">2. Identification Markings (Butir 6.3)</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Marking Placement:</strong> The registration number must be clearly displayed in a visible location on the drone.</li>
+          <li><strong>Lettering Size Requirements:</strong>
+            <ul class="list-disc list-inside pl-4 space-y-0.5">
+              <li><strong>Bottom Surface:</strong> Letters must have a minimum height of <strong>5 cm</strong>.</li>
+              <li><strong>Side Surfaces:</strong> Letters must have a minimum height of <strong>3 cm</strong>.</li>
+            </ul>
+          </li>
+          <li><strong>Durability:</strong> Markings must be affixed in a permanent manner, using a contrasting color to ensure readability from a distance.</li>
+        </ul>
+      </div>
+    </div>
+  `
+};
+
+window.openRegulationsLibrary = function() {
+  const modal = document.getElementById('regulations-modal');
+  const box = modal.querySelector('div');
+  
+  // Load default tab
+  switchRegulationTab('pm37');
+  
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.remove('opacity-0');
+    box.classList.remove('scale-95');
+  }, 10);
+};
+
+window.closeRegulationsLibrary = function() {
+  const modal = document.getElementById('regulations-modal');
+  const box = modal.querySelector('div');
+  
+  modal.classList.add('opacity-0');
+  box.classList.add('scale-95');
+  setTimeout(() => modal.classList.add('hidden'), 300);
+};
+
+window.switchRegulationTab = function(tabId) {
+  // Update button styles
+  const tabs = ['pm37', 'pm63', 'kp242'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`reg-tab-${t}`);
+    if (btn) {
+      if (t === tabId) {
+        btn.className = "text-left text-xs font-bold px-3 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 transition-all border border-indigo-100/50 dark:border-indigo-500/20 flex flex-col w-full";
+      } else {
+        btn.className = "text-left text-xs font-bold px-3 py-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all border border-transparent flex flex-col w-full";
+      }
+    }
+  });
+  
+  // Set content
+  const contentArea = document.getElementById('regulations-content-area');
+  if (contentArea && REGULATION_TEXTS[tabId]) {
+    contentArea.innerHTML = REGULATION_TEXTS[tabId];
+  }
+};
 
 
 

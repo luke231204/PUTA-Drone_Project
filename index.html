@@ -39,6 +39,148 @@
 </head>
 <body class="h-screen flex flex-col bg-[#f5f5f7] text-[#1d1d1f]">
 
+  <!-- Portal Landing Page Container -->
+  <div id="portal-container" class="flex-1 flex flex-col justify-center items-center p-6 bg-[#0f172a] text-white relative overflow-hidden select-none">
+    
+    <!-- Background Animated Elements -->
+    <div class="portal-grid-bg absolute inset-0 opacity-10"></div>
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/30 rounded-full blur-[120px] pointer-events-none"></div>
+    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[#b45309]/20 rounded-full blur-[120px] pointer-events-none"></div>
+    
+    <div class="z-10 flex flex-col items-center max-w-5xl w-full text-center space-y-8 animate-fade-in">
+      
+      <!-- Brand Logo / Header -->
+      <div class="flex flex-col items-center space-y-4">
+        <div class="w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border border-white/10 shrink-0 transform hover:scale-105 transition-transform duration-300">
+          <img src="Logo/logo drone.png" alt="PUTA Logo" class="w-full h-full object-cover">
+        </div>
+        <div class="space-y-1">
+          <h1 class="text-4xl font-extrabold tracking-tight text-white flex items-center justify-center gap-3">
+            PUTA-Monitor 
+            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/10 text-white/75 border border-white/10">v1.0</span>
+          </h1>
+          <p class="text-xs font-bold text-[#b45309] uppercase tracking-widest">
+            Kantor Otoritas Bandar Udara Wilayah VI Padang
+          </p>
+          <p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+            Airspace Management & Regulatory Compliance System
+          </p>
+        </div>
+      </div>
+
+      <!-- Feature Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mt-6 text-left">
+        
+        <!-- Card 1: GIS Map Dashboard -->
+        <div id="portal-card-gis" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-indigo-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
+          <div class="space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"/>
+              </svg>
+            </div>
+            <div class="space-y-1.5">
+              <h3 class="text-base font-bold text-white group-hover:text-indigo-400 transition-colors">Drone Permit GIS Dashboard</h3>
+              <p class="text-xs text-gray-400 leading-relaxed">Interactive 3D-assisted Leaflet GIS map plotting active flight permits, airport safety buffers (KKOP), and regional airspace corridors.</p>
+            </div>
+          </div>
+          <div class="mt-6 flex items-center justify-between text-xs font-bold text-indigo-400 group-hover:text-indigo-300">
+            <span>Launch Dashboard</span>
+            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <!-- Card 2: Telemetry Analyzer -->
+        <div id="portal-card-telemetry" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-violet-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-violet-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
+          <div class="space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+            </div>
+            <div class="space-y-1.5">
+              <h3 class="text-base font-bold text-white group-hover:text-violet-400 transition-colors">Flight Telemetry Analyzer</h3>
+              <p class="text-xs text-gray-400 leading-relaxed">Upload DJI and Airdata CSV flight logs to verify velocity compliance, vertical ceilings (AMSL/AGL), and generate high-density audit reports.</p>
+            </div>
+          </div>
+          <div class="mt-6 flex items-center justify-between text-xs font-bold text-violet-400 group-hover:text-violet-300">
+            <span>Analyze Flight Logs</span>
+            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <!-- Card 3: KML Converter -->
+        <div id="portal-card-converter" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-amber-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-amber-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
+          <div class="space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+              </svg>
+            </div>
+            <div class="space-y-1.5">
+              <h3 class="text-base font-bold text-white group-hover:text-amber-400 transition-colors">KML Document Converter</h3>
+              <p class="text-xs text-gray-400 leading-relaxed">Convert digital PDF/image permissions into standardized 3D GIS polygons (KML) using optical character recognition (OCR) and geo-extraction.</p>
+            </div>
+          </div>
+          <div class="mt-6 flex items-center justify-between text-xs font-bold text-amber-400 group-hover:text-amber-300">
+            <span>Open Converter</span>
+            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <!-- Card 4: Regulations Library -->
+        <div id="portal-card-regulations" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-emerald-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-emerald-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
+          <div class="space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+              </svg>
+            </div>
+            <div class="space-y-1.5">
+              <h3 class="text-base font-bold text-white group-hover:text-emerald-400 transition-colors">Aviation Regulations Library</h3>
+              <p class="text-xs text-gray-400 leading-relaxed">Integrated compliance reader summarizing Indonesian aviation guidelines: PM 37/2020 (Airspace), PM 63/2021 (CASR Part 107), and KP 242/2017.</p>
+            </div>
+          </div>
+          <div class="mt-6 flex items-center justify-between text-xs font-bold text-emerald-400 group-hover:text-emerald-300">
+            <span>Browse Library</span>
+            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <!-- Card 5: Real-time ADS-B Airspace Monitor -->
+        <div id="portal-card-adsb" class="group relative bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-sky-500/50 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-sky-500/5 cursor-pointer transform hover:-translate-y-1 transition-all duration-300">
+          <div class="space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11a13.92 13.92 0 00-2.138-7.402m.902 11.779A11.97 11.97 0 019 11c0-1.664-.34-3.248-.956-4.688M12 11a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="space-y-1.5 flex items-start gap-2 flex-wrap">
+              <div class="flex items-center gap-1.5">
+                <h3 class="text-base font-bold text-white group-hover:text-sky-400 transition-colors">Real-time ADS-B Monitor</h3>
+                <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 tracking-widest uppercase">Beta</span>
+              </div>
+              <p class="text-xs text-gray-400 leading-relaxed">Track local flight traffic in real-time. Combines live OpenSky Network Sumatra API feeds and a local conflict collision warning system.</p>
+            </div>
+          </div>
+          <div class="mt-6 flex items-center justify-between text-xs font-bold text-sky-400 group-hover:text-sky-300">
+            <span>Scan Live Traffic</span>
+            <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick Credits Footer -->
+      <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-6">
+        &copy; 2026 Lukman Yudand Hidayat &bull; Kantor Otoritas Bandar Udara Wilayah VI Padang
+      </p>
+    </div>
+  </div>
+
+  <!-- Dashboard Workspace Container Wrapper -->
+  <div id="app-workspace-container" class="flex-1 flex flex-col overflow-hidden hidden">
+
   <!-- Top Navigation Header (Apple Style White) -->
   <header class="h-20 border-b border-black/5 bg-white/80 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10 shadow-sm shadow-black/[0.01]">
     <div class="flex items-center gap-4">
@@ -57,6 +199,13 @@
     
     <!-- Top Stats Bar -->
     <div class="flex items-center gap-6">
+      <!-- Back to Portal button -->
+      <button id="btn-back-to-portal" class="mr-2 px-3 py-1.5 rounded-xl border border-black/5 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/5 transition-all flex items-center gap-1.5 font-bold text-xs" title="Return to Main Menu">
+        <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        Home
+      </button>
       <div class="text-right border-r border-black/5 pr-6 hidden md:block">
         <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Airspace Status</div>
         <div class="text-xs font-bold text-emerald-600 flex items-center gap-1.5 justify-end">
@@ -228,6 +377,7 @@
     </aside>
     
   </div>
+  </div><!-- /app-workspace-container -->
 
   <!-- Add Permit Modal Overlay -->
   <div id="add-permit-modal" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-all duration-300">
@@ -636,6 +786,58 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- REGULATIONS LIBRARY MODAL                                    -->
+  <!-- ============================================================ -->
+  <div id="regulations-modal"
+    class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[9000] flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    
+    <div class="bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden scale-95 transition-transform duration-300">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-black/5 dark:border-white/5 flex items-center justify-between shrink-0 bg-white dark:bg-[#1c1c1e]">
+        <div>
+          <h2 class="text-base font-bold text-[#1d1d1f] dark:text-white">Indonesian Aviation Regulations Library</h2>
+          <p class="text-[11px] text-gray-400 mt-0.5">Reference summaries of key civil aviation drone operation rules (PM 37/2020, PM 63/2021, KP 242/2017)</p>
+        </div>
+        <button onclick="closeRegulationsLibrary()" class="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors">
+          <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Workspace: Left Navigation, Right Content -->
+      <div class="flex-1 flex overflow-hidden bg-gray-50/50 dark:bg-[#151517]">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 border-r border-black/5 dark:border-white/5 bg-white dark:bg-[#1c1c1e] p-4 flex flex-col gap-2 shrink-0">
+          <button id="reg-tab-pm37" onclick="switchRegulationTab('pm37')" class="text-left text-xs font-bold px-3 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 transition-all border border-indigo-100/50 dark:border-indigo-500/20 flex flex-col">
+            <span>PM 37 Tahun 2020</span>
+            <span class="text-[9px] text-indigo-500/70 dark:text-indigo-400/70 font-semibold mt-0.5">Airspace Operation Limits</span>
+          </button>
+          <button id="reg-tab-pm63" onclick="switchRegulationTab('pm63')" class="text-left text-xs font-bold px-3 py-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all border border-transparent flex flex-col">
+            <span>PM 63 Tahun 2021</span>
+            <span class="text-[9px] text-gray-400 dark:text-gray-500 font-semibold mt-0.5">CASR Part 107 (sUA)</span>
+          </button>
+          <button id="reg-tab-kp242" onclick="switchRegulationTab('kp242')" class="text-left text-xs font-bold px-3 py-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all border border-transparent flex flex-col">
+            <span>KP 242 Tahun 2017</span>
+            <span class="text-[9px] text-gray-400 dark:text-gray-500 font-semibold mt-0.5">Registration & Markings</span>
+          </button>
+        </aside>
+
+        <!-- Right Content Area (Scrollable) -->
+        <div id="regulations-content-area" class="flex-1 overflow-y-auto p-6 bg-white dark:bg-[#151517] text-xs font-semibold text-gray-600 dark:text-gray-300 leading-relaxed space-y-4">
+          <!-- Filled dynamically by JS -->
+        </div>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-black/5 dark:border-white/5 flex justify-end bg-gray-50 dark:bg-[#1c1c1e] shrink-0">
+        <button onclick="closeRegulationsLibrary()" class="px-5 py-2.5 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 border border-transparent text-gray-600 dark:text-gray-300 font-bold text-xs transition-all">Close Library</button>
       </div>
     </div>
   </div>
