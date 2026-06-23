@@ -436,7 +436,7 @@ function initMap() {
         satelliteLayer.addTo(map);
         activeTileMode = 'satellite';
         mapToggleText.textContent = "Street Map";
-        mapToggle.classList.add('text-[#0071e3]');
+        mapToggle.classList.add('text-[#4a5d3e]');
       } else {
         map.removeLayer(satelliteLayer);
         const isCurrentDark = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
@@ -447,7 +447,7 @@ function initMap() {
         }
         activeTileMode = 'streets';
         mapToggleText.textContent = "Satellite Map";
-        mapToggle.classList.remove('text-[#0071e3]');
+        mapToggle.classList.remove('text-[#4a5d3e]');
       }
     });
   }
@@ -568,9 +568,9 @@ function setupEventListeners() {
     btn.addEventListener('click', () => {
       yearTabs.forEach(t => {
         const otherBtn = document.getElementById(`tab-${t}`);
-        if (otherBtn) otherBtn.className = "flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors";
+        if (otherBtn) otherBtn.className = "flex-1 py-1.5 rounded-xl hover:text-[#2a2334] transition-colors";
       });
-      btn.className = "flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm";
+      btn.className = "flex-1 py-1.5 rounded-xl bg-white text-[#2a2334] shadow-sm";
       currentYearFilter = tab === 'all' ? 'All' : parseInt(tab);
       renderDashboard();
     });
@@ -584,9 +584,9 @@ function setupEventListeners() {
     btn.addEventListener('click', () => {
       statusTabs.forEach(s => {
         const otherBtn = document.getElementById(`status-${s}`);
-        if (otherBtn) otherBtn.className = "flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors";
+        if (otherBtn) otherBtn.className = "flex-1 py-1.5 rounded-xl hover:text-[#2a2334] transition-colors";
       });
-      btn.className = "flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm";
+      btn.className = "flex-1 py-1.5 rounded-xl bg-white text-[#2a2334] shadow-sm";
       currentStatusFilter = status === 'all' ? 'All' : status.toUpperCase();
       renderDashboard();
     });
@@ -691,6 +691,12 @@ function setupEventListeners() {
   const btnSidebarAuthor = document.getElementById('btn-sidebar-author');
   if (btnSidebarAuthor) {
     btnSidebarAuthor.addEventListener('click', openAuthorModal);
+  }
+
+  // ULG Converter portal card click handler
+  const cardUlg = document.getElementById('portal-card-ulg');
+  if (cardUlg) {
+    cardUlg.addEventListener('click', openUlgConverterModal);
   }
 
   // Close author modal if clicking on the background overlay
@@ -858,7 +864,7 @@ function renderDashboard() {
       // Popup content
       mapShape.bindPopup(`
         <div class="text-xs space-y-1">
-          <div class="font-bold text-[#1d1d1f]">${permit.operator_name}</div>
+          <div class="font-bold text-[#2a2334]">${permit.operator_name}</div>
           <div class="text-[10px] text-gray-500 font-mono">ID: ${permit.permit_id}</div>
           ${isFallback ? '<div class="text-[9px] text-amber-600 font-bold mt-1">Approximate Area Fallback</div>' : ''}
           <div class="flex items-center gap-1.5 mt-1">
@@ -893,8 +899,8 @@ function renderDashboard() {
 
     card.className = `p-4 border rounded-2xl cursor-pointer transition-all duration-300 ${
       isSelected 
-        ? 'bg-white border-[#0071e3]/60 shadow-lg shadow-black/[0.02]' 
-        : 'bg-white/70 border-black/5 hover:bg-white hover:shadow-sm'
+        ? 'active-permit-card' 
+        : 'bg-white/70 border-black/5 hover:bg-white hover:shadow-sm text-gray-800'
     }`;
 
     const pilotVal = Array.isArray(permit.pilot_name) && permit.pilot_name.length > 0
@@ -915,7 +921,7 @@ function renderDashboard() {
       </div>
       <h3 class="text-sm font-bold text-gray-800 mt-2 truncate">${permit.operator_name}</h3>
       <p class="text-xs text-gray-500 font-medium flex items-center gap-1 mt-1">
-        <svg class="w-3.5 h-3.5 text-[#0071e3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <svg class="w-3.5 h-3.5 text-[#4a5d3e] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
         </svg>
         ${permit.location}
@@ -1110,7 +1116,7 @@ function renderAirportInspector(airport) {
       <div class="space-y-3 pt-2">
         <h3 class="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Quick GIS Actions</h3>
         <div class="flex flex-col gap-2">
-          <button id="btn-focus-airport" class="w-full bg-[#f5f5f7] hover:bg-black/5 text-[#1d1d1f] font-bold py-2.5 rounded-2xl text-xs border border-black/5 transition-all active:scale-95 flex items-center justify-center gap-1.5">
+          <button id="btn-focus-airport" class="w-full bg-[#f5f6f4] hover:bg-black/5 text-[#2a2334] font-bold py-2.5 rounded-2xl text-xs border border-black/5 transition-all active:scale-95 flex items-center justify-center gap-1.5">
             <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -1257,7 +1263,7 @@ function renderInspector() {
     <!-- Live Timer Window -->
     <div class="p-6 border-b border-black/5 bg-sky-50/20 space-y-2">
       <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Live Time Remaining</div>
-      <div id="countdown-timer" class="text-2xl font-bold font-mono tracking-tight text-[#0071e3]">
+      <div id="countdown-timer" class="text-2xl font-bold font-mono tracking-tight text-[#4a5d3e]">
         --:--:--
       </div>
       <div class="flex justify-between text-[10px] text-gray-500 font-semibold pt-1">
@@ -1269,19 +1275,24 @@ function renderInspector() {
     <!-- Workspace Properties -->
     <div class="p-6 border-b border-black/5 space-y-4">
       <h3 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Operation Metrics</h3>
-      
-      <!-- Altitude Limit Gauge -->
-      <div class="flex gap-4 items-center">
-        <div class="w-8 h-28 bg-[#e8e8ed] border border-black/5 rounded-lg flex flex-col justify-end p-0.5 relative shrink-0">
-          <!-- Maximum line visual -->
-          <div class="absolute inset-x-0 bottom-[100%] h-0 border-t border-red-500/50 mb-[-1px]"></div>
-          <!-- Current level filled -->
-          <div class="w-full ${gaugeColor} rounded-md transition-all duration-500" style="height: ${Math.min((permit.max_altitude_ft / 500) * 100, 100)}%"></div>
+      <!-- Altitude Limit Gauge (Circular Radial Progress) -->
+      <div class="flex gap-4 items-center bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/5">
+        <div class="radial-gauge-wrapper shrink-0">
+          <svg viewBox="0 0 160 160" class="radial-svg">
+            <circle class="radial-bg" cx="80" cy="80" r="70" fill="none" stroke-width="14"></circle>
+            <circle class="radial-fill" id="radial-fill-bar" cx="80" cy="80" r="70" fill="none" stroke-width="14" stroke-dasharray="440" stroke-dashoffset="440" stroke-linecap="round"></circle>
+          </svg>
+          <div class="radial-text">
+            <span class="radial-percent" id="radial-percent-val">0%</span>
+            <span class="radial-label">Ceiling</span>
+          </div>
         </div>
-        <div class="flex-1 space-y-1">
-          <div class="text-[10px] text-gray-400 font-bold uppercase">Vertical Ceiling</div>
-          <div class="text-xl font-extrabold text-gray-800">${permit.max_altitude_ft} <span class="text-xs font-semibold text-gray-500">ft (AGL)</span></div>
-          <div class="text-[10px] text-gray-400 font-semibold">Standard Indonesian regulatory cap is 400ft / 120m.</div>
+        <div class="flex-grow space-y-1">
+          <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Vertical Ceiling Limit</div>
+          <div class="text-lg font-extrabold text-gray-800 dark:text-white">${permit.max_altitude_ft} <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">ft (AGL)</span></div>
+          <div class="text-[10px] text-gray-500 dark:text-gray-400 leading-normal font-medium">
+            Representing <span id="radial-percent-desc" class="font-bold text-[var(--blue)]">0%</span> of standard 400ft Indonesian regulatory limit.
+          </div>
         </div>
       </div>
       
@@ -1320,7 +1331,7 @@ function renderInspector() {
         </div>
         <div class="flex justify-between items-center text-xs">
           <span class="text-gray-500 font-semibold">Attachment Reference</span>
-          <span id="pdf-reference-link" class="text-[#0071e3] font-semibold hover:underline cursor-pointer truncate max-w-[200px]" title="${permit.file_name}">${permit.file_name}</span>
+          <span id="pdf-reference-link" class="text-[#4a5d3e] font-semibold hover:underline cursor-pointer truncate max-w-[200px]" title="${permit.file_name}">${permit.file_name}</span>
         </div>
       </div>
     </div>
@@ -1329,7 +1340,7 @@ function renderInspector() {
     <div class="p-6 border-b border-black/5 space-y-3">
       <h3 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Flight Log Evaluation</h3>
       <input type="file" id="flight-log-input" accept=".csv,.kml" class="hidden">
-      <button id="btn-upload-log" class="w-full py-2 bg-[#f5f5f7] hover:bg-black/5 text-[#1d1d1f] font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 border border-black/5">
+      <button id="btn-upload-log" class="w-full py-2 bg-[#f5f6f4] hover:bg-black/5 text-[#2a2334] font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 border border-black/5">
         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
         </svg>
@@ -1430,6 +1441,12 @@ function renderInspector() {
     updateEvaluationStatusUI();
   }
 
+  // Update the circular progress gauge
+  const altPercentage = Math.min((permit.max_altitude_ft / 400) * 100, 100);
+  setTimeout(() => {
+    updateRadialProgress(altPercentage);
+  }, 50);
+
   // Countdown timer clock cycle loop
   startCountdown(permit, status);
 }
@@ -1514,7 +1531,7 @@ function showToast(message, type = 'info') {
 
   const toast = document.createElement('div');
   
-  let bgClass = 'bg-white/95 border-black/5 text-[#1d1d1f]';
+  let bgClass = 'bg-white/95 border-black/5 text-[#2a2334]';
   let icon = `
     <svg class="w-4 h-4 text-sky-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -2809,7 +2826,7 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
   const commonPlugins = {
     legend: {
       position: 'top',
-      labels: { font: { size: 12, weight: 'bold' }, boxWidth: 14, color: isDarkMode ? '#e8e8ed' : '#1d1d1f' }
+      labels: { font: { size: 12, weight: 'bold' }, boxWidth: 14, color: isDarkMode ? '#e8eee5' : '#2a2334' }
     },
     tooltip: {
       callbacks: {
@@ -2961,7 +2978,7 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
         x: commonXScale,
         y: {
           type: 'linear',
-          title: { display: true, text: 'Altitude AGL (feet)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8e8ed' : '#374151' },
+          title: { display: true, text: 'Altitude AGL (feet)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8eee5' : '#374151' },
           ticks: { color: labelColor },
           grid: { color: gridColor }
         }
@@ -3008,7 +3025,7 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
           x: commonXScale,
           y: {
             type: 'linear',
-            title: { display: true, text: 'Altitude AMSL (feet)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8e8ed' : '#374151' },
+            title: { display: true, text: 'Altitude AMSL (feet)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8eee5' : '#374151' },
             ticks: { color: labelColor },
             grid: { color: gridColor }
           }
@@ -3055,7 +3072,7 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
         x: commonXScale,
         y: {
           type: 'linear',
-          title: { display: true, text: 'Speed (knots)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8e8ed' : '#374151' },
+          title: { display: true, text: 'Speed (knots)', font: { size: 12, weight: 'bold' }, color: isDarkMode ? '#e8eee5' : '#374151' },
           ticks: { color: labelColor },
           grid: { color: gridColor }
         }
@@ -3415,7 +3432,7 @@ window.openConverterModal = function() {
   
   const dlBtn = document.getElementById('btn-download-conv-kml');
   dlBtn.disabled = true;
-  dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#e8e8ed] text-gray-400 font-bold cursor-not-allowed transition-all shadow-sm";
+  dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#e8eee5] text-gray-400 font-bold cursor-not-allowed transition-all shadow-sm";
   
   modal.classList.remove('hidden');
   setTimeout(() => {
@@ -3476,7 +3493,7 @@ window.processConverterFile = async function(file) {
       
       // Enable download button
       dlBtn.disabled = false;
-      dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#0071e3] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#0071e3]/15";
+      dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#4a5d3e] hover:bg-[#2c3b26] text-white font-bold transition-all shadow-md shadow-[#4a5d3e]/15";
       
       showToast("Document converted successfully!", "success");
     } else {
@@ -3686,7 +3703,7 @@ window.switchAuthorTab = function(tabId) {
   const panelOkc = document.getElementById('author-panel-okc');
   
   if (tabId === 'dev') {
-    if (btnDev) btnDev.className = "py-2.5 text-xs font-bold text-[#0071e3] border-b-2 border-[#0071e3] transition-all focus:outline-none";
+    if (btnDev) btnDev.className = "py-2.5 text-xs font-bold text-[#4a5d3e] border-b-2 border-[#4a5d3e] transition-all focus:outline-none";
     if (btnOkc) btnOkc.className = "py-2.5 text-xs font-bold text-gray-500 hover:text-gray-800 transition-all focus:outline-none";
     if (panelDev) panelDev.classList.remove('hidden');
     if (panelOkc) panelOkc.classList.add('hidden');
@@ -3709,7 +3726,7 @@ window.switchAuthorTab = function(tabId) {
         </svg>
         <span>Show Full Roster & Front Office</span>
       `;
-      btnToggle.className = "w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none";
+      btnToggle.className = "w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#2c3b26] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none";
     }
   }
 };
@@ -3738,7 +3755,7 @@ window.toggleOkcRoster = function() {
       </svg>
       <span>Show Full Roster & Front Office</span>
     `;
-    btnToggle.className = "w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none";
+    btnToggle.className = "w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#2c3b26] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none";
   }
 };
 
@@ -3973,7 +3990,7 @@ function renderAdsbFlightList(flights) {
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1.5">
             <span style="color:${iconColor};transform:rotate(${heading || 0}deg);display:inline-block;font-size:14px;line-height:1;">✈</span>
-            <span class="font-extrabold text-[#1d1d1f] tracking-tight">${callsign}</span>
+            <span class="font-extrabold text-[#2a2334] tracking-tight">${callsign}</span>
             ${isConflict ? '<span class="text-[8px] font-extrabold text-red-600 bg-red-100 px-1 py-0.5 rounded uppercase">KKOP</span>' : ''}
           </div>
           <span class="text-[9px] font-bold text-gray-400 uppercase">${onGround ? 'Ground' : 'Airborne'}</span>
@@ -4025,7 +4042,7 @@ function renderAdsbMapMarkers(flights) {
 
     const popupContent = `
       <div class="text-xs space-y-1" style="min-width:160px">
-        <div class="font-bold text-[#1d1d1f]">${callsign}</div>
+        <div class="font-bold text-[#2a2334]">${callsign}</div>
         <div class="font-mono text-gray-400 text-[10px]">${icao.toUpperCase()}</div>
         <div class="flex justify-between pt-1 border-t border-black/5">
           <span class="text-gray-500">Status</span>
@@ -4104,3 +4121,225 @@ window.selectAdsbFlight = function(icao) {
 };
 
 
+// ============================================================================
+// ULG FLIGHT LOG CONVERTER
+// ============================================================================
+let ulgCurrentFilePath = null;
+let ulgLastResult = null;
+
+function openUlgConverterModal() {
+  const modal = document.getElementById('ulg-converter-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    modal.classList.remove('opacity-0');
+    modal.querySelector('.scale-95').classList.remove('scale-95');
+  });
+  ulgResetState();
+  // Re-attach listeners every time (safe since we do it inside the function)
+  setupUlgModalListeners();
+}
+
+function closeUlgConverterModal() {
+  const modal = document.getElementById('ulg-converter-modal');
+  if (!modal) return;
+  modal.classList.add('opacity-0');
+  modal.querySelector('div').classList.add('scale-95');
+  setTimeout(() => modal.classList.add('hidden'), 300);
+}
+
+function ulgResetState() {
+  ulgCurrentFilePath = null;
+  ulgLastResult = null;
+  document.getElementById('ulg-file-info').classList.add('hidden');
+  document.getElementById('ulg-file-name').textContent = '—';
+  document.getElementById('ulg-file-size').textContent = '—';
+  document.getElementById('ulg-format-picker').classList.add('hidden');
+  document.getElementById('ulg-loader').classList.add('hidden');
+  document.getElementById('ulg-results').classList.add('hidden');
+  document.getElementById('ulg-error-alert').classList.add('hidden');
+  document.getElementById('ulg-drop-zone').classList.remove('hidden');
+  const convertBtn = document.getElementById('ulg-convert-btn');
+  convertBtn.disabled = true;
+  convertBtn.className = 'px-5 py-2 rounded-xl bg-[#e8eee5] text-gray-400 font-bold cursor-not-allowed transition-all text-xs';
+  convertBtn.textContent = 'Convert';
+}
+
+function setupUlgModalListeners() {
+  const modal = document.getElementById('ulg-converter-modal');
+  if (!modal || modal._ulgListenersAttached) return;
+  modal._ulgListenersAttached = true;
+
+  // Close buttons
+  document.getElementById('close-ulg-modal').onclick = closeUlgConverterModal;
+  document.getElementById('ulg-cancel-btn').onclick = closeUlgConverterModal;
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeUlgConverterModal(); });
+
+  // Clear file
+  document.getElementById('ulg-clear-file').onclick = ulgResetState;
+
+  // Drop zone & file input
+  const dropZone = document.getElementById('ulg-drop-zone');
+  const fileInput = document.getElementById('ulg-file-input');
+  dropZone.onclick = () => fileInput.click();
+  fileInput.onchange = (e) => { if (e.target.files[0]) ulgSetFile(e.target.files[0]); };
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-rose-400', 'bg-rose-50/40'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-rose-400', 'bg-rose-50/40'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-rose-400', 'bg-rose-50/40');
+    if (e.dataTransfer.files[0]) ulgSetFile(e.dataTransfer.files[0]);
+  });
+
+  // Convert button
+  document.getElementById('ulg-convert-btn').onclick = ulgRunConversion;
+
+  // Download buttons
+  document.getElementById('ulg-dl-csv').onclick = () => ulgOpenFile(ulgLastResult?.outputs?.csv);
+  document.getElementById('ulg-dl-kml').onclick = () => ulgOpenFile(ulgLastResult?.outputs?.kml);
+  document.getElementById('ulg-dl-gpx').onclick = () => ulgOpenFile(ulgLastResult?.outputs?.gpx);
+  document.getElementById('ulg-load-on-map').onclick = ulgLoadOnMap;
+}
+
+function ulgSetFile(file) {
+  if (!file.name.endsWith('.ulg')) {
+    ulgShowError('Please select a valid .ulg drone log file.');
+    return;
+  }
+  ulgCurrentFilePath = file.path;
+  document.getElementById('ulg-drop-zone').classList.add('hidden');
+  document.getElementById('ulg-file-info').classList.remove('hidden');
+  document.getElementById('ulg-file-name').textContent = file.name;
+  const mb = (file.size / 1024 / 1024).toFixed(1);
+  document.getElementById('ulg-file-size').textContent = `${mb} MB · PX4 ULog`;
+  document.getElementById('ulg-format-picker').classList.remove('hidden');
+  document.getElementById('ulg-results').classList.add('hidden');
+  document.getElementById('ulg-error-alert').classList.add('hidden');
+
+  const convertBtn = document.getElementById('ulg-convert-btn');
+  convertBtn.disabled = false;
+  convertBtn.className = 'px-5 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold transition-all text-xs cursor-pointer shadow-sm';
+  convertBtn.textContent = 'Convert';
+}
+
+async function ulgRunConversion() {
+  if (!ulgCurrentFilePath) return;
+
+  const formats = [];
+  if (document.getElementById('ulg-fmt-csv').checked) formats.push('csv');
+  if (document.getElementById('ulg-fmt-kml').checked) formats.push('kml');
+  if (document.getElementById('ulg-fmt-gpx').checked) formats.push('gpx');
+  if (!formats.length) { ulgShowError('Please select at least one output format.'); return; }
+
+  // Show loader
+  document.getElementById('ulg-loader').classList.remove('hidden');
+  document.getElementById('ulg-results').classList.add('hidden');
+  document.getElementById('ulg-error-alert').classList.add('hidden');
+  const convertBtn = document.getElementById('ulg-convert-btn');
+  convertBtn.disabled = true;
+  convertBtn.textContent = 'Converting...';
+
+  try {
+    const outputDir = ulgCurrentFilePath.replace(/[^\\\/]+$/, '');
+    const result = await window.api.convertUlg(ulgCurrentFilePath, outputDir, formats);
+    ulgLastResult = result;
+
+    document.getElementById('ulg-loader').classList.add('hidden');
+
+    if (!result.success) {
+      ulgShowError(result.error || 'Conversion failed — no GPS data found in this log.');
+    } else {
+      ulgShowResults(result);
+    }
+  } catch (err) {
+    document.getElementById('ulg-loader').classList.add('hidden');
+    ulgShowError('Conversion error: ' + (err.message || String(err)));
+  }
+
+  convertBtn.disabled = false;
+  convertBtn.textContent = 'Convert Again';
+}
+
+function ulgShowError(msg) {
+  const el = document.getElementById('ulg-error-alert');
+  el.textContent = '⚠ ' + msg;
+  el.classList.remove('hidden');
+}
+
+function ulgShowResults(r) {
+  document.getElementById('ulg-results').classList.remove('hidden');
+
+  // Stats
+  document.getElementById('ulg-stat-points').textContent = (r.track_points || 0).toLocaleString();
+
+  const maxAlt = r.max_altitude_m || 0;
+  document.getElementById('ulg-stat-alt').textContent =
+    `${maxAlt.toFixed(0)}m / ${(maxAlt * 3.28084).toFixed(0)}ft`;
+
+  const dur = r.duration_sec || 0;
+  const durStr = dur < 60 ? `${Math.round(dur)}s` :
+    dur < 3600 ? `${Math.floor(dur/60)}m ${Math.round(dur%60)}s` :
+    `${Math.floor(dur/3600)}h ${Math.floor((dur%3600)/60)}m`;
+  document.getElementById('ulg-stat-duration').textContent = durStr;
+
+  document.getElementById('ulg-stat-topic').textContent = r.gps_topic || '—';
+  document.getElementById('ulg-stat-coords').textContent =
+    r.center_lat ? `${r.center_lat.toFixed(5)}, ${r.center_lon.toFixed(5)}` : '—';
+  const spd = r.max_speed_ms || 0;
+  document.getElementById('ulg-stat-speed').textContent =
+    spd > 0 ? `${spd.toFixed(1)} m/s · ${(spd * 3.6).toFixed(1)} km/h` : '0 m/s (no velocity data)';
+
+  // Download buttons
+  const dlCsv = document.getElementById('ulg-dl-csv');
+  const dlKml = document.getElementById('ulg-dl-kml');
+  const dlGpx = document.getElementById('ulg-dl-gpx');
+  const dlMap = document.getElementById('ulg-load-on-map');
+
+  dlCsv.classList.toggle('hidden', !r.outputs?.csv);
+  dlKml.classList.toggle('hidden', !r.outputs?.kml);
+  dlGpx.classList.toggle('hidden', !r.outputs?.gpx);
+  dlMap.classList.toggle('hidden', !r.outputs?.kml);
+
+  showToast(`✅ Converted! ${r.track_points} GPS points extracted`, 'success');
+}
+
+function ulgOpenFile(filePath) {
+  if (!filePath) return;
+  // Use Electron shell to open folder/file
+  if (window.require) {
+    const { shell } = window.require('electron');
+    shell.showItemInFolder(filePath);
+  } else {
+    showToast('File saved at: ' + filePath, 'info');
+  }
+}
+
+function ulgLoadOnMap() {
+  if (!ulgLastResult?.outputs?.kml) return;
+  closeUlgConverterModal();
+  showToast('Opening Flight Telemetry Analyzer with KML...', 'info');
+  // Open telemetry analyzer modal with the KML file
+  setTimeout(() => {
+    showDashboard();
+    openTelemetryAnalyzer();
+  }, 400);
+}
+
+// Global Sage & Forest radial progress calculator
+function updateRadialProgress(percentage) {
+  const circle = document.getElementById('radial-fill-bar');
+  const valueLabel = document.getElementById('radial-percent-val');
+  const descLabel = document.getElementById('radial-percent-desc');
+  
+  if (!circle || !valueLabel) return;
+  
+  // Circumference = 2 * PI * Radius (70) ~ 440px
+  const circumference = 440;
+  const offset = circumference - (circumference * percentage / 100);
+  
+  circle.style.strokeDashoffset = offset;
+  valueLabel.innerText = `${Math.round(percentage)}%`;
+  if (descLabel) {
+    descLabel.innerText = `${Math.round(percentage)}%`;
+  }
+}

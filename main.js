@@ -162,6 +162,35 @@ ipcMain.handle('convert-to-kml', async (event, filePath) => {
   });
 });
 
+// IPC Handler to convert ULG (PX4 drone log) to CSV/KML/GPX
+ipcMain.handle('convert-ulg', async (event, filePath, outputDir, formats) => {
+  const { execFile } = require('child_process');
+  const pythonScript = path.join(__dirname, 'ulg_converter.py');
+  const args = [pythonScript, filePath];
+  if (outputDir) args.push(outputDir);
+  if (formats && formats.length) args.push(formats.join(','));
+
+  return new Promise((resolve) => {
+    execFile('python', args, { timeout: 120000 }, (error, stdout, stderr) => {
+      if (stderr) console.error('ULG converter stderr:', stderr);
+      if (error) {
+        console.error('ULG converter error:', error);
+        resolve({ success: false, error: stderr || error.message });
+        return;
+      }
+      try {
+        // Find last JSON line (in case there's progress output)
+        const lines = stdout.trim().split('\n');
+        const lastJson = lines.reverse().find(l => l.trim().startsWith('{'));
+        const result = JSON.parse(lastJson || stdout.trim());
+        resolve(result);
+      } catch (err) {
+        resolve({ success: false, error: 'Could not parse converter output: ' + stdout.substring(0, 500) });
+      }
+    });
+  });
+});
+
 // IPC Handler to load airport KML files
 ipcMain.handle('load-airport-kml', async () => {
   const airportDir = path.join(__dirname, 'Airport', 'Depati Amir');

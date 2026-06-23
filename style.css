@@ -1,14 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --font-outfit: 'Outfit', sans-serif;
-  --bg-light: #f5f5f7;
-  --text-charcoal: #1d1d1f;
-  --text-secondary: #86868b;
-  --panel-apple: rgba(255, 255, 255, 0.65);
-  --border-apple: rgba(0, 0, 0, 0.06);
-  --shadow-apple: 0 8px 30px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.08);
+  /* ---- Core Surfaces ---- */
+  --bg-app:        #f5f6f4;   /* Soft warm sage off-white */
+  --bg-sidebar:    rgba(255, 255, 255, 0.85); /* Frosted glass */
+  --bg-card:       #ffffff;   /* Pure white */
+  --bg-input:      #ffffff;
+  --bg-hover:      #dfe6dc;   /* Light sage hover */
+  --bg-selected:   #e8eee5;   /* Selection sage tint */
+
+  /* ---- Text Tones ---- */
+  --text-primary:   #2a2334;   /* Deep plum brand text (high contrast) */
+  --text-secondary: #464255;   /* Slate/Grey-body text */
+  --text-tertiary:  #738b68;   /* Cool sage green text */
+  --text-quaternary:#a3a3a3;   /* Light gray placeholder/disabled */
+
+  /* ---- Borders ---- */
+  --border:        rgba(74, 93, 62, 0.12);  /* Fine sage border */
+  --border-strong: rgba(74, 93, 62, 0.22);
+  --border-focus:  #4a5d3e;                 /* Focus brand accent */
+
+  /* ---- Brand & Accent Colors ---- */
+  --blue:          #4a5d3e;   /* Primary Sage Accent */
+  --blue-light:    #e8eee5;   /* Accent selection background */
+  --blue-dark:     #2c3b26;   /* Active state/Hover accent */
+  
+  /* ---- Status Highlights ---- */
+  --green:         #22c55e;   /* Success / Completed state */
+  --green-light:   #98f7bb;
+  --orange:        #f3ab3f;   /* Warning / In-progress state */
+  --orange-light:  #fdf4e7;
+  --red:           #cb5044;   /* Danger / Not-started state */
+  --red-light:     #ffa8a7;
+  --purple:        #9f29e8;   /* Tertiary Info Accent */
+  
+  /* ---- Apple System Greys ---- */
+  --gray:          #8e8e93;
+  --gray-2:        #aeaeb2;
+  --gray-3:        #c7c7cc;
+  --gray-4:        #d1d1d6;
+  --gray-5:        #e5e5ea;
+  --gray-6:        #f2f2f7;
+
+  /* ---- Typography ---- */
+  --font-outfit:   'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* ---- Geometry & Corners ---- */
+  --radius-xs:     6px;
+  --radius-sm:     10px;
+  --radius-md:     14px;
+  --radius-lg:     20px;
+  --radius-xl:     24px;
+  --radius-pill:   999px;
+
+  /* ---- macOS style Soft Shadows ---- */
+  --shadow-xs:     0 1px 2px rgba(0,0,0,0.02);
+  --shadow-sm:     0 2px 8px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.02);
+  --shadow-md:     0 4px 16px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.02);
+  --shadow-lg:     0 8px 32px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03);
+  --shadow-focus:  0 0 0 3px rgba(74, 93, 62, 0.25);
+
+  /* ---- Easing & Animations ---- */
+  --ease:          cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy Apple feel */
+  --t-fast:        0.12s;
+  --t-normal:      0.22s;
+  --t-slow:        0.35s;
+
+  /* Legacy variables compatibility mapping */
+  --bg-light: var(--bg-app);
+  --text-charcoal: var(--text-primary);
+  --panel-apple: var(--bg-sidebar);
+  --border-apple: var(--border);
+  --shadow-apple: var(--shadow-sm);
+  --shadow-hover: var(--shadow-lg);
 }
 
 body {
@@ -28,21 +94,21 @@ body {
 }
 
 .glass-panel:hover {
-  border-color: rgba(0, 113, 227, 0.2);
+  border-color: var(--border-strong);
   box-shadow: var(--shadow-hover);
 }
 
-/* Apple buttons */
+/* Apple buttons styling adapted to Sage & Forest */
 .btn-apple {
-  background-color: #0071e3;
+  background-color: var(--blue);
   color: #ffffff;
-  border-radius: 980px;
+  border-radius: var(--radius-pill);
   font-weight: 500;
   transition: all 0.2s ease;
 }
 
 .btn-apple:hover {
-  background-color: #0077ed;
+  background-color: var(--blue-dark);
   transform: translateY(-0.5px);
 }
 
@@ -140,15 +206,36 @@ body {
 
 /* --- Premium Dark Mode Design Overrides --- */
 
-/* Standard dark theme variables */
+/* Forest-green based dark theme variables */
 .dark {
-  --bg-light: #0d0d0f;
-  --text-charcoal: #f5f5f7;
-  --text-secondary: #86868b;
-  --panel-apple: rgba(22, 22, 23, 0.75);
-  --border-apple: rgba(255, 255, 255, 0.08);
-  --shadow-apple: 0 8px 30px rgba(0, 0, 0, 0.3);
-  --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --bg-app:        #0e120b;   /* Deep forest black */
+  --bg-sidebar:    rgba(25, 34, 21, 0.85); /* Frosted dark forest glass */
+  --bg-card:       #161d12;   /* Dark forest card */
+  --bg-input:      #161d12;
+  --bg-hover:      #2c3b26;   /* Dark sage hover */
+  --bg-selected:   #2c3b26;   /* Selection dark sage tint */
+
+  --text-primary:   #e8eee5;   /* Light sage primary text (high contrast) */
+  --text-secondary: #9cb590;   /* Muted sage slate body text */
+  --text-tertiary:  #738b68;   /* Cool sage green text */
+  --text-quaternary:#52644b;
+
+  --border:        rgba(74, 93, 62, 0.2);
+  --border-strong: rgba(74, 93, 62, 0.4);
+  --border-focus:  #738b68;
+
+  --blue:          #738b68;   /* Muted sage accent for dark mode */
+  --blue-light:    rgba(74, 93, 62, 0.25);
+  --blue-dark:     #e8eee5;
+
+  /* Legacy variables compatibility mapping */
+  --bg-light: var(--bg-app);
+  --text-charcoal: var(--text-primary);
+  --text-secondary: var(--text-secondary);
+  --panel-apple: var(--bg-sidebar);
+  --border-apple: var(--border);
+  --shadow-apple: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.6);
 }
 
 .dark body {
@@ -188,17 +275,35 @@ body {
 .dark span,
 .dark select,
 .dark option,
+.dark strong,
+.dark label,
 .dark .text-gray-800,
 .dark .text-gray-900,
-.dark .text-\[\#1d1d1f\] {
+.dark .text-\[\#1d1d1f\],
+.dark .text-\[\#2a2334\] {
   color: var(--text-charcoal) !important;
 }
 
 /* Secondary descriptions */
 .dark .text-gray-500,
-.dark .text-gray-400,
-.dark .text-gray-600 {
+.dark .text-gray-400 {
   color: var(--text-secondary) !important;
+}
+
+.dark .text-gray-600 {
+  color: rgba(255, 255, 255, 0.5) !important; /* Neutral gray for expired state in dark mode */
+}
+
+.dark .bg-gray-100 {
+  background-color: rgba(255, 255, 255, 0.08) !important; /* Muted background for gray badges */
+}
+
+.dark .bg-gray-200 {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .border-gray-200 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 /* Text fields and forms */
@@ -206,9 +311,9 @@ body {
 .dark select,
 .dark textarea,
 .dark select option {
-  background-color: rgba(30, 30, 32, 0.9) !important;
+  background-color: #1a2315 !important;
   color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(74, 93, 62, 0.3) !important;
 }
 
 /* Inner containers and list items */
@@ -216,44 +321,103 @@ body {
 .dark .bg-gray-50\/50,
 .dark .bg-slate-50,
 .dark .bg-\[\#f5f5f7\],
+.dark .bg-\[\#f5f6f4\],
 .dark .bg-\[\#e8e8ed\]\/80,
 .dark .bg-\[\#e8e8ed\],
+.dark .bg-\[\#e8eee5\]\/80,
+.dark .bg-\[\#e8eee5\],
 .dark .bg-indigo-50\/50,
 .dark .bg-violet-50\/50,
 .dark .bg-amber-50\/70,
 .dark .bg-emerald-50\/70 {
-  background-color: rgba(30, 30, 32, 0.8) !important;
+  background-color: rgba(22, 30, 18, 0.8) !important;
 }
 
 /* Override specific text buttons or titles */
-.dark .text-\[\#1d1d1f\] {
-  color: #f5f5f7 !important;
+.dark .text-\[\#1d1d1f\],
+.dark .text-\[\#2a2334\] {
+  color: var(--text-charcoal) !important;
 }
 
 .dark #active-filters-banner {
-  background-color: rgba(0, 113, 227, 0.15) !important;
-  color: #4da3ff !important;
+  background-color: rgba(74, 93, 62, 0.15) !important;
+  color: #9cb590 !important;
 }
 
 /* Modal backgrounds */
 .dark #add-permit-modal > div,
 .dark #kml-converter-modal > div,
 .dark #telemetry-modal > div {
-  background-color: rgba(30, 30, 32, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background-color: #161d12 !important;
+  border: 1px solid rgba(74, 93, 62, 0.3) !important;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
 }
 
 .dark .bg-white\/95 {
-  background-color: rgba(30, 30, 32, 0.95) !important;
+  background-color: #161d12 !important;
 }
 
 .dark .bg-gray-50\/50 {
-  background-color: rgba(20, 20, 22, 0.5) !important;
+  background-color: rgba(22, 30, 18, 0.5) !important;
 }
 
 .dark .text-gray-900 {
   color: #ffffff !important;
+}
+
+/* High contrast utility text overrides in Dark Mode */
+.dark .text-emerald-600 {
+  color: #34d399 !important; /* Brighter emerald */
+}
+.dark .text-amber-600 {
+  color: #fbbf24 !important; /* Brighter amber */
+}
+.dark .text-indigo-600 {
+  color: #818cf8 !important; /* Brighter indigo */
+}
+.dark .text-violet-600 {
+  color: #a78bfa !important; /* Brighter violet */
+}
+.dark .text-\[\#b45309\] {
+  color: #fbbf24 !important; /* Brighter warning color */
+}
+.dark .text-brand-gold {
+  color: #fcd34d !important;
+}
+.dark .text-sky-600 {
+  color: #38bdf8 !important; /* Brighter sky blue */
+}
+.dark .text-rose-600 {
+  color: #fb7185 !important; /* Brighter rose */
+}
+
+/* High contrast background overrides for light/pastel elements in Dark Mode */
+.dark .bg-sky-50,
+.dark .bg-sky-50\/10,
+.dark .bg-sky-50\/20 {
+  background-color: rgba(14, 165, 233, 0.15) !important;
+  border-color: rgba(14, 165, 233, 0.3) !important;
+}
+
+.dark .bg-rose-50,
+.dark .bg-rose-50\/10,
+.dark .bg-rose-50\/20 {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+.dark .bg-violet-50,
+.dark .bg-violet-50\/50,
+.dark .bg-violet-50\/10 {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+.dark .active-permit-card {
+  background: rgba(74, 93, 62, 0.35) !important;
+  border-color: var(--border-strong) !important;
+  color: #ffffff !important; /* High contrast white text when selected */
+  border-left: 4px solid var(--blue-dark) !important;
 }
 
 /* Custom Scrollbar override for Dark Mode */
@@ -511,7 +675,7 @@ body {
 
 #adsb-map .leaflet-popup-content {
   margin: 0 !important;
-  font-family: 'Outfit', sans-serif !important;
+  font-family: var(--font-outfit) !important;
 }
 
 #adsb-map .leaflet-popup-tip {
@@ -521,7 +685,7 @@ body {
 /* Flight card highlight when selected */
 .adsb-flight-card.selected,
 .adsb-flight-card:focus {
-  outline: 2px solid #0ea5e9 !important;
+  outline: 2px solid var(--blue) !important;
   outline-offset: 1px;
 }
 
@@ -535,4 +699,85 @@ body {
   0% { transform: scale(0.8); opacity: 0.9; }
   70% { transform: scale(2); opacity: 0; }
   100% { transform: scale(2); opacity: 0; }
+}
+
+/* Sidebar Active Permit Card selection */
+.active-permit-card {
+  background: var(--blue-light) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--blue) !important;
+  border-left: 4px solid var(--blue) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Active navigation or general active buttons (Sage Left border indicator) */
+.nav-btn-active {
+  background-color: var(--blue-light) !important;
+  color: var(--blue) !important;
+  border-left: 4px solid var(--blue) !important;
+}
+
+/* Staggered Card Hover Lift transition with bouncy Apple curve */
+.stagger-card {
+  opacity: 0;
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: transform var(--t-normal) var(--ease-spring), box-shadow var(--t-normal) var(--ease), border-color var(--t-normal) var(--ease) !important;
+}
+
+.stagger-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-color: var(--border-strong) !important;
+}
+
+/* Circular Radial Progress Widget Styles */
+.radial-gauge-wrapper {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.radial-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg); /* Start progress from top */
+}
+
+.radial-bg {
+  stroke: var(--bg-hover);
+  opacity: 0.5;
+}
+
+.radial-fill {
+  stroke: var(--blue);
+  transition: stroke-dashoffset 0.35s var(--ease);
+}
+
+.radial-text {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.radial-percent {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.radial-label {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-top: 2px;
 }

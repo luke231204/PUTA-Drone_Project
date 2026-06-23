@@ -28,8 +28,8 @@
           colors: {
             brand: {
               gold: '#b45309', // darker gold for white bg contrast
-              sky: '#0071e3', // Apple Blue
-              navy: '#1d1d1f',
+              sky: '#4a5d3e', // Apple Blue
+              navy: '#2a2334',
             }
           }
         }
@@ -37,10 +37,10 @@
     }
   </script>
 </head>
-<body class="h-screen flex flex-col bg-[#f5f5f7] text-[#1d1d1f]">
+<body class="h-screen flex flex-col bg-[#f5f6f4] text-[#2a2334]">
 
   <!-- Portal Landing Page Container — White Apple Style -->
-  <div id="portal-container" class="flex-1 flex flex-col overflow-hidden bg-[#f5f5f7] select-none">
+  <div id="portal-container" class="flex-1 flex flex-col overflow-hidden bg-[#f5f6f4] select-none">
     
     <!-- Topbar -->
     <nav class="h-14 bg-white/80 backdrop-blur-md border-b border-black/[0.06] px-8 flex items-center justify-between shrink-0">
@@ -48,7 +48,7 @@
         <div id="nav-logo-container" class="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-black/5 shrink-0 transition-all duration-300">
           <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
         </div>
-        <span class="text-sm font-bold text-[#1d1d1f] tracking-tight">PUTA-Monitor</span>
+        <span class="text-sm font-bold text-[#2a2334] tracking-tight">PUTA-Monitor</span>
         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/5 text-black/40 border border-black/5">v1.0</span>
       </div>
       <div class="text-[10px] font-bold text-[#b45309] uppercase tracking-widest hidden md:block">
@@ -65,10 +65,10 @@
       <div id="hero-logo-container" class="w-20 h-20 rounded-[22px] overflow-hidden shadow-xl border border-black/5 mb-6 hover:scale-105 transition-all duration-300 cursor-default">
         <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
       </div>
-      <h1 class="text-4xl font-extrabold tracking-tight text-[#1d1d1f] leading-tight mb-3">
+      <h1 class="text-4xl font-extrabold tracking-tight text-[#2a2334] leading-tight mb-3">
         Drone Airspace Control
       </h1>
-      <p class="text-sm text-[#86868b] font-medium max-w-md leading-relaxed">
+      <p class="text-sm text-[#464255] font-medium max-w-md leading-relaxed">
         Unified platform for permit management, telemetry analysis, and Indonesian aviation regulatory compliance.
       </p>
     </div>
@@ -87,8 +87,8 @@
               </span>
               <span class="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">System Online</span>
             </div>
-            <h2 class="text-xl font-extrabold text-[#1d1d1f] dark:text-white tracking-tight leading-tight">Region VI Airspace Secure</h2>
-            <p class="text-xs text-[#86868b] dark:text-gray-400 leading-relaxed font-medium">
+            <h2 class="text-xl font-extrabold text-[#2a2334] dark:text-white tracking-tight leading-tight">Region VI Airspace Secure</h2>
+            <p class="text-xs text-[#464255] dark:text-gray-400 leading-relaxed font-medium">
               Live status dashboard and safety compliance tracker for drone flight operations under OTBAN Wilayah VI Padang authority.
             </p>
           </div>
@@ -102,7 +102,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-grow lg:pl-8 lg:border-l lg:border-black/[0.05] dark:lg:border-white/5">
           <!-- Active Permits Card -->
           <div id="portal-stat-card-active" class="group border border-black/[0.04] dark:border-white/5 bg-emerald-500/[0.01] hover:bg-emerald-500/[0.04] hover:border-emerald-500/20 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow">
-            <div class="text-[9px] uppercase text-[#86868b] dark:text-gray-400 font-bold tracking-wider group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">Active Permits</div>
+            <div class="text-[9px] uppercase text-[#464255] dark:text-gray-400 font-bold tracking-wider group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">Active Permits</div>
             <div class="mt-4 flex items-baseline justify-between">
               <div id="portal-stat-active" class="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">—</div>
               <div class="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">Explore &rarr;</div>
@@ -111,7 +111,7 @@
           
           <!-- Pending Review Card -->
           <div id="portal-stat-card-pending" class="group border border-black/[0.04] dark:border-white/5 bg-amber-500/[0.01] hover:bg-amber-500/[0.04] hover:border-amber-500/20 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow">
-            <div class="text-[9px] uppercase text-[#86868b] dark:text-gray-400 font-bold tracking-wider group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">Pending Review</div>
+            <div class="text-[9px] uppercase text-[#464255] dark:text-gray-400 font-bold tracking-wider group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">Pending Review</div>
             <div class="mt-4 flex items-baseline justify-between">
               <div id="portal-stat-pending" class="text-3xl font-black text-amber-600 dark:text-amber-400 tracking-tight">—</div>
               <div class="text-[8px] text-amber-600 dark:text-amber-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">Explore &rarr;</div>
@@ -120,7 +120,7 @@
           
           <!-- Expired Permits Card -->
           <div id="portal-stat-card-expired" class="group border border-black/[0.04] dark:border-white/5 bg-gray-500/[0.01] hover:bg-gray-500/[0.04] hover:border-gray-500/20 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow">
-            <div class="text-[9px] uppercase text-[#86868b] dark:text-gray-400 font-bold tracking-wider group-hover:text-gray-700 dark:group-hover:text-gray-400 transition-colors">Expired Permits</div>
+            <div class="text-[9px] uppercase text-[#464255] dark:text-gray-400 font-bold tracking-wider group-hover:text-gray-700 dark:group-hover:text-gray-400 transition-colors">Expired Permits</div>
             <div class="mt-4 flex items-baseline justify-between">
               <div id="portal-stat-expired" class="text-3xl font-black text-gray-500 dark:text-gray-400 tracking-tight">—</div>
               <div class="text-[8px] text-gray-500 dark:text-gray-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">Explore &rarr;</div>
@@ -136,22 +136,22 @@
       <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         
         <!-- Card 1: GIS Map Dashboard -->
-        <div id="portal-card-gis" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-[#0071e3]/20 transition-all duration-250">
+        <div id="portal-card-gis" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-[#4a5d3e]/20 transition-all duration-250">
           <div class="space-y-3">
-            <div class="w-11 h-11 rounded-xl bg-[#0071e3]/8 flex items-center justify-center text-[#0071e3] group-hover:scale-105 transition-transform duration-200">
+            <div class="w-11 h-11 rounded-xl bg-[#4a5d3e]/8 flex items-center justify-center text-[#4a5d3e] group-hover:scale-105 transition-transform duration-200">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"/>
               </svg>
             </div>
             <div class="space-y-1">
-              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors">GIS Permit Dashboard</h3>
-              <p class="text-xs text-[#86868b] leading-relaxed">Interactive Leaflet map plotting active permits, KKOP airport buffers, and regional airspace corridors.</p>
+              <h3 class="text-sm font-bold text-[#2a2334] group-hover:text-[#4a5d3e] transition-colors">GIS Permit Dashboard</h3>
+              <p class="text-xs text-[#464255] leading-relaxed">Interactive Leaflet map plotting active permits, KKOP airport buffers, and regional airspace corridors.</p>
             </div>
           </div>
           <div class="mt-4 flex items-center justify-between">
-            <span class="text-[10px] font-bold text-[#0071e3] uppercase tracking-wider">Launch</span>
-            <div class="w-7 h-7 rounded-full bg-[#0071e3]/8 flex items-center justify-center group-hover:bg-[#0071e3] transition-colors duration-200">
-              <svg class="w-3.5 h-3.5 text-[#0071e3] group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            <span class="text-[10px] font-bold text-[#4a5d3e] uppercase tracking-wider">Launch</span>
+            <div class="w-7 h-7 rounded-full bg-[#4a5d3e]/8 flex items-center justify-center group-hover:bg-[#4a5d3e] transition-colors duration-200">
+              <svg class="w-3.5 h-3.5 text-[#4a5d3e] group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
             </div>
           </div>
         </div>
@@ -165,8 +165,8 @@
               </svg>
             </div>
             <div class="space-y-1">
-              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-violet-600 transition-colors">Flight Telemetry Analyzer</h3>
-              <p class="text-xs text-[#86868b] leading-relaxed">Upload DJI/Airdata CSV logs to verify velocity compliance, altitude ceilings, and generate audit reports.</p>
+              <h3 class="text-sm font-bold text-[#2a2334] group-hover:text-violet-600 transition-colors">Flight Telemetry Analyzer</h3>
+              <p class="text-xs text-[#464255] leading-relaxed">Upload DJI/Airdata CSV logs to verify velocity compliance, altitude ceilings, and generate audit reports.</p>
             </div>
           </div>
           <div class="mt-4 flex items-center justify-between">
@@ -186,8 +186,8 @@
               </svg>
             </div>
             <div class="space-y-1">
-              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-amber-600 transition-colors">KML Document Converter</h3>
-              <p class="text-xs text-[#86868b] leading-relaxed">Convert PDF/image permits into standardized 3D GIS polygons (KML) using OCR and geo-extraction.</p>
+              <h3 class="text-sm font-bold text-[#2a2334] group-hover:text-amber-600 transition-colors">KML Document Converter</h3>
+              <p class="text-xs text-[#464255] leading-relaxed">Convert PDF/image permits into standardized 3D GIS polygons (KML) using OCR and geo-extraction.</p>
             </div>
           </div>
           <div class="mt-4 flex items-center justify-between">
@@ -207,8 +207,8 @@
               </svg>
             </div>
             <div class="space-y-1">
-              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-emerald-600 transition-colors">Aviation Regulations Library</h3>
-              <p class="text-xs text-[#86868b] leading-relaxed">Compliance reader for PM 37/2020, PM 63/2021 (CASR Part 107), and KP 242/2017 Indonesian aviation rules.</p>
+              <h3 class="text-sm font-bold text-[#2a2334] group-hover:text-emerald-600 transition-colors">Aviation Regulations Library</h3>
+              <p class="text-xs text-[#464255] leading-relaxed">Compliance reader for PM 37/2020, PM 63/2021 (CASR Part 107), and KP 242/2017 Indonesian aviation rules.</p>
             </div>
           </div>
           <div class="mt-4 flex items-center justify-between">
@@ -229,10 +229,10 @@
             </div>
             <div class="space-y-1">
               <div class="flex items-center gap-1.5">
-                <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-sky-600 transition-colors">ADS-B Live Monitor</h3>
+                <h3 class="text-sm font-bold text-[#2a2334] group-hover:text-sky-600 transition-colors">ADS-B Live Monitor</h3>
                 <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-500 border border-sky-200 tracking-widest uppercase">Beta</span>
               </div>
-              <p class="text-xs text-[#86868b] leading-relaxed">Real-time local flight traffic via OpenSky Network Sumatra feeds with collision conflict detection.</p>
+              <p class="text-xs text-[#464255] leading-relaxed">Real-time local flight traffic via OpenSky Network Sumatra feeds with collision conflict detection.</p>
             </div>
           </div>
           <div class="mt-4 flex items-center justify-between">
@@ -252,8 +252,8 @@
               </svg>
             </div>
             <div class="space-y-1">
-              <h3 class="text-sm font-bold text-[#1d1d1f] group-hover:text-amber-600 transition-colors">Developer & License</h3>
-              <p class="text-xs text-[#86868b] leading-relaxed">View developer credentials, organization base details, licensing, and personal showcase tabs.</p>
+              <h3 class="text-sm font-bold text-[#2a2334] group-hover:text-amber-600 transition-colors">Developer & License</h3>
+              <p class="text-xs text-[#464255] leading-relaxed">View developer credentials, organization base details, licensing, and personal showcase tabs.</p>
             </div>
           </div>
           <div class="mt-4 flex items-center justify-between">
@@ -264,11 +264,35 @@
           </div>
         </div>
 
+        <!-- Card 7: ULG Flight Log Converter -->
+        <div id="portal-card-ulg" class="stagger-card group bg-white border border-black/[0.06] rounded-2xl p-5 flex flex-col justify-between cursor-pointer hover:shadow-lg hover:shadow-black/[0.06] hover:-translate-y-0.5 hover:border-rose-500/20 transition-all duration-250">
+          <div class="space-y-3">
+            <div class="w-11 h-11 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2zM12 3v6h6"/>
+              </svg>
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-center gap-1.5">
+                <h3 class="text-sm font-bold text-[#2a2334] group-hover:text-rose-600 transition-colors">ULG Flight Log Converter</h3>
+                <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-500 border border-rose-200 tracking-widest uppercase">New</span>
+              </div>
+              <p class="text-xs text-[#464255] leading-relaxed">Convert PX4 drone .ulg logs directly to CSV, KML &amp; GPX — no Airdata UAV subscription needed.</p>
+            </div>
+          </div>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Convert</span>
+            <div class="w-7 h-7 rounded-full bg-rose-50 flex items-center justify-center group-hover:bg-rose-500 transition-colors duration-200">
+              <svg class="w-3.5 h-3.5 text-rose-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Footer -->
-      <p class="text-center text-[10px] text-[#86868b] font-semibold uppercase tracking-wider mt-8 pb-2">
-        <span id="btn-footer-author" class="hover:text-[#0071e3] cursor-pointer transition-colors">&copy; 2026 Lukman Yudand Hidayat &bull; Kantor Otoritas Bandar Udara Wilayah VI Padang</span>
+      <p class="text-center text-[10px] text-[#464255] font-semibold uppercase tracking-wider mt-8 pb-2">
+        <span id="btn-footer-author" class="hover:text-[#4a5d3e] cursor-pointer transition-colors">&copy; 2026 Lukman Yudand Hidayat &bull; Kantor Otoritas Bandar Udara Wilayah VI Padang</span>
       </p>
     </div>
   </div>
@@ -283,7 +307,7 @@
         <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
       </div>
       <div>
-        <h1 class="text-xl font-bold tracking-tight text-[#1d1d1f]">
+        <h1 class="text-xl font-bold tracking-tight text-[#2a2334]">
           PUTA-Monitor <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/5 text-black/50 ml-2 border border-black/5">v1.0</span>
         </h1>
         <p class="text-[10px] font-bold text-[#b45309] uppercase tracking-widest">
@@ -295,7 +319,7 @@
     <!-- Top Stats Bar -->
     <div class="flex items-center gap-6">
       <!-- Back to Portal button -->
-      <button id="btn-back-to-portal" class="mr-2 px-3 py-1.5 rounded-xl border border-black/5 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/5 transition-all flex items-center gap-1.5 font-bold text-xs" title="Return to Main Menu">
+      <button id="btn-back-to-portal" class="mr-2 px-3 py-1.5 rounded-xl border border-black/5 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-[#4a5d3e] hover:bg-black/5 dark:hover:bg-white/5 transition-all flex items-center gap-1.5 font-bold text-xs" title="Return to Main Menu">
         <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
         </svg>
@@ -338,25 +362,25 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
             </svg>
           </span>
-          <input type="text" id="search-input" placeholder="Search operator, permit, or location..." class="w-full bg-[#e8e8ed]/80 border-none rounded-2xl pl-9 pr-4 py-2.5 text-sm text-[#1d1d1f] placeholder-gray-500 focus:outline-none focus:bg-[#e8e8ed] transition-colors" />
+          <input type="text" id="search-input" placeholder="Search operator, permit, or location..." class="w-full bg-[#e8eee5]/80 border-none rounded-2xl pl-9 pr-4 py-2.5 text-sm text-[#2a2334] placeholder-gray-500 focus:outline-none focus:bg-[#e8eee5] transition-colors" />
         </div>
         
         <div class="space-y-1">
           <div class="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider pl-1">Operating Year</div>
           <!-- Year filter tabs -->
-          <div class="flex bg-[#e8e8ed] p-0.5 rounded-2xl border-none text-[11px] text-center font-semibold text-gray-500">
-            <button id="tab-all" class="flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm">All</button>
-            <button id="tab-2026" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2026</button>
-            <button id="tab-2025" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2025</button>
-            <button id="tab-2024" class="flex-1 py-1.5 rounded-xl hover:text-[#1d1d1f] transition-colors">2024</button>
+          <div class="flex bg-[#e8eee5] p-0.5 rounded-2xl border-none text-[11px] text-center font-semibold text-gray-500">
+            <button id="tab-all" class="flex-1 py-1.5 rounded-xl bg-white text-[#2a2334] shadow-sm">All</button>
+            <button id="tab-2026" class="flex-1 py-1.5 rounded-xl hover:text-[#2a2334] transition-colors">2026</button>
+            <button id="tab-2025" class="flex-1 py-1.5 rounded-xl hover:text-[#2a2334] transition-colors">2025</button>
+            <button id="tab-2024" class="flex-1 py-1.5 rounded-xl hover:text-[#2a2334] transition-colors">2024</button>
           </div>
         </div>
         
         <div class="space-y-1">
           <div class="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider pl-1">Permit Status</div>
           <!-- Status filter tabs -->
-          <div class="flex bg-[#e8e8ed] p-0.5 rounded-2xl border-none text-[11px] text-center font-semibold text-gray-500">
-            <button id="status-all" class="flex-1 py-1.5 rounded-xl bg-white text-[#1d1d1f] shadow-sm">All</button>
+          <div class="flex bg-[#e8eee5] p-0.5 rounded-2xl border-none text-[11px] text-center font-semibold text-gray-500">
+            <button id="status-all" class="flex-1 py-1.5 rounded-xl bg-white text-[#2a2334] shadow-sm">All</button>
             <button id="status-active" class="flex-1 py-1.5 rounded-xl hover:text-emerald-700 transition-colors">Active</button>
             <button id="status-pending" class="flex-1 py-1.5 rounded-xl hover:text-amber-700 transition-colors">Pending</button>
             <button id="status-expired" class="flex-1 py-1.5 rounded-xl hover:text-red-600 transition-colors">Expired</button>
@@ -366,7 +390,7 @@
       </div>
 
       <!-- Active Filters Banner Slot -->
-      <div id="active-filters-banner" class="px-4 py-3 border-b border-black/5 bg-[#0071e3]/5 text-xs text-[#0071e3] font-semibold flex justify-between items-center hidden">
+      <div id="active-filters-banner" class="px-4 py-3 border-b border-black/5 bg-[#4a5d3e]/5 text-xs text-[#4a5d3e] font-semibold flex justify-between items-center hidden">
         <span>Filtered near <strong>PDG</strong> (25km)</span>
         <button onclick="clearNearAirportFilter()" class="hover:text-red-500 font-extrabold uppercase text-[9px] tracking-wider transition-colors">Clear</button>
       </div>
@@ -374,25 +398,25 @@
       <!-- Scrollable Permits List -->
       <div id="permits-list-container" class="flex-1 overflow-y-auto p-4 space-y-3">
         <div class="flex flex-col items-center justify-center h-48 text-center text-gray-400 gap-2">
-          <span class="animate-spin rounded-full h-8 w-8 border-2 border-[#0071e3] border-t-transparent"></span>
+          <span class="animate-spin rounded-full h-8 w-8 border-2 border-[#4a5d3e] border-t-transparent"></span>
           <span class="text-xs">Loading drone permissions...</span>
         </div>
       </div>
       <!-- Sidebar Footer -->
       <footer class="p-3 border-t border-black/5 bg-white/50 text-[10px] text-gray-400 font-bold text-center select-none shrink-0">
-        <span id="btn-sidebar-author" class="hover:text-[#0071e3] cursor-pointer transition-colors">&copy; 2026 Lukman Yudand Hidayat. All Rights Reserved.</span>
+        <span id="btn-sidebar-author" class="hover:text-[#4a5d3e] cursor-pointer transition-colors">&copy; 2026 Lukman Yudand Hidayat. All Rights Reserved.</span>
       </footer>
     </aside>
 
     <!-- 2. Middle Panel: Operational Map Viewport -->
-    <main class="flex-1 relative flex flex-col bg-[#f5f5f7]">
+    <main class="flex-1 relative flex flex-col bg-[#f5f6f4]">
       <!-- Floating Map Toolbar (Top-Right) -->
       <div class="absolute top-4 right-4 z-[1000] flex gap-2 select-none">
         
         <!-- Dark Mode Toggle Button -->
         <button
           id="btn-toggle-dark-mode"
-          class="w-10 h-10 rounded-2xl glass-panel bg-white/90 dark:bg-[#1c1c1e]/90 text-gray-600 dark:text-gray-300 hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center shadow-md active:scale-95 transition-all shrink-0 border border-black/5 dark:border-white/10"
+          class="w-10 h-10 rounded-2xl glass-panel bg-white/90 dark:bg-[#1c1c1e]/90 text-gray-600 dark:text-gray-300 hover:text-[#2a2334] dark:hover:text-white flex items-center justify-center shadow-md active:scale-95 transition-all shrink-0 border border-black/5 dark:border-white/10"
           title="Toggle Dark Mode"
         >
           <!-- Sun icon (shown in dark mode) -->
@@ -406,7 +430,7 @@
         </button>
 
         <!-- Add Permit button -->
-        <button id="btn-add-permit" class="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#0071e3]/15 transition-all active:scale-95 shrink-0">
+        <button id="btn-add-permit" class="bg-[#4a5d3e] hover:bg-[#2c3b26] text-white px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#4a5d3e]/15 transition-all active:scale-95 shrink-0">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
           </svg>
@@ -418,18 +442,18 @@
       <div id="map" class="w-full h-full z-0 border-r border-black/[0.02]"></div>
       
       <!-- Overlay controls for map filters (Light Glass Theme) -->
-      <div class="absolute bottom-4 left-4 z-[1000] glass-panel rounded-2xl px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold select-none bg-white/80 border-black/5 text-[#1d1d1f] max-w-[calc(100%-2rem)]">
+      <div class="absolute bottom-4 left-4 z-[1000] glass-panel rounded-2xl px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold select-none bg-white/80 border-black/5 text-[#2a2334] max-w-[calc(100%-2rem)]">
         <div class="flex items-center gap-2">
           <span class="w-3.5 h-3.5 rounded bg-indigo-500/10 border border-indigo-500/40 inline-block"></span>
           <span>Airport Buffer Zones (KKOP)</span>
         </div>
         <div class="w-px h-4 bg-black/10"></div>
         <div class="flex items-center gap-2">
-          <span class="w-3.5 h-3.5 rounded bg-sky-500/10 border border-[#0071e3]/40 inline-block"></span>
+          <span class="w-3.5 h-3.5 rounded bg-sky-500/10 border border-[#4a5d3e]/40 inline-block"></span>
           <span>Approved Work Areas</span>
         </div>
         <div class="w-px h-4 bg-black/10"></div>
-        <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#0071e3] transition-colors" id="map-toggle-satellite">
+        <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#4a5d3e] transition-colors" id="map-toggle-satellite">
           <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2m-4-3h1.5a3 3 0 013 3v2.83c0 .8-.3 1.57-.83 2.12l-1.17 1.17a3 3 0 01-2.12.83H12a3 3 0 01-3-3v-2a3 3 0 00-3-3H4.83"></path>
           </svg>
@@ -480,12 +504,12 @@
           <!-- Permit ID -->
           <div class="space-y-1.5">
             <label for="input-permit-id" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Permit Number *</label>
-            <input type="text" id="input-permit-id" placeholder="e.g. 0006/APPROVAL-PUTA/DNP-2026" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all font-mono" />
+            <input type="text" id="input-permit-id" placeholder="e.g. 0006/APPROVAL-PUTA/DNP-2026" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all font-mono" />
           </div>
           <!-- Operating Year -->
           <div class="space-y-1.5">
             <label for="input-year" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Operating Year *</label>
-            <select id="input-year" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all">
+            <select id="input-year" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all">
               <option value="2026" selected>2026</option>
               <option value="2025">2025</option>
               <option value="2024">2024</option>
@@ -496,25 +520,25 @@
         <!-- Operator Name -->
         <div class="space-y-1.5">
           <label for="input-operator" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Operator Name *</label>
-          <input type="text" id="input-operator" placeholder="e.g. PT Transportasi Gas Indonesia" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+          <input type="text" id="input-operator" placeholder="e.g. PT Transportasi Gas Indonesia" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
         </div>
 
         <!-- Location -->
         <div class="space-y-1.5">
           <label for="input-location" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Operational Location / Station *</label>
-          <input type="text" id="input-location" placeholder="e.g. Pl Sekernan" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+          <input type="text" id="input-location" placeholder="e.g. Pl Sekernan" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <!-- Date Start -->
           <div class="space-y-1.5">
             <label for="input-date-start" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Start Date *</label>
-            <input type="date" id="input-date-start" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+            <input type="date" id="input-date-start" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
           </div>
           <!-- Date End -->
           <div class="space-y-1.5">
             <label for="input-date-end" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">End Date *</label>
-            <input type="date" id="input-date-end" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+            <input type="date" id="input-date-end" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
           </div>
         </div>
 
@@ -522,17 +546,17 @@
           <!-- Time Start -->
           <div class="space-y-1.5">
             <label for="input-time-start" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Start Time *</label>
-            <input type="text" id="input-time-start" placeholder="07.00 WIB" value="07.00 WIB" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+            <input type="text" id="input-time-start" placeholder="07.00 WIB" value="07.00 WIB" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
           </div>
           <!-- Time End -->
           <div class="space-y-1.5">
             <label for="input-time-end" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">End Time *</label>
-            <input type="text" id="input-time-end" placeholder="17.30 WIB" value="17.30 WIB" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+            <input type="text" id="input-time-end" placeholder="17.30 WIB" value="17.30 WIB" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
           </div>
           <!-- Altitude Limit -->
           <div class="space-y-1.5">
             <label for="input-altitude" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Ceiling (ft) *</label>
-            <input type="number" id="input-altitude" placeholder="400" min="1" max="1000" value="400" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+            <input type="number" id="input-altitude" placeholder="400" min="1" max="1000" value="400" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
           </div>
         </div>
 
@@ -540,34 +564,34 @@
         <div class="space-y-1.5">
           <div class="flex justify-between items-center">
             <label for="input-coords" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Polygon Coordinates (Optional)</label>
-            <span class="text-[9px] text-[#0071e3] font-bold">Format: lat,lng; lat,lng</span>
+            <span class="text-[9px] text-[#4a5d3e] font-bold">Format: lat,lng; lat,lng</span>
           </div>
-          <textarea id="input-coords" placeholder="e.g. -1.40, 103.64; -1.41, 103.65; -1.42, 103.66 (Leave blank for auto-circle fallback)" rows="2" class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all font-mono placeholder:font-sans resize-none"></textarea>
+          <textarea id="input-coords" placeholder="e.g. -1.40, 103.64; -1.41, 103.65; -1.42, 103.66 (Leave blank for auto-circle fallback)" rows="2" class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all font-mono placeholder:font-sans resize-none"></textarea>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <!-- Pilot Names -->
           <div class="space-y-1.5">
             <label for="input-pilots" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Pilot Names (Comma separated)</label>
-            <input type="text" id="input-pilots" placeholder="e.g. John Doe, Jane Smith" class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+            <input type="text" id="input-pilots" placeholder="e.g. John Doe, Jane Smith" class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
           </div>
           <!-- PUTA Registry -->
           <div class="space-y-1.5">
             <label for="input-registry" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Aircraft Registrations (Comma separated)</label>
-            <input type="text" id="input-registry" placeholder="e.g. PUTA-1029, PUTA-2038" class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all font-mono" />
+            <input type="text" id="input-registry" placeholder="e.g. PUTA-1029, PUTA-2038" class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all font-mono" />
           </div>
         </div>
 
         <!-- Attachment File Name -->
         <div class="space-y-1.5">
           <label for="input-filename" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Attachment PDF Filename *</label>
-          <input type="text" id="input-filename" placeholder="e.g. (2) Persetujuan PT. Timah Tbk di Pulau Bangka (240926).pdf" required class="w-full bg-[#f5f5f7] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#0071e3]/40 focus:bg-white transition-all" />
+          <input type="text" id="input-filename" placeholder="e.g. (2) Persetujuan PT. Timah Tbk di Pulau Bangka (240926).pdf" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
         </div>
 
         <!-- Modal Footer -->
         <div class="pt-4 border-t border-black/5 flex gap-3 justify-end">
           <button type="button" id="btn-cancel-modal" class="px-5 py-2.5 rounded-2xl hover:bg-black/5 border border-transparent text-gray-600 font-bold transition-all">Cancel</button>
-          <button type="submit" id="btn-submit-modal" class="px-6 py-2.5 rounded-2xl bg-[#0071e3] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#0071e3]/15">Save Permission</button>
+          <button type="submit" id="btn-submit-modal" class="px-6 py-2.5 rounded-2xl bg-[#4a5d3e] hover:bg-[#2c3b26] text-white font-bold transition-all shadow-md shadow-[#4a5d3e]/15">Save Permission</button>
         </div>
       </form>
     </div>
@@ -597,10 +621,10 @@
         </div>
 
         <!-- Drag & Drop Zone -->
-        <div id="converter-drop-zone" class="border-2 border-dashed border-gray-200 hover:border-[#0071e3]/40 bg-gray-50/50 hover:bg-sky-50/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all">
+        <div id="converter-drop-zone" class="border-2 border-dashed border-gray-200 hover:border-[#4a5d3e]/40 bg-gray-50/50 hover:bg-sky-50/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all">
           <input type="file" id="converter-file-input" accept=".pdf,.png,.jpg,.jpeg" class="hidden">
           <div class="bg-white p-3 rounded-full shadow-sm border border-black/5">
-            <svg class="w-8 h-8 text-[#0071e3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg class="w-8 h-8 text-[#4a5d3e]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
             </svg>
           </div>
@@ -612,7 +636,7 @@
 
         <!-- Parsing Loader -->
         <div id="converter-loader" class="hidden flex flex-col items-center justify-center p-6 text-center text-gray-500 gap-3 border border-black/5 rounded-2xl bg-sky-50/10">
-          <span class="animate-spin rounded-full h-8 w-8 border-2 border-[#0071e3] border-t-transparent"></span>
+          <span class="animate-spin rounded-full h-8 w-8 border-2 border-[#4a5d3e] border-t-transparent"></span>
           <div class="space-y-0.5">
             <span class="text-xs font-bold text-gray-700">Running OCR & extracting coordinates...</span>
             <p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">This may take 5-10 seconds for scanned pages</p>
@@ -646,7 +670,157 @@
       <!-- Modal Footer -->
       <div class="p-6 border-t border-black/5 flex gap-3 justify-end bg-gray-50/50">
         <button type="button" id="btn-close-converter" class="px-5 py-2.5 rounded-2xl hover:bg-black/5 border border-transparent text-gray-600 font-bold transition-all">Close</button>
-        <button type="button" id="btn-download-conv-kml" disabled class="px-6 py-2.5 rounded-2xl bg-[#e8e8ed] text-gray-400 font-bold cursor-not-allowed transition-all shadow-sm">Download KML</button>
+        <button type="button" id="btn-download-conv-kml" disabled class="px-6 py-2.5 rounded-2xl bg-[#e8eee5] text-gray-400 font-bold cursor-not-allowed transition-all shadow-sm">Download KML</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ULG Flight Log Converter Modal -->
+  <div id="ulg-converter-modal" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-all duration-300">
+    <div class="bg-white/95 backdrop-blur-md rounded-3xl w-[600px] max-h-[88vh] shadow-2xl border border-black/5 flex flex-col scale-95 transition-all duration-300 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-6 border-b border-black/5 flex items-center justify-between bg-white shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2zM12 3v6h6"/></svg>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-gray-900">ULG Flight Log Converter</h2>
+            <p class="text-[11px] text-gray-400 font-medium">PX4 .ulg → CSV · KML · GPX (No Airdata required)</p>
+          </div>
+        </div>
+        <button id="close-ulg-modal" type="button" class="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-full hover:bg-black/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-5 bg-white">
+
+        <!-- Error alert -->
+        <div id="ulg-error-alert" class="hidden p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold"></div>
+
+        <!-- Drop Zone -->
+        <div id="ulg-drop-zone" class="border-2 border-dashed border-gray-200 hover:border-rose-400/50 bg-gray-50/50 hover:bg-rose-50/20 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all">
+          <input type="file" id="ulg-file-input" accept=".ulg" class="hidden">
+          <div class="bg-white p-3 rounded-full shadow-sm border border-black/5">
+            <svg class="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          </div>
+          <div class="text-center space-y-1">
+            <p class="text-gray-700 font-bold text-sm">Drag &amp; drop .ulg file here, or click to browse</p>
+            <p class="text-[10px] text-gray-400 font-medium">Supports PX4 ULog v1 and v2 (WingtraOne, Pixhawk, Cube)</p>
+          </div>
+        </div>
+
+        <!-- Format Selector -->
+        <div id="ulg-format-picker" class="hidden space-y-2">
+          <div class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Output Formats</div>
+          <div class="flex gap-3">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" id="ulg-fmt-csv" checked class="w-4 h-4 rounded text-rose-500 accent-rose-500">
+              <span class="text-xs font-bold text-gray-700">CSV <span class="text-gray-400 font-medium">(Airdata-compatible)</span></span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" id="ulg-fmt-kml" checked class="w-4 h-4 rounded text-rose-500 accent-rose-500">
+              <span class="text-xs font-bold text-gray-700">KML <span class="text-gray-400 font-medium">(Google Earth)</span></span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" id="ulg-fmt-gpx" checked class="w-4 h-4 rounded text-rose-500 accent-rose-500">
+              <span class="text-xs font-bold text-gray-700">GPX <span class="text-gray-400 font-medium">(GPS track)</span></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Selected file info -->
+        <div id="ulg-file-info" class="hidden border border-rose-100 bg-rose-50/30 rounded-2xl p-4 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-500 shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p id="ulg-file-name" class="text-xs font-bold text-gray-800 truncate">—</p>
+            <p id="ulg-file-size" class="text-[10px] text-gray-400 font-medium">—</p>
+          </div>
+          <button id="ulg-clear-file" class="text-gray-300 hover:text-red-400 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Processing loader -->
+        <div id="ulg-loader" class="hidden flex flex-col items-center justify-center p-8 text-center text-gray-500 gap-3 border border-black/5 rounded-2xl bg-rose-50/10">
+          <span class="animate-spin rounded-full h-9 w-9 border-2 border-rose-500 border-t-transparent"></span>
+          <div class="space-y-1">
+            <p class="text-sm font-bold text-gray-700">Converting flight log...</p>
+            <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Large files may take 30–60 seconds</p>
+          </div>
+        </div>
+
+        <!-- Results panel -->
+        <div id="ulg-results" class="hidden space-y-4">
+          <!-- Stats grid -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
+              <div class="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider">Track Points</div>
+              <div id="ulg-stat-points" class="text-xl font-black text-emerald-700 mt-1">—</div>
+            </div>
+            <div class="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-center">
+              <div class="text-[9px] font-extrabold text-sky-600 uppercase tracking-wider">Max Altitude</div>
+              <div id="ulg-stat-alt" class="text-xl font-black text-sky-700 mt-1">—</div>
+            </div>
+            <div class="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center">
+              <div class="text-[9px] font-extrabold text-violet-600 uppercase tracking-wider">Duration</div>
+              <div id="ulg-stat-duration" class="text-xl font-black text-violet-700 mt-1">—</div>
+            </div>
+          </div>
+
+          <!-- GPS info -->
+          <div class="bg-gray-50 border border-black/5 rounded-2xl p-4 space-y-2 text-xs">
+            <div class="flex justify-between">
+              <span class="text-gray-400 font-bold">GPS Topic</span>
+              <span id="ulg-stat-topic" class="font-mono font-bold text-gray-700">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400 font-bold">Center Coordinates</span>
+              <span id="ulg-stat-coords" class="font-mono font-bold text-gray-700">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400 font-bold">Max Speed</span>
+              <span id="ulg-stat-speed" class="font-bold text-gray-700">—</span>
+            </div>
+          </div>
+
+          <!-- Download buttons -->
+          <div class="space-y-1.5">
+            <div class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Download Outputs</div>
+            <div class="flex flex-wrap gap-2">
+              <button id="ulg-dl-csv" class="hidden px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download CSV
+              </button>
+              <button id="ulg-dl-kml" class="hidden px-4 py-2 rounded-xl bg-[#4a5d3e] hover:bg-[#2c3b26] text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download KML
+              </button>
+              <button id="ulg-dl-gpx" class="hidden px-4 py-2 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download GPX
+              </button>
+              <button id="ulg-load-on-map" class="hidden px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"/></svg>
+                View on Map
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /modal body -->
+
+      <!-- Modal Footer -->
+      <div class="p-5 border-t border-black/5 flex items-center justify-between bg-gray-50/50 shrink-0">
+        <span class="text-[10px] text-gray-400 font-medium">Supports PX4, WingtraOne, Pixhawk, Cube flight controllers</span>
+        <div class="flex gap-2">
+          <button id="ulg-cancel-btn" type="button" class="px-4 py-2 rounded-xl hover:bg-black/5 border border-transparent text-gray-600 font-bold transition-all text-xs">Close</button>
+          <button id="ulg-convert-btn" type="button" disabled class="px-5 py-2 rounded-xl bg-[#e8eee5] text-gray-400 font-bold cursor-not-allowed transition-all text-xs">Convert</button>
+        </div>
       </div>
     </div>
   </div>
@@ -665,7 +839,7 @@
       <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-black/5 flex items-center justify-between shrink-0">
         <div>
-          <h2 class="text-base font-bold text-[#1d1d1f]">Telemetry Analyzer</h2>
+          <h2 class="text-base font-bold text-[#2a2334]">Telemetry Analyzer</h2>
           <p class="text-[11px] text-gray-400 mt-0.5">Upload a drone telemetry CSV to generate a speed & altitude profile</p>
         </div>
         <button onclick="closeTelemetryAnalyzer()" class="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
@@ -875,7 +1049,7 @@
       <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-black/5 dark:border-white/5 flex items-center justify-between shrink-0 bg-white dark:bg-[#1c1c1e]">
         <div>
-          <h2 class="text-base font-bold text-[#1d1d1f] dark:text-white">Indonesian Aviation Regulations Library</h2>
+          <h2 class="text-base font-bold text-[#2a2334] dark:text-white">Indonesian Aviation Regulations Library</h2>
           <p class="text-[11px] text-gray-400 mt-0.5">Reference summaries of key civil aviation drone operation rules (PM 37/2020, PM 63/2021, KP 242/2017)</p>
         </div>
         <button onclick="closeRegulationsLibrary()" class="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors">
@@ -927,7 +1101,7 @@
       <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-black/5 flex items-center justify-between shrink-0">
         <div>
-          <h2 class="text-base font-bold text-[#1d1d1f]">Developer & Info Portal</h2>
+          <h2 class="text-base font-bold text-[#2a2334]">Developer & Info Portal</h2>
           <p class="text-[11px] text-gray-400 mt-0.5">Application developer details, licensing, and personal showcases</p>
         </div>
         <button onclick="closeAuthorModal()" class="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
@@ -939,7 +1113,7 @@
 
       <!-- Tab Selection Bar inside Modal -->
       <div class="px-6 border-b border-black/5 bg-gray-50 flex gap-4 shrink-0 select-none">
-        <button id="btn-author-tab-dev" onclick="switchAuthorTab('dev')" class="py-2.5 text-xs font-bold text-[#0071e3] border-b-2 border-[#0071e3] transition-all focus:outline-none">
+        <button id="btn-author-tab-dev" onclick="switchAuthorTab('dev')" class="py-2.5 text-xs font-bold text-[#4a5d3e] border-b-2 border-[#4a5d3e] transition-all focus:outline-none">
           Developer Profile
         </button>
         <button id="btn-author-tab-okc" onclick="switchAuthorTab('okc')" class="py-2.5 text-xs font-bold text-gray-500 hover:text-gray-800 transition-all focus:outline-none">
@@ -964,7 +1138,7 @@
                 <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
               </div>
               <div class="space-y-0.5">
-                <h3 class="text-sm font-bold text-[#1d1d1f]">Lukman Yudand H.</h3>
+                <h3 class="text-sm font-bold text-[#2a2334]">Lukman Yudand H.</h3>
                 <p class="text-[10px] text-amber-600 font-extrabold uppercase tracking-wider">System Developer</p>
               </div>
               <p class="text-[10px] text-gray-400 font-bold max-w-[150px] leading-normal uppercase">
@@ -1193,7 +1367,7 @@
             </div>
 
             <!-- Interactive Action Button -->
-            <button id="btn-toggle-okc-roster" onclick="toggleOkcRoster()" class="w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#0077ed] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none">
+            <button id="btn-toggle-okc-roster" onclick="toggleOkcRoster()" class="w-full mt-3 px-4 py-2.5 rounded-xl bg-[#007AC1] hover:bg-[#2c3b26] text-white font-bold transition-all shadow-md shadow-[#007AC1]/10 flex items-center justify-center gap-2 focus:outline-none">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
               </svg>
@@ -1229,7 +1403,7 @@
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-3 w-3 bg-sky-500"></span>
             </span>
-            <h2 class="text-base font-bold text-[#1d1d1f]">ADS-B Live Airspace Monitor</h2>
+            <h2 class="text-base font-bold text-[#2a2334]">ADS-B Live Airspace Monitor</h2>
             <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-500 border border-sky-200 tracking-widest uppercase">Beta</span>
           </div>
           <!-- Live Counts -->
@@ -1275,7 +1449,7 @@
         <!-- Left: Flight List Sidebar -->
         <aside class="w-80 border-r border-black/5 bg-gray-50/50 flex flex-col shrink-0">
           <div class="p-3 border-b border-black/5">
-            <input type="text" id="adsb-search" placeholder="Search callsign or ICAO..." class="w-full bg-white border border-black/5 rounded-xl px-3 py-2 text-xs text-[#1d1d1f] placeholder-gray-400 focus:outline-none focus:border-sky-400 transition-colors font-semibold">
+            <input type="text" id="adsb-search" placeholder="Search callsign or ICAO..." class="w-full bg-white border border-black/5 rounded-xl px-3 py-2 text-xs text-[#2a2334] placeholder-gray-400 focus:outline-none focus:border-sky-400 transition-colors font-semibold">
           </div>
 
           <!-- Conflict Alert Banner (hidden by default) -->

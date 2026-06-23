@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('api', {
   openPDF: (fileName, year) => ipcRenderer.invoke('open-pdf', fileName, year),
   savePermit: (permitData) => ipcRenderer.invoke('save-permit', permitData),
   convertToKml: (filePath) => ipcRenderer.invoke('convert-to-kml', filePath),
-  loadAirportKml: () => ipcRenderer.invoke('load-airport-kml')
+  loadAirportKml: () => ipcRenderer.invoke('load-airport-kml'),
+  convertUlg: (filePath, outputDir, formats) => ipcRenderer.invoke('convert-ulg', filePath, outputDir, formats),
 });
