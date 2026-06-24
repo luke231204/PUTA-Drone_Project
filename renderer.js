@@ -714,19 +714,66 @@ function setupEventListeners() {
     cardGis.addEventListener('click', showDashboard);
   }
 
-  const cardTelemetry = document.getElementById('portal-card-telemetry');
-  if (cardTelemetry) {
-    cardTelemetry.addEventListener('click', () => {
+  // Portal Tools Card Click Listeners
+  const toolTelemetry = document.getElementById('portal-tool-telemetry');
+  if (toolTelemetry) {
+    toolTelemetry.addEventListener('click', () => {
       showDashboard();
       openTelemetryAnalyzer();
     });
   }
 
-  const cardConverter = document.getElementById('portal-card-converter');
-  if (cardConverter) {
-    cardConverter.addEventListener('click', () => {
+  const toolKml = document.getElementById('portal-tool-kml');
+  if (toolKml) {
+    toolKml.addEventListener('click', () => {
       showDashboard();
       openConverterModal();
+    });
+  }
+
+  const toolUlg = document.getElementById('portal-tool-ulg');
+  if (toolUlg) {
+    toolUlg.addEventListener('click', () => {
+      showDashboard();
+      openUlgConverterModal();
+    });
+  }
+
+  // Workspace Tools Dropdown logic
+  const btnToolsDropdown = document.getElementById('btn-tools-dropdown');
+  const toolsDropdownMenu = document.getElementById('tools-dropdown-menu');
+  if (btnToolsDropdown && toolsDropdownMenu) {
+    btnToolsDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toolsDropdownMenu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!toolsDropdownMenu.classList.contains('hidden')) {
+        toolsDropdownMenu.classList.add('hidden');
+      }
+    });
+  }
+
+  // Workspace Header Dropdown Item Listeners
+  const menuItemTelemetry = document.getElementById('menu-item-telemetry');
+  if (menuItemTelemetry) {
+    menuItemTelemetry.addEventListener('click', () => {
+      openTelemetryAnalyzer();
+    });
+  }
+
+  const menuItemKml = document.getElementById('menu-item-kml');
+  if (menuItemKml) {
+    menuItemKml.addEventListener('click', () => {
+      openConverterModal();
+    });
+  }
+
+  const menuItemUlg = document.getElementById('menu-item-ulg');
+  if (menuItemUlg) {
+    menuItemUlg.addEventListener('click', () => {
+      openUlgConverterModal();
     });
   }
 
@@ -754,12 +801,6 @@ function setupEventListeners() {
   const btnSidebarAuthor = document.getElementById('btn-sidebar-author');
   if (btnSidebarAuthor) {
     btnSidebarAuthor.addEventListener('click', openAuthorModal);
-  }
-
-  // ULG Converter portal card click handler
-  const cardUlg = document.getElementById('portal-card-ulg');
-  if (cardUlg) {
-    cardUlg.addEventListener('click', openUlgConverterModal);
   }
 
   // Close author modal if clicking on the background overlay
