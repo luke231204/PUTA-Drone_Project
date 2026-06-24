@@ -60,6 +60,8 @@ let adsbSelectedIcao = null;
 let adsbSearchQuery = '';
 let isAdsbModalOpen = false;
 let isAdsbOnMainMap = false;
+let adsbFlightDetailsCache = {}; // Cache: icao24 -> { aircraft: ..., route: ..., loading: boolean, error: boolean }
+
 
 // OpenSky Network REST API — Sumatra bounding box
 const OPENSKY_URL = 'https://opensky-network.org/api/states/all?lamin=-6.0&lomin=95.0&lamax=6.0&lomax=109.0';
@@ -4115,6 +4117,141 @@ function renderAdsbFlightList(flights) {
   }).join('');
 }
 
+async function fetchFlightDetails(icao, callsign) {
+  const cacheKey = icao.toLowerCase();
+  
+  if (adsbFlightDetailsCache[cacheKey] && !adsbFlightDetailsCache[cacheKey].error) {
+    return adsbFlightDetailsCache[cacheKey];
+  }
+  
+  adsbFlightDetailsCache[cacheKey] = {
+    loading: true,
+    aircraft: null,
+    route: null,
+    error: false
+  };
+
+  const cleanCallsign = (callsign || '').trim();
+  
+  try {
+    const fetchPromises = [
+      fetch(`https://hexdb.io/api/v1/aircraft/${cacheKey}`, { signal: AbortSignal.timeout(5000) })
+        .then(async r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .catch(err => {
+          console.warn(`Aircraft fetch failed for ${icao}:`, err);
+          return null;
+        })
+    ];
+
+    if (cleanCallsign && cleanCallsign !== icao.toUpperCase()) {
+      fetchPromises.push(
+        fetch(`https://hexdb.io/api/v1/route/callsign/${cleanCallsign}`, { signal: AbortSignal.timeout(5000) })
+          .then(async r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          })
+          .catch(err => {
+            console.warn(`Route fetch failed for ${cleanCallsign}:`, err);
+            return null;
+          })
+      );
+    } else {
+      fetchPromises.push(Promise.resolve(null));
+    }
+
+    const [aircraftResult, routeResult] = await Promise.all(fetchPromises);
+    
+    adsbFlightDetailsCache[cacheKey] = {
+      loading: false,
+      aircraft: aircraftResult,
+      route: routeResult,
+      error: !aircraftResult && !routeResult
+    };
+  } catch (err) {
+    console.error(`Error fetching flight details for ${icao}:`, err);
+    adsbFlightDetailsCache[cacheKey] = {
+      loading: false,
+      aircraft: null,
+      route: null,
+      error: true
+    };
+  }
+  
+  return adsbFlightDetailsCache[cacheKey];
+}
+
+function getFlightPopupHtml(icao, callsign, flight, cachedDetails) {
+  const onGround = flight ? flight[OPENSKY_FIELDS.ON_GROUND] : false;
+  const altM = flight ? flight[OPENSKY_FIELDS.BARO_ALT] : null;
+  const altFt = altM !== null ? Math.round(altM * 3.28084) : null;
+  const velMs = flight ? flight[OPENSKY_FIELDS.VELOCITY] : null;
+  const speedKts = velMs !== null ? Math.round(velMs * 1.94384) : null;
+  const heading = flight ? flight[OPENSKY_FIELDS.HEADING] : null;
+  const isConflict = flight ? checkSingleFlightKkop(flight) : false;
+
+  let detailsHtml = '';
+  
+  if (cachedDetails) {
+    if (cachedDetails.loading) {
+      detailsHtml = `
+        <div class="pt-1.5 border-t border-black/5 flex items-center justify-center gap-1.5 text-[10px] text-gray-500 py-1">
+          <span class="animate-spin text-sky-500">⌛</span> Loading details...
+        </div>`;
+    } else {
+      const a = cachedDetails.aircraft;
+      const r = cachedDetails.route;
+      
+      const aircraftModel = (a && a.model) ? a.model : null;
+      const typeCode = (a && a.typecode) ? a.typecode : null;
+      const registration = (a && a.registration) ? a.registration : null;
+      const operator = (a && a.operator) ? a.operator : null;
+
+      let routeStr = null;
+      let routeTitle = '';
+      if (r && r.from && r.to) {
+        const fromCode = r.from.iata || r.from.icao || 'N/A';
+        const toCode = r.to.iata || r.to.icao || 'N/A';
+        routeStr = `${fromCode} ✈ ${toCode}`;
+        routeTitle = `title="${r.from.name || r.from.location || ''} to ${r.to.name || r.to.location || ''}"`;
+      }
+
+      detailsHtml = `
+        <div class="pt-1.5 border-t border-black/5 space-y-1 text-[10px]">
+          ${operator ? `<div class="flex justify-between gap-2"><span class="text-gray-400 font-medium">Operator</span><span class="font-bold text-gray-700 truncate max-w-[110px]" title="${operator}">${operator}</span></div>` : ''}
+          ${aircraftModel ? `<div class="flex justify-between gap-2"><span class="text-gray-400 font-medium">Aircraft</span><span class="font-bold text-gray-700 truncate max-w-[110px]" title="${aircraftModel}${typeCode ? ` (${typeCode})` : ''}">${aircraftModel}</span></div>` : ''}
+          ${registration ? `<div class="flex justify-between"><span class="text-gray-400 font-medium">Reg Code</span><span class="font-bold text-gray-700 font-mono">${registration}</span></div>` : ''}
+          ${routeStr ? `<div class="flex justify-between" ${routeTitle}><span class="text-gray-400 font-medium">Route</span><span class="font-bold text-sky-600">${routeStr}</span></div>` : ''}
+          ${(!operator && !aircraftModel && !registration && !routeStr) ? `<div class="text-[9px] text-gray-400 italic text-center py-0.5">No additional aircraft data found</div>` : ''}
+        </div>`;
+    }
+  } else {
+    detailsHtml = `
+      <div class="pt-1.5 border-t border-black/5 text-[9px] text-gray-400 text-center italic py-0.5">
+        Click marker to load flight details
+      </div>`;
+  }
+
+  return `
+    <div class="text-xs space-y-1" style="min-width:180px">
+      <div class="flex justify-between items-center pb-0.5">
+        <span class="font-extrabold text-[#2a2334] text-sm tracking-tight">${callsign}</span>
+        <span class="font-mono text-gray-400 text-[10px]">${icao.toUpperCase()}</span>
+      </div>
+      <div class="flex justify-between pt-0.5 border-t border-black/5">
+        <span class="text-gray-500">Status</span>
+        <span class="font-bold ${onGround ? 'text-gray-500' : 'text-sky-600'}">${onGround ? 'On Ground' : 'Airborne'}</span>
+      </div>
+      ${altFt !== null ? `<div class="flex justify-between"><span class="text-gray-500">Altitude</span><span class="font-bold">${altFt.toLocaleString()} ft</span></div>` : ''}
+      ${speedKts !== null ? `<div class="flex justify-between"><span class="text-gray-500">Speed</span><span class="font-bold">${speedKts} kts</span></div>` : ''}
+      ${heading ? `<div class="flex justify-between"><span class="text-gray-500">Heading</span><span class="font-bold">${Math.round(heading)}°</span></div>` : ''}
+      ${isConflict ? '<div class="mt-1 text-[10px] font-bold text-red-600 bg-red-50 rounded px-1.5 py-0.5">⚠ KKOP Proximity Alert</div>' : ''}
+      ${detailsHtml}
+    </div>`;
+}
+
 function renderAdsbMapMarkers(flights) {
   // Remove stale markers (ICAOs no longer in feed)
   const currentIcaos = new Set(flights.map(f => f[OPENSKY_FIELDS.ICAO24]));
@@ -4133,10 +4270,6 @@ function renderAdsbMapMarkers(flights) {
     const onGround = f[OPENSKY_FIELDS.ON_GROUND];
     const heading = f[OPENSKY_FIELDS.HEADING] || 0;
     const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').trim() || icao.toUpperCase();
-    const altM = f[OPENSKY_FIELDS.BARO_ALT];
-    const altFt = altM !== null ? Math.round(altM * 3.28084) : null;
-    const velMs = f[OPENSKY_FIELDS.VELOCITY];
-    const speedKts = velMs !== null ? Math.round(velMs * 1.94384) : null;
     const isConflict = checkSingleFlightKkop(f);
 
     const color = isConflict ? '#ef4444' : onGround ? '#9ca3af' : '#0ea5e9';
@@ -4149,19 +4282,9 @@ function renderAdsbMapMarkers(flights) {
       iconAnchor: [size / 2, size / 2]
     });
 
-    const popupContent = `
-      <div class="text-xs space-y-1" style="min-width:160px">
-        <div class="font-bold text-[#2a2334]">${callsign}</div>
-        <div class="font-mono text-gray-400 text-[10px]">${icao.toUpperCase()}</div>
-        <div class="flex justify-between pt-1 border-t border-black/5">
-          <span class="text-gray-500">Status</span>
-          <span class="font-bold ${onGround ? 'text-gray-500' : 'text-sky-600'}">${onGround ? 'On Ground' : 'Airborne'}</span>
-        </div>
-        ${altFt !== null ? `<div class="flex justify-between"><span class="text-gray-500">Altitude</span><span class="font-bold">${altFt.toLocaleString()} ft</span></div>` : ''}
-        ${speedKts !== null ? `<div class="flex justify-between"><span class="text-gray-500">Speed</span><span class="font-bold">${speedKts} kts</span></div>` : ''}
-        ${heading ? `<div class="flex justify-between"><span class="text-gray-500">Heading</span><span class="font-bold">${Math.round(heading)}°</span></div>` : ''}
-        ${isConflict ? '<div class="mt-1 text-[10px] font-bold text-red-600 bg-red-50 rounded px-1.5 py-0.5">⚠ KKOP Proximity Alert</div>' : ''}
-      </div>`;
+    const cacheKey = icao.toLowerCase();
+    const cachedDetails = adsbFlightDetailsCache[cacheKey] || null;
+    const popupContent = getFlightPopupHtml(icao, callsign, f, cachedDetails);
 
     if (adsbMarkers[icao]) {
       adsbMarkers[icao].setLatLng([lat, lon]);
@@ -4184,6 +4307,26 @@ function renderAdsbMapMarkers(flights) {
     } else {
       const marker = L.marker([lat, lon], { icon })
         .bindPopup(popupContent, { maxWidth: 220 });
+
+      // Dynamic lookup on popup open
+      marker.on('popupopen', async () => {
+        const cached = adsbFlightDetailsCache[cacheKey];
+        if (!cached || cached.error) {
+          const currentFlight = adsbFlightData.find(fl => fl[OPENSKY_FIELDS.ICAO24] === icao) || f;
+          
+          // Start the fetch (sets cache to loading state synchronously)
+          const fetchPromise = fetchFlightDetails(icao, callsign);
+          
+          // Show spinner immediately
+          marker.setPopupContent(getFlightPopupHtml(icao, callsign, currentFlight, adsbFlightDetailsCache[cacheKey]));
+          
+          // Wait for the fetch to resolve
+          const details = await fetchPromise;
+          
+          // Update popup with results
+          marker.setPopupContent(getFlightPopupHtml(icao, callsign, currentFlight, details));
+        }
+      });
 
       marker.on('click', () => selectAdsbFlight(icao));
       adsbMarkers[icao] = marker;
@@ -4238,14 +4381,20 @@ function checkAdsbKkopConflicts(flights) {
 window.selectAdsbFlight = function(icao) {
   adsbSelectedIcao = icao;
 
-  // Pan map to aircraft
+  // Pan map to aircraft (dynamic based on which map shows the marker)
   const flight = adsbFlightData.find(f => f[OPENSKY_FIELDS.ICAO24] === icao);
-  if (flight && adsbMap) {
+  if (flight) {
     const lat = flight[OPENSKY_FIELDS.LAT];
     const lon = flight[OPENSKY_FIELDS.LON];
     if (lat !== null && lon !== null) {
-      adsbMap.setView([lat, lon], 10, { animate: true, duration: 0.8 });
-      if (adsbMarkers[icao]) adsbMarkers[icao].openPopup();
+      if (isAdsbModalOpen && adsbMap) {
+        adsbMap.setView([lat, lon], 10, { animate: true, duration: 0.8 });
+        if (adsbMarkers[icao]) adsbMarkers[icao].openPopup();
+      }
+      if (isAdsbOnMainMap && map) {
+        map.setView([lat, lon], 10, { animate: true, duration: 0.8 });
+        if (adsbMarkers[icao]) adsbMarkers[icao].openPopup();
+      }
     }
   }
 
