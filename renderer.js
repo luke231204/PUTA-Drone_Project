@@ -58,6 +58,8 @@ let adsbCountdownInterval = null;
 let adsbCountdownSeconds = 12;
 let adsbSelectedIcao = null;
 let adsbSearchQuery = '';
+let isAdsbModalOpen = false;
+let isAdsbOnMainMap = false;
 
 // OpenSky Network REST API — Sumatra bounding box
 const OPENSKY_URL = 'https://opensky-network.org/api/states/all?lamin=-6.0&lomin=95.0&lamax=6.0&lomax=109.0';
@@ -464,6 +466,30 @@ function initMap() {
         mapToggleText.textContent = "Satellite Map";
         mapToggle.classList.remove('text-[#4a5d3e]');
       }
+    });
+  }
+
+  // ADS-B Live Flights Toggle
+  const adsbToggleBtn = document.getElementById('map-toggle-adsb');
+  const adsbToggleText = document.getElementById('map-toggle-adsb-text');
+  if (adsbToggleBtn) {
+    adsbToggleBtn.addEventListener('click', () => {
+      isAdsbOnMainMap = !isAdsbOnMainMap;
+      if (isAdsbOnMainMap) {
+        adsbToggleText.textContent = "Hide Live Flights";
+        adsbToggleBtn.classList.add('text-sky-600');
+        showToast("Live ADS-B Flight monitoring enabled on main map", "info");
+      } else {
+        adsbToggleText.textContent = "Show Live Flights";
+        adsbToggleBtn.classList.remove('text-sky-600');
+        // Instantly remove all plane markers from the main map
+        for (const marker of Object.values(adsbMarkers)) {
+          if (map && map.hasLayer(marker)) {
+            map.removeLayer(marker);
+          }
+        }
+      }
+      updateAdsbPolling();
     });
   }
 
@@ -3853,6 +3879,7 @@ const OPENSKY_FIELDS = {
 };
 
 function openAdsbMonitor() {
+  isAdsbModalOpen = true;
   const modal = document.getElementById('adsb-modal');
   const box = modal.querySelector('div');
   modal.classList.remove('hidden');
@@ -3866,6 +3893,11 @@ function openAdsbMonitor() {
     initAdsbMap();
   } else {
     setTimeout(() => adsbMap.invalidateSize(), 100);
+  }
+
+  // Ensure current markers are shown on the adsbMap when opened
+  for (const marker of Object.values(adsbMarkers)) {
+    if (adsbMap && !adsbMap.hasLayer(marker)) marker.addTo(adsbMap);
   }
 
   // Wire manual refresh button
@@ -3883,18 +3915,23 @@ function openAdsbMonitor() {
     };
   }
 
-  // Initial fetch + start polling
-  fetchAdsbData(true);
-  startAdsbPolling();
+  updateAdsbPolling();
 }
 
 window.closeAdsbMonitor = function() {
+  isAdsbModalOpen = false;
   const modal = document.getElementById('adsb-modal');
   const box = modal.querySelector('div');
   modal.classList.add('opacity-0');
   box.classList.add('scale-95');
   setTimeout(() => modal.classList.add('hidden'), 300);
-  stopAdsbPolling();
+
+  // Remove markers from adsbMap when closed
+  for (const marker of Object.values(adsbMarkers)) {
+    if (adsbMap && adsbMap.hasLayer(marker)) adsbMap.removeLayer(marker);
+  }
+
+  updateAdsbPolling();
 };
 
 function initAdsbMap() {
@@ -3957,7 +3994,7 @@ async function fetchAdsbData(isManual = false) {
 function startAdsbPolling() {
   stopAdsbPolling(); // Clear any existing
 
-  // Countdown ticker (1 second)
+  // Ticker (1 second)
   adsbCountdownInterval = setInterval(() => {
     adsbCountdownSeconds--;
     if (adsbCountdownSeconds <= 0) adsbCountdownSeconds = 12;
@@ -3971,6 +4008,23 @@ function startAdsbPolling() {
 function stopAdsbPolling() {
   if (adsbPollingInterval) { clearInterval(adsbPollingInterval); adsbPollingInterval = null; }
   if (adsbCountdownInterval) { clearInterval(adsbCountdownInterval); adsbCountdownInterval = null; }
+}
+
+function updateAdsbPolling() {
+  if (isAdsbModalOpen || isAdsbOnMainMap) {
+    if (!adsbPollingInterval) {
+      fetchAdsbData(false);
+      startAdsbPolling();
+    }
+  } else {
+    stopAdsbPolling();
+    // Remove all flight markers from both maps
+    for (const marker of Object.values(adsbMarkers)) {
+      if (map && map.hasLayer(marker)) map.removeLayer(marker);
+      if (adsbMap && adsbMap.hasLayer(marker)) adsbMap.removeLayer(marker);
+    }
+    adsbMarkers = {};
+  }
 }
 
 function updateAdsbCountdown() {
@@ -4062,13 +4116,12 @@ function renderAdsbFlightList(flights) {
 }
 
 function renderAdsbMapMarkers(flights) {
-  if (!adsbMap) return;
-
   // Remove stale markers (ICAOs no longer in feed)
   const currentIcaos = new Set(flights.map(f => f[OPENSKY_FIELDS.ICAO24]));
   for (const [icao, marker] of Object.entries(adsbMarkers)) {
     if (!currentIcaos.has(icao)) {
-      adsbMap.removeLayer(marker);
+      if (adsbMap && adsbMap.hasLayer(marker)) adsbMap.removeLayer(marker);
+      if (map && map.hasLayer(marker)) map.removeLayer(marker);
       delete adsbMarkers[icao];
     }
   }
@@ -4114,12 +4167,36 @@ function renderAdsbMapMarkers(flights) {
       adsbMarkers[icao].setLatLng([lat, lon]);
       adsbMarkers[icao].setIcon(icon);
       adsbMarkers[icao].setPopupContent(popupContent);
+
+      // Handle layer visibility for main map
+      if (isAdsbOnMainMap && map) {
+        if (!map.hasLayer(adsbMarkers[icao])) adsbMarkers[icao].addTo(map);
+      } else {
+        if (map && map.hasLayer(adsbMarkers[icao])) map.removeLayer(adsbMarkers[icao]);
+      }
+
+      // Handle layer visibility for modal map
+      if (isAdsbModalOpen && adsbMap) {
+        if (!adsbMap.hasLayer(adsbMarkers[icao])) adsbMarkers[icao].addTo(adsbMap);
+      } else {
+        if (adsbMap && adsbMap.hasLayer(adsbMarkers[icao])) adsbMap.removeLayer(adsbMarkers[icao]);
+      }
     } else {
       const marker = L.marker([lat, lon], { icon })
-        .bindPopup(popupContent, { maxWidth: 220 })
-        .addTo(adsbMap);
+        .bindPopup(popupContent, { maxWidth: 220 });
+
       marker.on('click', () => selectAdsbFlight(icao));
       adsbMarkers[icao] = marker;
+
+      // Add to main map if toggle is active
+      if (isAdsbOnMainMap && map) {
+        marker.addTo(map);
+      }
+      
+      // Add to adsbMap if modal is open
+      if (isAdsbModalOpen && adsbMap) {
+        marker.addTo(adsbMap);
+      }
     }
   });
 }
