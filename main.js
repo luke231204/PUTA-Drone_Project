@@ -150,10 +150,110 @@ ipcMain.handle('open-pdf', async (event, fileName, year) => {
   }
 });
 
+function cleanFilenameStr(s) {
+  return s.replace(/[\/*?:"<>|]/g, '_').replace(/\s+/g, ' ').trim().replace(/\.$/, '');
+}
+
+async function syncToSupabase(newPermit, localFilePath) {
+  loadEnv();
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn("Supabase credentials not configured, skipping real-time cloud sync.");
+    return;
+  }
+
+  const sanitizedUrl = supabaseUrl.replace(/\/$/, '');
+  
+  // 1. Upload Database Record
+  try {
+    const dbUrl = `${sanitizedUrl}/rest/v1/permits`;
+    const dbResponse = await fetch(dbUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify([newPermit])
+    });
+    if (!dbResponse.ok) {
+      const errText = await dbResponse.text();
+      console.error("Database sync failed:", errText);
+      throw new Error(`Database sync returned status ${dbResponse.status}: ${errText}`);
+    }
+    console.log("Database record synced successfully.");
+  } catch (err) {
+    console.error("Error syncing database record:", err);
+    throw err;
+  }
+
+  // 2. Upload PDF file to Storage Bucket
+  try {
+    const fileBuffer = fs.readFileSync(localFilePath);
+    const storagePath = `${newPermit.year}/${encodeURIComponent(newPermit.file_name)}`;
+    const storageUrl = `${sanitizedUrl}/storage/v1/object/permit-pdfs/${storagePath}`;
+    const storageResponse = await fetch(storageUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/pdf',
+        'x-upsert': 'true'
+      },
+      body: fileBuffer
+    });
+    if (!storageResponse.ok) {
+      const errText = await storageResponse.text();
+      console.error("Storage sync failed:", errText);
+      throw new Error(`Storage upload returned status ${storageResponse.status}: ${errText}`);
+    }
+    console.log("PDF file uploaded to Storage successfully.");
+  } catch (err) {
+    console.error("Error uploading PDF to Storage:", err);
+    throw err;
+  }
+}
+
 // IPC Handler to save a new permit into permits.json
-ipcMain.handle('save-permit', async (event, newPermit) => {
+ipcMain.handle('save-permit', async (event, newPermit, localFilePath) => {
   const permitsPath = path.join(__dirname, 'data', 'permits.json');
   try {
+    // 1. Auto-generate standardized filename
+    const opClean = cleanFilenameStr(newPermit.operator_name || 'Unknown');
+    const locClean = cleanFilenameStr(newPermit.location || 'Unknown');
+    const numClean = cleanFilenameStr((newPermit.permit_id || 'Unknown').split('/')[0]);
+    const standardizedName = `${newPermit.year} - ${opClean} - ${locClean} - ${numClean}.pdf`;
+
+    newPermit.file_name = standardizedName;
+
+    // 2. Copy physical file locally to GDrive or fallback local folder
+    const gdrive = findGDriveFolder();
+    let targetPath = '';
+    
+    if (gdrive) {
+      let relDir = '';
+      if (newPermit.year === 2024) relDir = '2024';
+      else if (newPermit.year === 2025) relDir = '2025';
+      targetPath = path.join(gdrive, relDir, standardizedName);
+      fs.copyFileSync(localFilePath, targetPath);
+      console.log(`Copied new PDF to local Google Drive: ${targetPath}`);
+    } else {
+      const fallbackDir = path.join(__dirname, '6. KOBU VI - PADANG');
+      let relDir = '';
+      if (newPermit.year === 2024) relDir = '2024';
+      else if (newPermit.year === 2025) relDir = '2025';
+      const targetDir = path.join(fallbackDir, relDir);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      targetPath = path.join(targetDir, standardizedName);
+      fs.copyFileSync(localFilePath, targetPath);
+      console.log(`Copied new PDF to local fallback folder: ${targetPath}`);
+    }
+
+    // 3. Update local permits.json cache
     let permits = [];
     if (fs.existsSync(permitsPath)) {
       const rawData = fs.readFileSync(permitsPath, 'utf8');
@@ -161,7 +261,12 @@ ipcMain.handle('save-permit', async (event, newPermit) => {
     }
     permits.push(newPermit);
     fs.writeFileSync(permitsPath, JSON.stringify(permits, null, 2), 'utf8');
-    return { success: true };
+    console.log("Updated local permits.json.");
+
+    // 4. Perform real-time sync with Supabase (Database & Storage)
+    await syncToSupabase(newPermit, localFilePath);
+
+    return { success: true, fileName: standardizedName };
   } catch (error) {
     console.error("Failed to save new permit:", error);
     return { success: false, error: error.message };

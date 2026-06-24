@@ -620,6 +620,26 @@ function setupEventListeners() {
   const form = document.getElementById('add-permit-form');
   if (form) form.addEventListener('submit', handleAddPermitSubmit);
 
+  // PDF file selector button handlers
+  const btnSelectPdf = document.getElementById('btn-select-pdf');
+  const inputPdfFile = document.getElementById('input-pdf-file');
+  const selectedPdfName = document.getElementById('selected-pdf-name');
+  if (btnSelectPdf && inputPdfFile) {
+    btnSelectPdf.addEventListener('click', () => inputPdfFile.click());
+    inputPdfFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        selectedPdfName.textContent = file.name;
+        selectedPdfName.classList.remove('italic', 'text-gray-500');
+        selectedPdfName.classList.add('text-gray-800', 'font-bold');
+      } else {
+        selectedPdfName.textContent = "No file chosen";
+        selectedPdfName.classList.add('italic', 'text-gray-500');
+        selectedPdfName.classList.remove('text-gray-800', 'font-bold');
+      }
+    });
+  }
+
   // Back to Portal / Home button
   const btnHome = document.getElementById('btn-back-to-portal');
   if (btnHome) {
@@ -1600,6 +1620,14 @@ function openAddPermitModal() {
   form.reset();
   document.getElementById('form-error-alert').classList.add('hidden');
   
+  // Reset selected file label
+  const selectedPdfName = document.getElementById('selected-pdf-name');
+  if (selectedPdfName) {
+    selectedPdfName.textContent = "No file chosen";
+    selectedPdfName.classList.add('italic', 'text-gray-500');
+    selectedPdfName.classList.remove('text-gray-800', 'font-bold');
+  }
+
   // Set default values
   const todayStr = new Date().toISOString().split('T')[0];
   document.getElementById('input-date-start').value = todayStr;
@@ -1644,12 +1672,21 @@ async function handleAddPermitSubmit(e) {
   const coordsInput = document.getElementById('input-coords').value.trim();
   const pilotsInput = document.getElementById('input-pilots').value.trim();
   const registryInput = document.getElementById('input-registry').value.trim();
-  const fileName = document.getElementById('input-filename').value.trim();
   
+  const fileInput = document.getElementById('input-pdf-file');
+  const fileObject = fileInput.files[0];
   const errorAlert = document.getElementById('form-error-alert');
+
+  if (!fileObject) {
+    errorAlert.textContent = "Please choose a PDF file to upload.";
+    errorAlert.classList.remove('hidden');
+    return;
+  }
+
+  const localFilePath = fileObject.path;
   
   // Basic Validations
-  if (!permitId || !operatorName || !location || !dateStart || !dateEnd || !timeStart || !timeEnd || !fileName) {
+  if (!permitId || !operatorName || !location || !dateStart || !dateEnd || !timeStart || !timeEnd || !localFilePath) {
     errorAlert.textContent = "Please fill in all required fields.";
     errorAlert.classList.remove('hidden');
     return;
@@ -1708,16 +1745,20 @@ async function handleAddPermitSubmit(e) {
     coordinates: coordinates,
     pilot_name: pilot_name,
     puta_registry: puta_registry,
-    file_name: fileName
+    file_name: "" // backend will auto-generate and fill this standardized name
   };
   
   // Save permit via IPC
-  showToast("Saving new permission...", "info");
-  const res = await window.api.savePermit(newPermit);
+  showToast("Saving new permission & syncing to Supabase...", "info");
+  const res = await window.api.savePermit(newPermit, localFilePath);
   
   if (res && res.success) {
-    showToast("Permit saved successfully! Reloading...", "success");
+    showToast("Permit saved and uploaded successfully!", "success");
     closeAddPermitModal();
+    // Reload dashboard to show the new permit
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   } else {
     errorAlert.textContent = res.error || "Failed to save new permit.";
     errorAlert.classList.remove('hidden');

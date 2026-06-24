@@ -582,10 +582,19 @@
           </div>
         </div>
 
-        <!-- Attachment File Name -->
+        <!-- Attachment File Selector -->
         <div class="space-y-1.5">
-          <label for="input-filename" class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Attachment PDF Filename *</label>
-          <input type="text" id="input-filename" placeholder="e.g. (2) Persetujuan PT. Timah Tbk di Pulau Bangka (240926).pdf" required class="w-full bg-[#f5f6f4] border border-black/5 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:border-[#4a5d3e]/40 focus:bg-white transition-all" />
+          <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Attachment PDF File *</label>
+          <div class="flex items-center gap-3">
+            <input type="file" id="input-pdf-file" accept="application/pdf" class="hidden" required />
+            <button type="button" id="btn-select-pdf" class="bg-[#f5f6f4] hover:bg-[#e2e4e0] border border-black/5 rounded-xl px-4 py-2 text-gray-700 font-bold transition-all flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+              Choose PDF File
+            </button>
+            <span id="selected-pdf-name" class="text-xs text-gray-500 italic">No file chosen</span>
+          </div>
         </div>
 
         <!-- Modal Footer -->
