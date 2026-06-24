@@ -114,7 +114,22 @@ const LOCATION_COORDS = {
   "pl kaos": [-1.43, 103.20],
   "pl sekernan": [-1.40, 103.64],
   "pl jabung": [-1.28, 104.18],
-  "pl ro grissik": [-2.35, 103.65]
+  "pl ro grissik": [-2.35, 103.65],
+  "surveillance sinarmas": [-2.50, 104.00],
+  "musi hutan persada": [-3.58, 103.95],
+  "candi muaro jambi": [-1.477, 103.67],
+  "pt aks": [-2.73, 107.82],
+  "pt ama": [-2.73, 107.82],
+  "jalan tol kayu agung": [-3.39, 104.83],
+  "pematang panggang": [-3.97, 104.93],
+  "indralaya": [-3.21, 104.65],
+  "pulau bangka": [-2.10, 106.10],
+  "pulau belitung": [-2.73, 107.82],
+  "pipa tgi": [-1.61, 103.61],
+  "pt. prima alumga": [-3.30, 104.80],
+  "pt. pinang witmas sejati": [-2.30, 103.95],
+  "pt skytech indonesia_pt. bmh": [-3.20, 104.20],
+  "sumsel, bengkulu dan lampung": [-3.50, 103.50]
 };
 
 function getCoordsFromLocation(locStr) {

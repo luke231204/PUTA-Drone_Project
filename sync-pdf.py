@@ -522,6 +522,43 @@ def parse_pdf_permit(file_path, file_year):
         "file_name": os.path.basename(file_path)
     }
     
+    # Write markdown file with YAML front-matter
+    try:
+        md_dir = os.path.join(os.path.dirname(PERMITS_JSON_PATH), 'markdown_permits')
+        if not os.path.exists(md_dir):
+            os.makedirs(md_dir)
+        
+        clean_id = permit_id.replace('/', '_').replace('\\', '_').replace(':', '_')
+        md_path = os.path.join(md_dir, f"{clean_id}.md")
+        
+        yaml_lines = [
+            "---",
+            f"permit_id: {json.dumps(permit_id)}",
+            f"operator_name: {json.dumps(operator)}",
+            f"location: {json.dumps(location)}",
+            f"year: {file_year}",
+            f"date_start: {json.dumps(permit_data['date_start'])}",
+            f"date_end: {json.dumps(permit_data['date_end'])}",
+            f"time_start: {json.dumps(time_start)}",
+            f"time_end: {json.dumps(time_end)}",
+            f"max_altitude_ft: {max_alt}",
+            f"pilot_name: {json.dumps(pilots)}",
+            f"puta_registry: {json.dumps(registrations)}",
+            f"file_name: {json.dumps(os.path.basename(file_path))}",
+            "---",
+            "",
+            f"# Drone Operation Permit: {operator}",
+            "",
+            "## Cleaned Full Text Content",
+            "",
+            full_text
+        ]
+        
+        with open(md_path, 'w', encoding='utf-8') as md_file:
+            md_file.write('\n'.join(yaml_lines))
+    except Exception as md_err:
+        print(f"WARNING: Failed to write markdown file for {permit_id}: {md_err}")
+    
     return permit_data
 
 def sync_all_permits():

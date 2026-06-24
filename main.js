@@ -83,34 +83,67 @@ ipcMain.handle('load-permits', async () => {
   }
 });
 
+function loadEnv() {
+  const envPaths = [
+    path.join(__dirname, '.env'),
+    path.join(__dirname, 'data', 'Cred.env')
+  ];
+  for (const envPath of envPaths) {
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      content.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const index = trimmed.indexOf('=');
+          const key = trimmed.substring(0, index).trim();
+          const val = trimmed.substring(index + 1).trim().replace(/^['"]|['"]$/g, '');
+          process.env[key] = val;
+        }
+      });
+      break;
+    }
+  }
+}
+
 // IPC Handler to open PDF reference files
 ipcMain.handle('open-pdf', async (event, fileName, year) => {
   try {
     const gdriveBase = findGDriveFolder();
-    if (!gdriveBase) {
-      return { success: false, error: "Google Drive folder '6. KOBU VI - PADANG' not found on this computer." };
+    if (gdriveBase) {
+      let relativePath = '';
+      const parsedYear = parseInt(year);
+      if (parsedYear === 2024) {
+        relativePath = path.join('2024', fileName);
+      } else if (parsedYear === 2025) {
+        relativePath = path.join('2025', fileName);
+      } else {
+        relativePath = fileName;
+      }
+
+      const fullPath = path.join(gdriveBase, relativePath);
+      if (fs.existsSync(fullPath)) {
+        const err = await shell.openPath(fullPath);
+        if (!err) {
+          return { success: true, openedLocally: true };
+        }
+        console.warn(`Local file open failed: ${err}, trying cloud URL...`);
+      }
     }
 
-    let relativePath = '';
-    const parsedYear = parseInt(year);
-    if (parsedYear === 2024) {
-      relativePath = path.join('2024', fileName);
-    } else if (parsedYear === 2025) {
-      relativePath = path.join('2025', fileName);
-    } else {
-      relativePath = fileName;
+    // Fallback: Open Cloud URL
+    loadEnv();
+    const supabaseUrl = process.env.SUPABASE_URL;
+    if (supabaseUrl) {
+      const sanitizedUrl = supabaseUrl.replace(/\/$/, '');
+      const cloudUrl = `${sanitizedUrl}/storage/v1/object/public/permit-pdfs/${year}/${encodeURIComponent(fileName)}`;
+      await shell.openExternal(cloudUrl);
+      return { success: true, openedLocally: false };
     }
 
-    const fullPath = path.join(gdriveBase, relativePath);
-    if (!fs.existsSync(fullPath)) {
-      return { success: false, error: `File not found: ${relativePath}` };
-    }
-
-    const err = await shell.openPath(fullPath);
-    if (err) {
-      return { success: false, error: `Could not open file: ${err}` };
-    }
-    return { success: true };
+    return { 
+      success: false, 
+      error: "PDF not found locally, and cloud storage (Supabase) is not configured." 
+    };
   } catch (error) {
     console.error("Error opening PDF:", error);
     return { success: false, error: error.message };

@@ -15,3 +15,8 @@ Thumbs.db
 
 # Backups
 *_backup.png
+
+# Sensitive credentials
+*.env
+data/*.env
+data/Cred.env
