@@ -11,9 +11,9 @@ These specifications are utilized by **PUTA-Monitor** for GIS mapping, 5 km KKOP
 | IATA | ICAO | Airport Name | City / Location | Province | Runway Specs | Elevation | Operator |
 | :---: | :---: | :--- | :--- | :--- | :--- | :---: | :--- |
 | **PDG** | WIEE | Minangkabau Intl | Padang / Ketaping | Sumatera Barat | 3,000m × 45m, Asphalt | 16 ft | PT Angkasa Pura II |
-| **RKI** | WIBR | Rokot Sipora | Sipora / Mentawai | Sumatera Barat | 1,500m × 30m, Asphalt | 26 ft | UPT Ditjen Hubud |
+| **RKI** | WIEB | Rokot Sipora | Sipora / Mentawai | Sumatera Barat | 1,500m × 30m, Asphalt | 26 ft | UPT Ditjen Hubud |
 | **KRC** | WIJI | Depati Parbo | Sungai Penuh / Kerinci | Jambi | 1,800m × 30m, Asphalt | 2,607 ft | UPT Ditjen Hubud |
-| **MPC** | WIPU | Muko-Muko | Muko-Muko | Bengkulu | 1,400m × 30m, Asphalt | 27 ft | UPT Ditjen Hubud |
+| **MPC** | WIGM | Muko-Muko | Muko-Muko | Bengkulu | 1,400m × 30m, Asphalt | 27 ft | UPT Ditjen Hubud |
 | **BKS** | WIGG | Fatmawati Soekarno | Bengkulu | Bengkulu | 2,239m × 45m, Asphalt | 50 ft | PT Angkasa Pura II |
 | **ENG** | WIGE | Enggano | Enggano Island | Bengkulu | 1,600m × 30m, Asphalt | 47 ft | UPT Ditjen Hubud |
 | **DJB** | WIJJ | Sultan Thaha | Jambi | Jambi | 2,602m × 45m, Asphalt | 85 ft | PT Angkasa Pura II |
@@ -21,7 +21,7 @@ These specifications are utilized by **PUTA-Monitor** for GIS mapping, 5 km KKOP
 | **PLM** | WIPP | SMB II Palembang | Palembang | Sumatera Selatan | 3,000m × 45m, Asphalt | 33 ft | PT Angkasa Pura II |
 | **PXA** | WIPY | Atung Bungsu | Pagar Alam | Sumatera Selatan | 1,500m × 30m, Asphalt | 2,093 ft | UPT Ditjen Hubud |
 | **LLJ** | WIPB | Silampari | Lubuklinggau | Sumatera Selatan | 2,220m × 30m, Asphalt | 410 ft | UPT Ditjen Hubud |
-| **PGK** | WIPK | Depati Amir | Pangkal Pinang / Bangka | Bangka Belitung | 2,250m × 45m, Asphalt | 108 ft | PT Angkasa Pura II |
+| **PGK** | WIKK | Depati Amir | Pangkal Pinang / Bangka | Bangka Belitung | 2,250m × 45m, Asphalt | 108 ft | PT Angkasa Pura II |
 | **TJQ** | WIKT | H.AS. Hanandjoeddin | Tanjung Pandan / Belitung | Bangka Belitung | 2,400m × 45m, Asphalt | 161 ft | PT Angkasa Pura II |
 
 ---
@@ -39,7 +39,7 @@ These specifications are utilized by **PUTA-Monitor** for GIS mapping, 5 km KKOP
 *   **Communications:** Minangkabau Tower (118.1 MHz)
 *   **Emergency Contact:** AirNav Padang Tower (`+62 (751) 81920`)
 
-#### ✈️ Rokot Sipora Airport (RKI / WIBR)
+#### ✈️ Rokot Sipora Airport (RKI / WIEB)
 *   **Location:** Sipora Island, Mentawai, West Sumatra
 *   **Runway:** Runway 12/30 | 1,500 m × 30 m | Asphalt (Upgraded 2023)
 *   **Elevation:** 26 ft (8 m) AMSL
@@ -61,7 +61,7 @@ These specifications are utilized by **PUTA-Monitor** for GIS mapping, 5 km KKOP
 *   **Communications:** Fatmawati Tower (118.1 MHz)
 *   **Emergency Contact:** AirNav Bengkulu Tower (`+62 (736) 21014`)
 
-#### ✈️ Muko-Muko Airport (MPC / WIPU)
+#### ✈️ Muko-Muko Airport (MPC / WIGM)
 *   **Location:** Muko-Muko, Bengkulu
 *   **Runway:** Runway 16/34 | 1,400 m × 30 m | Asphalt
 *   **Elevation:** 27 ft (8 m) AMSL
@@ -145,7 +145,7 @@ These specifications are utilized by **PUTA-Monitor** for GIS mapping, 5 km KKOP
 
 ### 2.5 Kepulauan Bangka Belitung Jurisdiction
 
-#### ✈️ Depati Amir / Pangkal Pinang Airport (PGK / WIPK)
+#### ✈️ Depati Amir / Pangkal Pinang Airport (PGK / WIKK)
 *   **Location:** Pangkal Pinang, Bangka Island
 *   **Runway:** Runway 16/34 | 2,250 m × 45 m | Asphalt
 *   **Elevation:** 108 ft (33 m) AMSL

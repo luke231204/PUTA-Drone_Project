@@ -144,9 +144,9 @@ Key locations (lowercase string → `[lat, lng]`):
 | Code | ICAO | Name | Province | Lat | Lng |
 |------|------|------|----------|-----|-----|
 | PDG | WIEE | Minangkabau Intl | Sumatera Barat | -0.786670 | 100.280560 |
-| RKI | WIBR | Rokot Sipora | Sumatera Barat | -2.099058 | 99.705758 |
+| RKI | WIEB | Rokot Sipora | Sumatera Barat | -2.099058 | 99.705758 |
 | KRC | WIJI | Depati Parbo, Kerinci | Jambi | -2.094231 | 101.470808 |
-| MPC | WIPU | Muko-Muko | Bengkulu | -2.541092 | 101.088678 |
+| MPC | WIGM | Muko-Muko | Bengkulu | -2.541092 | 101.088678 |
 | BKS | WIGG | Fatmawati Soekarno | Bengkulu | -3.861280 | 102.339670 |
 | ENG | WIGE | Enggano | Bengkulu | -5.306639 | 102.189564 |
 | DJB | WIJJ | Sultan Thaha | Jambi | -1.635060 | 103.646010 |
@@ -154,7 +154,7 @@ Key locations (lowercase string → `[lat, lng]`):
 | PLM | WIPP | SMB II Palembang | Sumatera Selatan | -2.896150 | 104.706970 |
 | PXA | WIPY | Atung Bungsu, Pagar Alam | Sumatera Selatan | -4.024300 | 103.379170 |
 | LLJ | WIPB | Silampari, Lubuk Linggau | Sumatera Selatan | -3.280000 | 102.917200 |
-| PGK | WIPK | Depati Amir | Kepulauan Bangka Belitung | -2.160630 | 106.141730 |
+| PGK | WIKK | Depati Amir | Kepulauan Bangka Belitung | -2.160630 | 106.141730 |
 | TJQ | WIKT | H.AS. Hanandjoeddin | Kepulauan Bangka Belitung | -2.745280 | 107.753060 |
 
 Each drawn as a **5 km indigo dashed ring** on the Leaflet map. All 13 are checked in `runComplianceChecks()` for KKOP proximity.
