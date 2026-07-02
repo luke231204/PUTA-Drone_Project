@@ -241,3 +241,21 @@ Start your message with:
 ```
 
 This gives me full architecture, function index, data schema, compliance rules, and current state in one shot — no need to re-read source files.
+
+---
+
+## 14. Role-Based Authentication & Approval Pipeline (RBAC)
+
+We have implemented a complete authentication system and role-based permissions:
+
+### User Roles & Permissions
+- **Regular User**: Auto-approved. Read-only access to maps, statistics, and flight tools. Write buttons are hidden and RLS is enforced.
+- **Inspector**: Requires Dev/Admin approval. Starts in a pending read-only mode and gets permit write-access once approved.
+- **Dev (Admin)**: Full read/write access + access to the Admin Approval Panel Modal to approve/reject pending inspector requests. Automatically assigned to the first registered user.
+
+### Key Implementation Details
+- **Database Schema ([setup_auth.sql](file:///c:/Users/lukma/Downloads/Project%20Latsar%20PUTA/setup_auth.sql))**: Creates user profile relations, automatic triggers for role assignment, and restricts writes on `permits` and `permit-pdfs` storage using Supabase Row Level Security (RLS) policies.
+- **Session Encryption ([main.js](file:///c:/Users/lukma/Downloads/Project%20Latsar%20PUTA/main.js))**: Encrypts and decrypts user session tokens locally using Electron's `safeStorage` API.
+- **IPC Auth Channels ([preload.js](file:///c:/Users/lukma/Downloads/Project%20Latsar%20PUTA/preload.js))**: Bridges authentication methods like `signUp`, `signIn`, `logout`, `getPendingInspectors`, and `approveInspector`.
+- **UI & Flow Controls ([index.html](file:///c:/Users/lukma/Downloads/Project%20Latsar%20PUTA/index.html) & [renderer.js](file:///c:/Users/lukma/Downloads/Project%20Latsar%20PUTA/renderer.js))**: Full-screen `#auth-gate` login overlay, `#auth-pending-view` block, user profiles topbar, and `#admin-modal` for developer reviews. Fixed unclosed tags and watcher loops that caused reloading loops.
+

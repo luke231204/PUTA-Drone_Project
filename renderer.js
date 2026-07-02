@@ -11,6 +11,76 @@ let countdownInterval = null;
 let currentYearFilter = 'All';
 let currentStatusFilter = 'All'; // 'All', 'ACTIVE', 'PENDING', or 'EXPIRED'
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Global Auth Action — called directly from button onclick in HTML
+// This bypasses ALL event listener setup to guarantee the button always works.
+// ─────────────────────────────────────────────────────────────────────────────
+window.doAuthAction = async function() {
+  const email = (document.getElementById('auth-email') ? document.getElementById('auth-email').value : '').trim();
+  const password = document.getElementById('auth-password') ? document.getElementById('auth-password').value : '';
+  const alertBox = document.getElementById('auth-alert');
+  const submitBtn = document.getElementById('auth-submit-btn');
+
+  console.log(`[Auth] doAuthAction called: tab=${activeAuthTab}, email=${email}`);
+
+  if (!email || !password) {
+    if (alertBox) {
+      alertBox.className = "p-3 text-xs font-semibold rounded-2xl border bg-red-50 border-red-200 text-red-700 block";
+      alertBox.textContent = "Please enter your email and password.";
+    }
+    return;
+  }
+
+  if (alertBox) { alertBox.classList.add('hidden'); alertBox.textContent = ''; }
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = activeAuthTab === 'login' ? 'Signing In...' : 'Registering...';
+  }
+
+  try {
+    if (activeAuthTab === 'login') {
+      console.log('[Auth] Calling window.api.signIn...');
+      const res = await window.api.signIn(email, password);
+      console.log('[Auth] signIn result:', res);
+      if (res && res.success) {
+        await checkAuthStatus();
+      } else {
+        throw new Error((res && res.error) || 'Invalid credentials');
+      }
+    } else {
+      const roleRadio = document.querySelector('input[name="auth-role"]:checked');
+      const role = roleRadio ? roleRadio.value : 'regular';
+      console.log('[Auth] Calling window.api.signUp...');
+      const res = await window.api.signUp(email, password, role);
+      console.log('[Auth] signUp result:', res);
+      if (res && res.success) {
+        if (alertBox) {
+          alertBox.className = "p-3 text-xs font-semibold rounded-2xl border bg-emerald-50 border-emerald-200 text-emerald-700 block";
+          alertBox.textContent = role === 'inspector'
+            ? "Registration successful! Inspector accounts must be approved before login."
+            : "Registration successful! You can now log in.";
+        }
+        activeAuthTab = 'login';
+        const tabLogin = document.getElementById('auth-tab-login');
+        if (tabLogin) tabLogin.click();
+      } else {
+        throw new Error((res && res.error) || 'Registration failed');
+      }
+    }
+  } catch (err) {
+    console.error('[Auth] doAuthAction error:', err);
+    if (alertBox) {
+      alertBox.className = "p-3 text-xs font-semibold rounded-2xl border bg-red-50 border-red-200 text-red-700 block";
+      alertBox.textContent = err.message || "An authentication error occurred.";
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = activeAuthTab === 'login' ? 'Sign In' : 'Register';
+    }
+  }
+};
+
 // Flight evaluation global states
 let satelliteLayer = null;
 let streetLayer = null;
@@ -394,16 +464,364 @@ const REGION_AIRPORTS = [
 
 
 
+// Authentication & Session State
+let currentUser = null; // { user, profile }
+let activeAuthTab = 'login'; // 'login' or 'register'
+
+async function checkAuthStatus() {
+  const gate = document.getElementById('auth-gate');
+  const alertBox = document.getElementById('auth-alert');
+  const pendingView = document.getElementById('auth-pending-view');
+  const form = document.getElementById('auth-form');
+  const tabs = document.getElementById('auth-tabs');
+
+  try {
+    const res = await window.api.getSession();
+    console.log('[Auth] getSession result:', res);
+
+    if (res && res.success && res.session) {
+      currentUser = res.session;
+      const isApproved = currentUser.profile ? currentUser.profile.approved : false;
+
+      if (isApproved) {
+        // Hide the gate
+        if (gate) {
+          gate.style.pointerEvents = 'none';
+          gate.classList.add('opacity-0');
+          setTimeout(() => gate.classList.add('hidden'), 300);
+        }
+        updateUserDisplay();
+        await loadAndRenderData();
+      } else {
+        // User exists but is NOT approved (e.g. pending inspector)
+        if (gate) {
+          gate.style.pointerEvents = '';
+          gate.classList.remove('hidden');
+          requestAnimationFrame(() => gate.classList.remove('opacity-0'));
+        }
+        if (form) form.classList.add('hidden');
+        if (tabs) tabs.classList.add('hidden');
+        if (pendingView) pendingView.classList.remove('hidden');
+        updateUserDisplay();
+      }
+    } else {
+      // No session
+      currentUser = null;
+      if (gate) {
+        gate.style.pointerEvents = '';
+        gate.classList.remove('hidden');
+        requestAnimationFrame(() => gate.classList.remove('opacity-0'));
+      }
+      if (form) form.classList.remove('hidden');
+      if (tabs) tabs.classList.remove('hidden');
+      if (pendingView) pendingView.classList.add('hidden');
+
+      // Clear input fields when showing the gate
+      const emailInput = document.getElementById('auth-email');
+      const passwordInput = document.getElementById('auth-password');
+      if (emailInput) emailInput.value = '';
+      if (passwordInput) passwordInput.value = '';
+      if (alertBox) {
+        alertBox.classList.add('hidden');
+        alertBox.textContent = '';
+      }
+      updateUserDisplay();
+    }
+  } catch (err) {
+    console.error('[Auth] checkAuthStatus error:', err);
+    currentUser = null;
+    if (gate) {
+      gate.style.pointerEvents = '';
+      gate.classList.remove('hidden');
+      requestAnimationFrame(() => gate.classList.remove('opacity-0'));
+    }
+    if (form) form.classList.remove('hidden');
+    if (tabs) tabs.classList.remove('hidden');
+    if (pendingView) pendingView.classList.add('hidden');
+    updateUserDisplay();
+  }
+}
+
+function updateUserDisplay() {
+  const emailEl = document.getElementById('user-display-email');
+  const roleEl = document.getElementById('user-display-role');
+  const addPermitBtn = document.getElementById('btn-add-permit');
+  const adminCard = document.getElementById('portal-card-admin');
+  const portalLogoutBtn = document.getElementById('btn-portal-logout');
+  const headerLogoutBtn = document.getElementById('btn-header-logout');
+
+  if (!currentUser) {
+    if (emailEl) emailEl.textContent = "Guest";
+    if (roleEl) roleEl.textContent = "Read-Only";
+    if (addPermitBtn) addPermitBtn.classList.add('hidden');
+    if (adminCard) adminCard.classList.add('hidden');
+    if (portalLogoutBtn) portalLogoutBtn.classList.add('hidden');
+    if (headerLogoutBtn) headerLogoutBtn.classList.add('hidden');
+    return;
+  }
+
+  if (emailEl) emailEl.textContent = currentUser.user.email;
+  if (roleEl) {
+    const roleName = currentUser.profile ? currentUser.profile.role : 'regular';
+    roleEl.textContent = roleName.charAt(0).toUpperCase() + roleName.slice(1);
+  }
+
+  const isReadWrite = currentUser.profile ? (currentUser.profile.approved && (currentUser.profile.role === 'inspector' || currentUser.profile.role === 'dev')) : false;
+  if (addPermitBtn) {
+    if (isReadWrite) addPermitBtn.classList.remove('hidden');
+    else addPermitBtn.classList.add('hidden');
+  }
+
+  if (adminCard) {
+    const isDev = currentUser.profile ? (currentUser.profile.role === 'dev') : false;
+    if (isDev) adminCard.classList.remove('hidden');
+    else adminCard.classList.add('hidden');
+  }
+
+  if (portalLogoutBtn) portalLogoutBtn.classList.remove('hidden');
+  if (headerLogoutBtn) headerLogoutBtn.classList.remove('hidden');
+}
+
+// --- Unified Admin & System Control Panel ---
+let activeAdminTab = 'users';
+let allAdminProfiles = [];
+
+window.openAdminModal = async function() {
+  const modal = document.getElementById('admin-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  requestAnimationFrame(() => modal.classList.remove('opacity-0'));
+  
+  // Set default tab
+  switchAdminTab('users');
+};
+
+window.closeAdminModal = function() {
+  const modal = document.getElementById('admin-modal');
+  if (!modal) return;
+  modal.classList.add('opacity-0');
+  setTimeout(() => modal.classList.add('hidden'), 300);
+};
+
+window.switchAdminTab = function(tabName) {
+  activeAdminTab = tabName;
+  const tabs = ['users', 'system', 'cache'];
+  
+  tabs.forEach(t => {
+    const btn = document.getElementById(`admin-tab-${t}`);
+    const panel = document.getElementById(`admin-panel-${t}`);
+    
+    if (btn) {
+      if (t === tabName) {
+        btn.className = "pb-2.5 border-b-2 border-indigo-600 text-indigo-600 focus:outline-none transition-all";
+      } else {
+        btn.className = "pb-2.5 border-b-2 border-transparent hover:text-[#2a2334] focus:outline-none transition-all";
+      }
+    }
+    
+    if (panel) {
+      if (t === tabName) panel.classList.remove('hidden');
+      else panel.classList.add('hidden');
+    }
+  });
+
+  if (tabName === 'users') {
+    refreshAdminProfiles();
+  } else if (tabName === 'system') {
+    refreshAdminDiagnostics();
+  }
+};
+
+async function refreshAdminProfiles() {
+  const list = document.getElementById('admin-users-list');
+  const loading = document.getElementById('admin-users-loading');
+  if (!list || !loading) return;
+
+  list.classList.add('hidden');
+  loading.classList.remove('hidden');
+  loading.textContent = "Loading database profiles...";
+
+  const res = await window.api.getAllProfiles();
+  if (res && res.success && res.list) {
+    allAdminProfiles = res.list;
+    renderAdminProfilesList();
+  } else {
+    loading.textContent = `Error loading profiles: ${res ? res.error : "Unknown error"}`;
+  }
+}
+
+window.renderAdminProfilesList = function() {
+  const list = document.getElementById('admin-users-list');
+  const loading = document.getElementById('admin-users-loading');
+  const searchInput = document.getElementById('admin-users-search');
+  const query = searchInput ? searchInput.value.toLowerCase() : "";
+  if (!list || !loading) return;
+
+  loading.classList.add('hidden');
+  list.classList.remove('hidden');
+
+  const filtered = allAdminProfiles.filter(p => p.email && p.email.toLowerCase().includes(query));
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="text-center py-8 text-gray-400 text-xs font-semibold">No profiles match the search.</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(user => {
+    const isCurrentUser = currentUser && currentUser.user && currentUser.user.email === user.email;
+    return `
+      <div class="flex items-center justify-between p-3.5 rounded-2xl bg-gray-50 border border-black/[0.03] text-xs font-bold gap-3">
+        <div class="space-y-0.5 min-w-0 flex-1">
+          <p class="font-extrabold text-[#2a2334] truncate">${user.email} ${isCurrentUser ? '<span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100/50">You</span>' : ''}</p>
+          <div class="flex items-center gap-1.5 mt-1 text-[9px] text-gray-400 uppercase tracking-wide">
+            <span>Status:</span>
+            <span class="${user.approved ? 'text-emerald-600 font-extrabold' : 'text-amber-500 font-extrabold'}">
+              ${user.approved ? 'Approved' : 'Pending Approval'}
+            </span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5 shrink-0">
+          <!-- Role Selector -->
+          <select onchange="updateUserProfile('${user.id}', { role: this.value })" class="bg-white border border-black/10 rounded-xl px-2 py-1 text-[11px] font-bold text-gray-700 focus:outline-none">
+            <option value="regular" ${user.role === 'regular' ? 'selected' : ''}>Regular</option>
+            <option value="inspector" ${user.role === 'inspector' ? 'selected' : ''}>Inspector</option>
+            <option value="dev" ${user.role === 'dev' ? 'selected' : ''}>Developer</option>
+          </select>
+          <!-- Approved Switch -->
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" ${user.approved ? 'checked' : ''} onchange="updateUserProfile('${user.id}', { approved: this.checked })" class="sr-only peer" ${isCurrentUser ? 'disabled' : ''}>
+            <div class="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+          </label>
+        </div>
+      </div>
+    `;
+  }).join('');
+};
+
+window.updateUserProfile = async function(userId, updates) {
+  showToast("Updating user profile...", "info");
+  const res = await window.api.updateProfile(userId, updates);
+  if (res && res.success) {
+    showToast("Profile updated successfully!", "success");
+    // Update local cache of profiles
+    allAdminProfiles = allAdminProfiles.map(p => p.id === userId ? { ...p, ...updates } : p);
+    // If the updated user is the active user, refresh active session details
+    if (currentUser && currentUser.user && currentUser.user.id === userId) {
+      if (currentUser.profile) {
+        currentUser.profile = { ...currentUser.profile, ...updates };
+      }
+      updateUserDisplay();
+    }
+  } else {
+    showToast(`Failed to update profile: ${res ? res.error : "Unknown error"}`, "error");
+    refreshAdminProfiles(); // reload to reset UI controls
+  }
+};
+
+async function refreshAdminDiagnostics() {
+  const res = await window.api.getDiagnostics();
+  if (res && res.success) {
+    const el = (id) => document.getElementById(id);
+    if (el('diag-supabase-url')) el('diag-supabase-url').textContent = res.supabaseUrl;
+    if (el('diag-gdrive-path')) el('diag-gdrive-path').textContent = res.gdrivePath;
+    
+    // Cache size formatting
+    const sizeKB = (res.cacheSize / 1024).toFixed(1);
+    if (el('diag-cache-size')) el('diag-cache-size').textContent = `${sizeKB} KB (${res.cacheSize} bytes)`;
+    
+    // Active session details
+    if (el('diag-active-session')) {
+      el('diag-active-session').textContent = currentUser ? currentUser.user.email : "No active session";
+    }
+
+    // Google Drive indicator
+    const gdIndicator = el('diag-gdrive-indicator');
+    const gdStatus = el('diag-gdrive-status');
+    if (gdIndicator && gdStatus) {
+      if (res.gdrivePath && res.gdrivePath !== "Not found") {
+        gdIndicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+        gdStatus.textContent = "Detected";
+      } else {
+        gdIndicator.className = "w-2.5 h-2.5 rounded-full bg-red-500";
+        gdStatus.textContent = "Sync Folder Not Found";
+      }
+    }
+  }
+}
+
+window.triggerAdminSync = async function() {
+  const btn = document.getElementById('admin-btn-sync');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Syncing...";
+  }
+  showToast("Force-synchronizing permits cache...", "info");
+  try {
+    // Calling loadAndRenderData pulls the latest records from Supabase Rest API and updates the local cache
+    await loadAndRenderData();
+    showToast("Permits synchronized with Cloud DB!", "success");
+    refreshAdminDiagnostics();
+  } catch (err) {
+    showToast("Sync failed: " + err.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Sync Permits Database";
+    }
+  }
+};
+
+window.triggerAdminCacheReset = async function() {
+  const confirmReset = confirm("CRITICAL WARNING:\nAre you sure you want to clear local cache, delete session tokens, and log out? This will completely reset the application state.");
+  if (!confirmReset) return;
+  
+  showToast("Clearing local storage cache and session...", "info");
+  try {
+    await window.api.logout();
+    currentUser = null;
+    await checkAuthStatus();
+    closeAdminModal();
+    showToast("Cache cleared! Please sign in again.", "success");
+  } catch (err) {
+    showToast("Reset failed: " + err.message, "error");
+  }
+};
+
 // Initialize application when loaded
 window.addEventListener('DOMContentLoaded', async () => {
-  initDarkMode();
-  initMap();
-  await loadAndRenderData();
-  setupEventListeners();
+  try {
+    initDarkMode();
+  } catch (err) {
+    console.error("Failed to initialize dark mode:", err);
+  }
+
+  try {
+    initMap();
+  } catch (err) {
+    console.error("Failed to initialize Leaflet map:", err);
+  }
+
+  // Setup event listeners FIRST (before checkAuthStatus) so auth buttons
+  // are always clickable as soon as the gate is shown
+  try {
+    setupEventListeners();
+  } catch (err) {
+    console.error("Failed to setup event listeners:", err);
+  }
+
+  try {
+    await checkAuthStatus();
+  } catch (err) {
+    console.error("Failed to check auth status:", err);
+  }
 });
 
 // 1. GIS Map Canvas Setup
 function initMap() {
+  if (typeof L === 'undefined') {
+    console.warn("Leaflet (L) library is not defined. Map display will be disabled.");
+    return;
+  }
   // Center near Padang, West Sumatra (OTBAN Region VI main area)
   map = L.map('map', {
     zoomControl: false
@@ -787,6 +1205,29 @@ function setupEventListeners() {
     cardAdsb.addEventListener('click', openAdsbMonitor);
   }
 
+  const cardAdmin = document.getElementById('portal-card-admin');
+  if (cardAdmin) {
+    cardAdmin.addEventListener('click', openAdminModal);
+  }
+
+  // Admin Panel Tab Switchers
+  const tabAdminUsers = document.getElementById('admin-tab-users');
+  if (tabAdminUsers) tabAdminUsers.addEventListener('click', () => switchAdminTab('users'));
+
+  const tabAdminSystem = document.getElementById('admin-tab-system');
+  if (tabAdminSystem) tabAdminSystem.addEventListener('click', () => switchAdminTab('system'));
+
+  const tabAdminCache = document.getElementById('admin-tab-cache');
+  if (tabAdminCache) tabAdminCache.addEventListener('click', () => switchAdminTab('cache'));
+
+  // Admin Panel User Search
+  const adminUsersSearch = document.getElementById('admin-users-search');
+  if (adminUsersSearch) {
+    adminUsersSearch.addEventListener('input', () => {
+      renderAdminProfilesList();
+    });
+  }
+
   // Author card and footer profile listeners
   const cardAuthor = document.getElementById('portal-card-author');
   if (cardAuthor) {
@@ -852,7 +1293,104 @@ function setupEventListeners() {
 
   const btnDownloadKml = document.getElementById('btn-download-conv-kml');
   if (btnDownloadKml) btnDownloadKml.addEventListener('click', downloadConvertedKml);
+
+  // ==========================================
+  // Auth and Role Management Event Listeners
+  // ==========================================
+
+  // Bind to form submit (in case Enter key or native form trigger is used)
+  const authForm = document.getElementById('auth-form');
+  if (authForm) {
+    authForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.doAuthAction();
+    });
+  }
+
+
+
+  // Auth tabs switching
+  const tabLogin = document.getElementById('auth-tab-login');
+  const tabRegister = document.getElementById('auth-tab-register');
+  const roleSelection = document.getElementById('auth-role-selection');
+  const authTitle = document.getElementById('auth-title');
+  const authSubtitle = document.getElementById('auth-subtitle');
+  const submitBtn = document.getElementById('auth-submit-btn');
+
+  if (tabLogin && tabRegister) {
+    tabLogin.addEventListener('click', () => {
+      activeAuthTab = 'login';
+      tabLogin.className = "flex-1 py-2 rounded-xl bg-white text-[#2a2334] shadow-sm";
+      tabRegister.className = "flex-1 py-2 rounded-xl hover:text-[#2a2334] transition-colors";
+      if (roleSelection) roleSelection.classList.add('hidden');
+      if (authTitle) authTitle.textContent = "Access PUTA-Monitor";
+      if (authSubtitle) authSubtitle.textContent = "Enter your credentials to access the airspace visualizer.";
+      if (submitBtn) submitBtn.textContent = "Sign In";
+    });
+
+    tabRegister.addEventListener('click', () => {
+      activeAuthTab = 'register';
+      tabRegister.className = "flex-1 py-2 rounded-xl bg-white text-[#2a2334] shadow-sm";
+      tabLogin.className = "flex-1 py-2 rounded-xl hover:text-[#2a2334] transition-colors";
+      if (roleSelection) roleSelection.classList.remove('hidden');
+      if (authTitle) authTitle.textContent = "Create Account";
+      if (authSubtitle) authSubtitle.textContent = "Join PUTA-Monitor to track regional Sumatra airspace.";
+      if (submitBtn) submitBtn.textContent = "Register";
+    });
+  }
+
+  // Role selections click visual updates
+  const roleRadios = document.querySelectorAll('input[name="auth-role"]');
+  roleRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      roleRadios.forEach(r => {
+        const label = r.closest('label');
+        if (label) {
+          if (r.checked) {
+            label.className = "flex flex-col p-2.5 rounded-xl border border-[#4a5d3e]/40 bg-white cursor-pointer transition-all select-none ring-2 ring-[#4a5d3e]/10";
+          } else {
+            label.className = "flex flex-col p-2.5 rounded-xl border border-black/5 bg-[#f5f6f4] cursor-pointer hover:bg-white hover:border-[#4a5d3e]/40 transition-all select-none";
+          }
+        }
+      });
+    });
+  });
+
+  // Logout buttons
+  const logoutButtons = [
+    document.getElementById('btn-portal-logout'),
+    document.getElementById('btn-header-logout'),
+    document.getElementById('auth-pending-logout-btn')
+  ];
+  logoutButtons.forEach(btn => {
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        const confirmLogout = confirm("Are you sure you want to log out?");
+        if (!confirmLogout) return;
+        await window.api.logout();
+        currentUser = null;
+        await checkAuthStatus();
+      });
+    }
+  });
+
+  // Pending read-only button
+  const btnReadonly = document.getElementById('auth-pending-readonly-btn');
+  if (btnReadonly) {
+    btnReadonly.addEventListener('click', () => {
+      const gate = document.getElementById('auth-gate');
+      if (gate) {
+        gate.style.pointerEvents = 'none';
+        gate.classList.add('opacity-0');
+        setTimeout(() => gate.classList.add('hidden'), 300);
+      }
+      updateUserDisplay();
+      loadAndRenderData();
+    });
+  }
 }
+
 
 // Calculate distance in meters between two lat/lng coordinates (Haversine formula)
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -899,7 +1437,9 @@ function renderDashboard() {
   listContainer.innerHTML = '';
 
   // Clear previous workspace layers
-  Object.values(polygonLayers).forEach(layer => map.removeLayer(layer));
+  if (map) {
+    Object.values(polygonLayers).forEach(layer => map.removeLayer(layer));
+  }
   polygonLayers = {};
 
   let activeCount = 0;
@@ -940,48 +1480,50 @@ function renderDashboard() {
     let mapShape = null;
     let isFallback = false;
 
-    if (permit.coordinates && permit.coordinates.length > 0) {
-      mapShape = L.polygon(permit.coordinates, {
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.2,
-        weight: selectedPermit && selectedPermit.permit_id === permit.permit_id ? 3 : 1.5
-      });
-    } else {
-      // Fallback location lookup
-      const fallbackCoords = getCoordsFromLocation(permit.location);
-      if (fallbackCoords) {
-        isFallback = true;
-        mapShape = L.circle(fallbackCoords, {
+    if (typeof L !== 'undefined' && map) {
+      if (permit.coordinates && permit.coordinates.length > 0) {
+        mapShape = L.polygon(permit.coordinates, {
           color: color,
           fillColor: color,
-          fillOpacity: 0.15,
-          weight: selectedPermit && selectedPermit.permit_id === permit.permit_id ? 3.5 : 1.5,
-          radius: 6000 // 6 kilometers approximate radius
+          fillOpacity: 0.2,
+          weight: selectedPermit && selectedPermit.permit_id === permit.permit_id ? 3 : 1.5
         });
+      } else {
+        // Fallback location lookup
+        const fallbackCoords = getCoordsFromLocation(permit.location);
+        if (fallbackCoords) {
+          isFallback = true;
+          mapShape = L.circle(fallbackCoords, {
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.15,
+            weight: selectedPermit && selectedPermit.permit_id === permit.permit_id ? 3.5 : 1.5,
+            radius: 6000 // 6 kilometers approximate radius
+          });
+        }
       }
-    }
 
-    if (mapShape) {
-      mapShape.addTo(map);
+      if (mapShape) {
+        mapShape.addTo(map);
 
-      // Popup content
-      mapShape.bindPopup(`
-        <div class="text-xs space-y-1">
-          <div class="font-bold text-[#2a2334]">${permit.operator_name}</div>
-          <div class="text-[10px] text-gray-500 font-mono">ID: ${permit.permit_id}</div>
-          ${isFallback ? '<div class="text-[9px] text-amber-600 font-bold mt-1">Approximate Area Fallback</div>' : ''}
-          <div class="flex items-center gap-1.5 mt-1">
-            <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${color}"></span>
-            <span class="font-bold uppercase tracking-wider text-[9px]" style="color: ${color}">${status}</span>
+        // Popup content
+        mapShape.bindPopup(`
+          <div class="text-xs space-y-1">
+            <div class="font-bold text-[#2a2334]">${permit.operator_name}</div>
+            <div class="text-[10px] text-gray-500 font-mono">ID: ${permit.permit_id}</div>
+            ${isFallback ? '<div class="text-[9px] text-amber-600 font-bold mt-1">Approximate Area Fallback</div>' : ''}
+            <div class="flex items-center gap-1.5 mt-1">
+              <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${color}"></span>
+              <span class="font-bold uppercase tracking-wider text-[9px]" style="color: ${color}">${status}</span>
+            </div>
           </div>
-        </div>
-      `);
-      
-      polygonLayers[permit.permit_id] = mapShape;
-      
-      // Select permit when clicking its map shape
-      mapShape.on('click', () => selectPermitCard(permit));
+        `);
+        
+        polygonLayers[permit.permit_id] = mapShape;
+        
+        // Select permit when clicking its map shape
+        mapShape.on('click', () => selectPermitCard(permit));
+      }
     }
 
     // Append Permit Card to list
@@ -1068,7 +1610,7 @@ function selectAirport(airport) {
   renderDashboard(); // Updates dashboard list/map styles
   renderInspector();  // Fills inspector panel with airport details
   
-  if (airport) {
+  if (airport && map) {
     map.setView([airport.lat, airport.lng], 11, { animate: true, duration: 1 });
   }
 }
@@ -1114,7 +1656,7 @@ function selectPermitCard(permit) {
   // Fly to the coordinates bounds if they exist (or fallback bounds)
   if ((permit.coordinates && permit.coordinates.length > 0) || getCoordsFromLocation(permit.location)) {
     const poly = polygonLayers[permit.permit_id];
-    if (poly) {
+    if (poly && map) {
       map.fitBounds(poly.getBounds(), { padding: [50, 50], maxZoom: 12 });
       poly.openPopup();
     }
@@ -3237,6 +3779,11 @@ function initTelemetryAnalyzerMap() {
   const mapContainer = document.getElementById('telemetry-analyzer-map');
   if (!mapContainer) return;
 
+  if (typeof L === 'undefined') {
+    console.warn("Leaflet (L) library is not defined. Telemetry Analyzer map is disabled.");
+    return;
+  }
+
   if (!telemetryAnalyzerMap) {
     // Initialize Leaflet map
     telemetryAnalyzerMap = L.map('telemetry-analyzer-map').setView([-0.94, 100.35], 10);
@@ -3472,16 +4019,14 @@ window.showPortal = function() {
       
       setTimeout(() => {
         portal.classList.remove('view-transition', 'view-fade-in');
+        
+        // Defer CPU-intensive state clearing and list rendering until after portal fade-in finishes
+        selectedPermit = null;
+        selectedAirport = null;
+        renderDashboard();
+        renderInspector();
+        updatePortalStats();
       }, 300);
-      
-      // Clear selected permit or state if returning to portal
-      selectedPermit = null;
-      selectedAirport = null;
-      renderDashboard();
-      renderInspector();
-      
-      // Update portal live stats
-      updatePortalStats();
     }, 300);
   }
 };
@@ -3525,14 +4070,11 @@ window.showDashboard = function() {
       
       setTimeout(() => {
         appWorkspace.classList.remove('view-transition', 'view-fade-in');
+        // Invalidate Leaflet map size AFTER the workspace is fully visible to prevent animation stuttering
+        if (map) {
+          map.invalidateSize({ animate: false });
+        }
       }, 300);
-      
-      // Invalidate Leaflet map size to ensure tiles are loaded and centered properly
-      if (map) {
-        setTimeout(() => {
-          map.invalidateSize(true);
-        }, 50);
-      }
     }, 300);
   }
 };
@@ -3752,6 +4294,41 @@ const REGULATION_TEXTS = {
         </ul>
       </div>
     </div>
+  `,
+  pr09: `
+    <div class="space-y-4">
+      <h2 class="text-base font-bold text-gray-900 dark:text-white border-b border-black/5 dark:border-white/5 pb-2">PR 09 Tahun 2022 Summary</h2>
+      <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Official Title: <em>Petunjuk Teknis Persetujuan Pengoperasian Pesawat Udara Tanpa Awak di Ruang Udara yang Dilayani Indonesia dengan Sistem Berbasis Teknologi Informasi (SIDOPI GO)</em></p>
+      
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">1. Digital Submission Guidelines (SIDOPI GO Portal)</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Mandatory Lead Time:</strong> Flight permit applications must be submitted digitally at least <strong>14 working days</strong> prior to flight date.</li>
+          <li><strong>Approval Issuance:</strong> DGCA operating approval is issued within <strong>5 working days</strong> after AirNav airspace assessment completion and DGCA validation.</li>
+          <li><strong>Document Format:</strong> All supporting documents must be uploaded independently as scanned PDF files.</li>
+        </ul>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">2. Required Supporting Attachments (10 Mandatory Items)</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Official Application Letter (Lampiran A) & Form (Lampiran B):</strong> Complete operator identity, dates, time, purpose, and drone specs.</li>
+          <li><strong>Flight Plan & Coordinates (Lampiran C):</strong> Map, <code>.kml</code>/<code>.geojson</code> files, takeoff/landing points, and operational area polygon.</li>
+          <li><strong>Certificates & Permits:</strong> Remote Pilot Certificate, Drone Registration Certificate, and Third-Party Liability Insurance.</li>
+          <li><strong>Operational Procedures:</strong> Standard Operating Procedures (SOP), Emergency SOP, Self Safety Assessment, AirNav Airspace Assessment, and Property Owner/Authority Authorization.</li>
+        </ul>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400">3. Revisions, Modifications & Cancellations</h3>
+        <ul class="list-disc list-inside pl-2 space-y-1 font-medium text-gray-600 dark:text-gray-300">
+          <li><strong>Document Re-upload Window:</strong> If revisions are requested via SIDOPI GO, applicants have a maximum of <strong>7 days</strong> to re-upload documents before the application is automatically rejected.</li>
+          <li><strong>Flight Schedule Changes:</strong> Date/time adjustments must be submitted via Lampiran E at least <strong>7 days</strong> prior to the new flight date.</li>
+          <li><strong>Area/Altitude Modifications:</strong> Changing flight coordinates or ceiling automatically cancels the application; a fresh application must be submitted.</li>
+          <li><strong>Emergency Operations Exemption:</strong> Expedited handling applies to SAR, natural disasters, humanitarian aid, state visits, and law enforcement operations.</li>
+        </ul>
+      </div>
+    </div>
   `
 };
 
@@ -3780,7 +4357,7 @@ window.closeRegulationsLibrary = function() {
 
 window.switchRegulationTab = function(tabId) {
   // Update button styles
-  const tabs = ['pm37', 'pm63', 'kp242'];
+  const tabs = ['pm37', 'pm63', 'kp242', 'pr09'];
   tabs.forEach(t => {
     const btn = document.getElementById(`reg-tab-${t}`);
     if (btn) {
@@ -3980,6 +4557,11 @@ window.closeAdsbMonitor = function() {
 function initAdsbMap() {
   const mapContainer = document.getElementById('adsb-map');
   if (!mapContainer) return;
+
+  if (typeof L === 'undefined') {
+    console.warn("Leaflet (L) library is not defined. ADS-B Live Map is disabled.");
+    return;
+  }
 
   adsbMap = L.map('adsb-map', { zoomControl: true }).setView([-0.5, 102.0], 6);
   L.control.zoom({ position: 'bottomright' }).addTo(adsbMap);

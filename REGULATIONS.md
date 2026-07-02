@@ -15,7 +15,8 @@ These regulations form the legal framework for the airspace compliance checks an
 | **KKOP Buffer** | **5 kilometers** radius | PM 37/2020 (KKOP Zone) | Strict drone restriction zone around airports. |
 | **Visual Line of Sight** | **VLOS** / Clear view | PM 37/2020 & PM 63/2021 | Constant visual contact by the pilot/observer. |
 | **Daylight Flight** | **Sunrise to Sunset** | PM 63/2021 (CASR 107.29) | Night operations require a safety assessment. |
-| **Registration Validity** | **3 Years** | KP 242 Tahun 2019 | Renew via IMSIS DJPU portal. |
+| **Registration Validity** | **3 Years** | KP 242 Tahun 2019 | Renew via SIDOPI GO / IMSIS DJPU portal. |
+| **Flight Permit Lead Time** | **14 Working Days** | PR 09 Tahun 2022 & PM 37/2020 | Submit application via SIDOPI GO portal. |
 | **Accident Reporting** | Max **10 calendar days** | PM 63/2021 (CASR 107.9) | Report to DGCA/OTBAN if serious injury or damage. |
 
 ---
@@ -81,7 +82,7 @@ This Decree of the Director General of Civil Aviation defines the registration r
 *   **Applicability:** Applies to all drones with a gross takeoff weight (including battery and payload) **greater than 250 grams** and **less than 25 kg**.
 *   **Eligibility:** Must be owned by an Indonesian citizen (WNI) or an Indonesian legal entity.
 *   **Double Registration:** A drone cannot be registered in Indonesia if it is currently registered in another country.
-*   **Validity:** The registration certificate is valid for **3 years** and must be renewed online via IMSIS DJPU.
+*   **Validity:** The registration certificate is valid for **3 years** and must be renewed online via SIDOPI GO / IMSIS DJPU.
 
 ### 4.2 Physical Identification Markings
 Upon registration, the drone is assigned an 8-character registration mark (combination of letters and numbers). It must be displayed as follows:
@@ -95,13 +96,34 @@ Upon registration, the drone is assigned an 8-character registration mark (combi
 
 ---
 
-## 5. Audit Compliance Checklist
+## 5. PR 09 Tahun 2022 — SIDOPI GO Technical Guidelines
+
+This Decree of the Director General of Civil Aviation (ditetapkan 13 Juni 2022) provides explicit technical guidelines for operating approvals processed via the digital **SIDOPI GO** (*Sistem Informasi Drone Indonesia Operations & Pilot Licensing*) platform.
+
+### 5.1 Document Submission Requirements
+All applications must be submitted digitally via SIDOPI GO at least **14 working days** prior to the flight with the following attachments:
+1. **Official Application Letter** (Lampiran A) & **Application Form** (Lampiran B).
+2. **Flight Plan & Map/KML** (Lampiran C - takeoff/landing coordinates & polygon).
+3. **Remote Pilot Certificate** & **Drone Registration Certificate**.
+4. **Operating SOP** & **Emergency SOP**.
+5. **Self Safety Assessment** & **AirNav Airspace Assessment**.
+6. **Third-Party Liability Insurance**.
+
+### 5.2 Application Workflows & Deadlines
+*   **DGCA Approval Issuance:** Issued within **5 working days** after AirNav airspace assessment completion and DGCA validation.
+*   **Document Revision Window:** If revisions are requested, the applicant has **7 days** to re-upload documents via SIDOPI GO before the application is automatically canceled.
+*   **Flight Rescheduling:** Time changes must be submitted via Lampiran E at least **7 days** before the new flight date. Changes to area coordinates or altitude require canceling the application and submitting a fresh one.
+
+---
+
+## 6. Audit Compliance Checklist
 
 When performing audits using **PUTA-Monitor**, ensure the following documentation is uploaded and verified:
 
 1.  [ ] **Drone Registration Mark:** Check physical identification on fuselage matches the registration certificate.
 2.  [ ] **Remote Pilot Certificate:** Verify pilot license is active and currency is within the 24-month limit.
 3.  [ ] **Insurance Policy:** Verify valid third-party liability insurance is active.
-4.  [ ] **Flight Permit (DJPU Approval):** Check coordinates, altitude, and date bounds.
+4.  [ ] **Flight Permit (DJPU Approval):** Check coordinates, altitude, and date bounds issued via SIDOPI GO.
 5.  [ ] **AirNav Coordination:** Verify ATC tower log confirms flight plan submission (24 hours prior).
 6.  [ ] **Telemetry Log Audits:** Validate that maximum speed did not exceed 87 knots, altitude did not exceed the permit ceiling, and operations were confined to daylight hours within the approved coordinate bounds.
+
