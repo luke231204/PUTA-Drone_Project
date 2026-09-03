@@ -58,22 +58,27 @@ Dokumen ini disusun sebagai dokumentasi teknis komprehensif atas proses reverse 
 
 ---
 
-### Bug 3: Error `bad magic at 0x0: 43` pada Parser DJI
+### Bug 3: Error `bad magic at 0x0: 43` pada Parser DJI (Kasus Lapangan: Salah Format File dari Operator)
 * **Gejala**:
-  Ketika mengunggah file teks DJI bernama `log-2026-06-24.txt`, muncul pesan kegagalan:
+  Ketika mengunggah file teks DJI bernama `log-2026-06-24.txt` (diterima inspektur dari operator drone lapangan di Bangka), muncul pesan kegagalan:
   ```
   Parse error: no variants matched at 0x0: Info: bad magic at 0x0: 43 Version: bad magic at 0x0: 43
   ```
-* **Akar Masalah (Root Cause)**:
-  Setelah dilakukan inspeksi heksadesimal terhadap file tersebut:
-  * File tersebut berisi teks terenkode Base64 per baris: `GmcONIA9PFzHw1gpPLLPoqev3ytAH5KO3S/CJpMsylg=...`
-  * Angka heksadesimal `0x43` adalah karakter ASCII `'C'`, yang mengindikasikan bahwa file ini adalah file **internal cache log aplikasi DJI Android** (`/LOG/LOG_CACHE/`), **bukan file rekaman telemetri penerbangan resmi (*Flight Record*)**.
-  * Library parser `dji-log-parser` membutuhkan file biner asli yang memiliki struktur magic header DJI resmi.
-* **Solusi yang Diterapkan**:
-  1. Mengupdate [dji_parser.js](file:///c:/Users/Luke/Downloads/Project%20Latsar%20PUTA/dji_parser.js) dengan mekanisme *graceful error handling*.
-  2. Menampilkan panduan direktori yang jelas kepada user bahwa file rekam terbang resmi DJI bernama:
-     `DJIFlightRecord_YYYY-MM-DD_[HH-MM-SS].txt`
-     yang terletak di folder `/FlightRecord/` pada controller/smartphone.
+* **Akar Masalah (Root Cause & Analisis Forensik Folder)**:
+  1. **Inspeksi Struktur Folder Operator**:
+     Folder yang dikirimkan operator (`Pengawasan Drone PT. Timah Bangka / FlightLog / 2026_06_24`) berisi puluhan subfolder kelas internal Android seperti:
+     `BaseFpvActivity`, `BusinessLogicManager`, `CalibrationEventViewModel`, `CameraActionItemProviderFactory`, `PlatformManager`, `SplashActivity`, `TwoStageLandingController`, dan file `log-2026-06-24.log` berukuran 64 KB.
+  2. **Kesimpulan Teknis**:
+     File tersebut adalah **Android Runtime/Crash & Activity Lifecycle Debug Log** dari aplikasi **DJI Pilot 2**, **BUKAN data telemetri blackbox penerbangan resmi (*DJI Flight Record*)**.
+  3. **Struktur Heksadesimal**:
+     File tersebut berisi baris-baris terenkode Base64 (`GmcONIA9PFzHw1gpPLLPoqev3ytAH5KO3S...`). Nilai byte pertama `0x43` adalah karakter ASCII `'C'`, yang bukan merupakan *magic header binary* file rekaman terbang DJI.
+* **Solusi & Mitigasi**:
+  1. **Proteksi di Aplikasi**: Mengupdate [dji_parser.js](file:///c:/Users/Luke/Downloads/Project%20Latsar%20PUTA/dji_parser.js) agar menangkap error `bad magic` dan menampilkan notifikasi edukatif bahwa file yang dimasukkan adalah log debug aplikasi, bukan rekaman terbang.
+  2. **SOP Permintaan Log ke Operator (Edukasi Tim Inspektur)**:
+     Inspektur OTBAN Wilayah VI harus menginstruksikan operator untuk mengekstrak file resmi dari:
+     - Menu aplikasi **DJI Pilot 2**: Masuk ke **Profile** $\rightarrow$ **Flight Records** $\rightarrow$ Pilih tanggal $\rightarrow$ **Export**.
+     - Atau mengambil file biner dari direktori internal controller:
+       `Internal Storage/Android/data/dji.pilot.v2/files/FlightRecord/` (nama file: `DJIFlightRecord_YYYY-MM-DD_[HH-MM-SS].txt`). File rekam terbang resmi berukuran beberapa MB (karena mencatat GPS & status motor 10 Hz), bukan puluhan KB.
 
 ---
 
