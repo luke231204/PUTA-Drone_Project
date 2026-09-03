@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -101,8 +101,14 @@ function loadSession() {
     if (fs.existsSync(SESSION_FILE)) {
       if (safeStorage && safeStorage.isEncryptionAvailable()) {
         const encrypted = fs.readFileSync(SESSION_FILE);
-        const decrypted = safeStorage.decryptString(encrypted);
-        return JSON.parse(decrypted);
+        try {
+          const decrypted = safeStorage.decryptString(encrypted);
+          return JSON.parse(decrypted);
+        } catch (decryptErr) {
+          console.warn("[Session] Stored session belongs to a different device or encryption key changed. Clearing old session.");
+          clearSession();
+          return null;
+        }
       } else {
         const raw = fs.readFileSync(SESSION_FILE, 'utf8');
         return JSON.parse(raw);
@@ -707,7 +713,59 @@ ipcMain.handle('convert-ulg', async (event, filePath, outputDir, formats) => {
   });
 });
 
-// IPC Handler to load airport KML files
+const { parseDjiLog } = require('./dji_parser');
+
+// IPC Handler to convert & parse DJI Flight Logs (.txt)
+ipcMain.handle('convert-dji', async (event, filePath, apiKey, outputDir, formats) => {
+  return await parseDjiLog(filePath, apiKey, outputDir, formats);
+});
+
+// Universal Smart Autodetect Flight Log Parser (ULog or DJI)
+ipcMain.handle('parse-flight-log', async (event, filePath, apiKey, outputDir, formats) => {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return { success: false, error: 'File path not provided or does not exist.' };
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const baseName = path.basename(filePath).toLowerCase();
+
+    // Check if file is DJI (either .txt extension, or DJIFlightRecord name prefix)
+    if (ext === '.txt' || baseName.startsWith('djiflightrecord')) {
+      return await parseDjiLog(filePath, apiKey, outputDir, formats);
+    }
+
+    // Default to PX4 / Wingtra ULog converter
+    const { execFile } = require('child_process');
+    const pythonScript = path.join(__dirname, 'ulg_converter.py');
+    const args = [pythonScript, filePath];
+    if (outputDir) args.push(outputDir);
+    if (formats && formats.length) args.push(formats.join(','));
+
+    return new Promise((resolve) => {
+      execFile('python', args, { timeout: 120000 }, (error, stdout, stderr) => {
+        if (stderr) console.error('ULG converter stderr:', stderr);
+        if (error) {
+          console.error('ULG converter error:', error);
+          resolve({ success: false, error: stderr || error.message });
+          return;
+        }
+        try {
+          const lines = stdout.trim().split('\n');
+          const lastJson = lines.reverse().find(l => l.trim().startsWith('{'));
+          const result = JSON.parse(lastJson || stdout.trim());
+          result.drone_brand = 'PX4 / Wingtra';
+          resolve(result);
+        } catch (err) {
+          resolve({ success: false, error: 'Could not parse converter output: ' + stdout.substring(0, 500) });
+        }
+      });
+    });
+  } catch (err) {
+    return { success: false, error: err.message || String(err) };
+  }
+});
+
 ipcMain.handle('load-airport-kml', async () => {
   const airportDir = path.join(__dirname, 'Airport', 'Depati Amir');
   try {
@@ -728,3 +786,22 @@ ipcMain.handle('load-airport-kml', async () => {
   }
 });
 
+// IPC Handler for native file selection dialog (bypasses Electron webUtils file.path security issues)
+ipcMain.handle('dialog-select-file', async (event, options = {}) => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: options.filters || [{ name: 'All Files', extensions: ['*'] }],
+    title: options.title || 'Select File'
+  });
+  if (result.canceled || !result.filePaths.length) {
+    return { canceled: true };
+  }
+  const filePath = result.filePaths[0];
+  const stats = fs.statSync(filePath);
+  return {
+    canceled: false,
+    filePath: filePath,
+    name: path.basename(filePath),
+    size: stats.size
+  };
+});

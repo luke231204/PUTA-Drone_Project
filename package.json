@@ -15,5 +15,8 @@
   "license": "ISC",
   "devDependencies": {
     "electron": "^42.4.1"
+  },
+  "dependencies": {
+    "dji-log-parser-js": "^0.5.7"
   }
 }

@@ -267,7 +267,7 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
               </button>
               <button id="portal-tool-ulg" class="w-full flex items-center justify-between p-2 rounded-xl hover:bg-rose-50 text-gray-700 hover:text-rose-600 transition-all text-left font-bold border border-transparent">
-                <span class="flex items-center gap-1.5">ULG Flight Log Converter <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-500 border border-rose-200 tracking-widest uppercase scale-90">Beta</span></span>
+                <span class="flex items-center gap-1.5">ULog Flight Inspector &amp; Converter <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-500 border border-rose-200 tracking-widest uppercase scale-90">Studio</span></span>
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
               </button>
             </div>
@@ -421,7 +421,7 @@
             <span class="flex items-center gap-1.5">KML Document Converter <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 border border-amber-200 tracking-widest uppercase scale-90">Beta</span></span>
           </button>
           <button id="menu-item-ulg" class="w-full text-left px-4 py-2.5 hover:bg-rose-50 hover:text-rose-600 transition-colors flex items-center justify-between font-bold">
-            <span class="flex items-center gap-1.5">ULG Flight Log Converter <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-500 border border-rose-200 tracking-widest uppercase scale-90">Beta</span></span>
+            <span class="flex items-center gap-1.5">ULog Flight Inspector &amp; Converter <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-500 border border-rose-200 tracking-widest uppercase scale-90">Studio</span></span>
           </button>
         </div>
       </div>
@@ -799,152 +799,276 @@
     </div>
   </div>
 
-  <!-- ULG Flight Log Converter Modal -->
-  <div id="ulg-converter-modal" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-all duration-300">
-    <div class="bg-white/95 backdrop-blur-md rounded-3xl w-[600px] max-h-[88vh] shadow-2xl border border-black/5 flex flex-col scale-95 transition-all duration-300 overflow-hidden">
+  <!-- ULG Flight Inspector & Converter Studio Modal -->
+  <div id="ulg-converter-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-all duration-300 p-4">
+    <div class="bg-white rounded-3xl w-full max-w-5xl max-h-[92vh] shadow-2xl border border-black/5 flex flex-col scale-95 transition-all duration-300 overflow-hidden">
       <!-- Modal Header -->
-      <div class="p-6 border-b border-black/5 flex items-center justify-between bg-white shrink-0">
+      <div class="px-6 py-4 border-b border-black/5 flex items-center justify-between bg-white shrink-0">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
+          <div id="flight-inspector-icon-wrap" class="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 shadow-sm transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2zM12 3v6h6"/></svg>
           </div>
           <div>
-            <h2 class="text-base font-bold text-gray-900">ULG Flight Log Converter</h2>
-            <p class="text-[11px] text-gray-400 font-medium">PX4 .ulg → CSV · KML · GPX (No Airdata required)</p>
-          </div>
-        </div>
-        <button id="close-ulg-modal" type="button" class="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-full hover:bg-black/5">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="flex-1 overflow-y-auto p-6 space-y-5 bg-white">
-
-        <!-- Error alert -->
-        <div id="ulg-error-alert" class="hidden p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold"></div>
-
-        <!-- Drop Zone -->
-        <div id="ulg-drop-zone" class="border-2 border-dashed border-gray-200 hover:border-rose-400/50 bg-gray-50/50 hover:bg-rose-50/20 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all">
-          <input type="file" id="ulg-file-input" accept=".ulg" class="hidden">
-          <div class="bg-white p-3 rounded-full shadow-sm border border-black/5">
-            <svg class="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          </div>
-          <div class="text-center space-y-1">
-            <p class="text-gray-700 font-bold text-sm">Drag &amp; drop .ulg file here, or click to browse</p>
-            <p class="text-[10px] text-gray-400 font-medium">Supports PX4 ULog v1 and v2 (WingtraOne, Pixhawk, Cube)</p>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-[#2a2334]">Universal Flight Inspector Studio</h2>
+              <span id="flight-inspector-badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">Universal Core</span>
+            </div>
+            <p id="flight-inspector-subtitle" class="text-[11px] text-gray-400 font-medium">Auto-detects PX4 (.ulg) &bull; DJI (.txt encrypted) &bull; AGL vs AMSL &bull; Compliance audit</p>
           </div>
         </div>
 
-        <!-- Format Selector -->
-        <div id="ulg-format-picker" class="hidden space-y-2">
-          <div class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Output Formats</div>
-          <div class="flex gap-3">
-            <label class="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" id="ulg-fmt-csv" checked class="w-4 h-4 rounded text-rose-500 accent-rose-500">
-              <span class="text-xs font-bold text-gray-700">CSV <span class="text-gray-400 font-medium">(Airdata-compatible)</span></span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" id="ulg-fmt-kml" checked class="w-4 h-4 rounded text-rose-500 accent-rose-500">
-              <span class="text-xs font-bold text-gray-700">KML <span class="text-gray-400 font-medium">(Google Earth)</span></span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" id="ulg-fmt-gpx" checked class="w-4 h-4 rounded text-rose-500 accent-rose-500">
-              <span class="text-xs font-bold text-gray-700">GPX <span class="text-gray-400 font-medium">(GPS track)</span></span>
-            </label>
+        <div class="flex items-center gap-3">
+          <!-- Autopilot Brand Selector Tabs -->
+          <div class="flex items-center gap-1 bg-black/5 p-1 rounded-2xl text-xs font-bold">
+            <button type="button" id="flight-tab-auto" onclick="setFlightInspectorMode('auto')" class="px-3 py-1 rounded-xl bg-white text-gray-800 shadow-xs transition-all">⚡ Auto-Detect</button>
+            <button type="button" id="flight-tab-px4" onclick="setFlightInspectorMode('px4')" class="px-3 py-1 rounded-xl text-gray-500 hover:text-gray-800 transition-all">PX4 / Wingtra</button>
+            <button type="button" id="flight-tab-dji" onclick="setFlightInspectorMode('dji')" class="px-3 py-1 rounded-xl text-gray-500 hover:text-gray-800 transition-all">DJI Drone</button>
           </div>
-        </div>
 
-        <!-- Selected file info -->
-        <div id="ulg-file-info" class="hidden border border-rose-100 bg-rose-50/30 rounded-2xl p-4 flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-500 shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          </div>
-          <div class="flex-1 min-w-0">
-            <p id="ulg-file-name" class="text-xs font-bold text-gray-800 truncate">—</p>
-            <p id="ulg-file-size" class="text-[10px] text-gray-400 font-medium">—</p>
-          </div>
-          <button id="ulg-clear-file" class="text-gray-300 hover:text-red-400 transition-colors">
+          <!-- DJI API Key Settings Quick Trigger -->
+          <button type="button" id="btn-toggle-dji-key" onclick="toggleDjiApiKeyInput()" class="p-2 rounded-xl border border-black/5 hover:bg-black/5 text-gray-500 transition-all" title="DJI API Key Settings">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+          </button>
+
+          <button id="close-ulg-modal" type="button" class="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center text-gray-500 transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
+      </div>
 
-        <!-- Processing loader -->
-        <div id="ulg-loader" class="hidden flex flex-col items-center justify-center p-8 text-center text-gray-500 gap-3 border border-black/5 rounded-2xl bg-rose-50/10">
-          <span class="animate-spin rounded-full h-9 w-9 border-2 border-rose-500 border-t-transparent"></span>
-          <div class="space-y-1">
-            <p class="text-sm font-bold text-gray-700">Converting flight log...</p>
-            <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Large files may take 30–60 seconds</p>
+      <!-- Modal Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6 bg-[#fcfdfc]">
+
+        <!-- DJI API Key Settings Bar (Collapsible) -->
+        <div id="dji-api-key-panel" class="hidden p-4 rounded-2xl bg-blue-50/70 border border-blue-200 space-y-2.5 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              DJI Developer Decryption Key (Open API)
+            </span>
+            <span class="text-[10px] text-blue-700 font-medium">Required for v13+ Encrypted Logs (AES)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="password" id="dji-api-key-input" value="07dadcba863fab453c6b46999a38eea" placeholder="Enter DJI Open API Key..." class="flex-1 px-3.5 py-2 text-xs font-mono bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-800">
+            <button type="button" onclick="saveDjiApiKey()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm">Save Key</button>
+          </div>
+          <p class="text-[10px] text-blue-600/80">Keys are cached locally to automatically decrypt previously loaded DJI logs 100% offline.</p>
+        </div>
+
+        <!-- Error alert -->
+        <div id="ulg-error-alert" class="hidden p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <span id="ulg-error-text"></span>
+        </div>
+
+        <!-- Drop Zone (Initial State) -->
+        <div id="ulg-drop-zone" class="border-2 border-dashed border-gray-200 hover:border-rose-400/60 bg-white hover:bg-rose-50/20 rounded-3xl p-10 flex flex-col items-center justify-center gap-3.5 cursor-pointer transition-all shadow-sm">
+          <input type="file" id="ulg-file-input" accept=".ulg,.txt,.dat" class="hidden">
+          <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center shadow-inner">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          </div>
+          <div class="text-center space-y-1">
+            <p id="ulg-drop-title" class="text-gray-800 font-bold text-sm">Drop flight log (<span class="text-rose-600 font-mono">.ulg</span> or <span class="text-blue-600 font-mono">DJIFlightRecord*.txt</span>) here</p>
+            <p id="ulg-drop-desc" class="text-[11px] text-gray-400 font-medium">Smart auto-detects autopilot &bull; Syncs AGL, AMSL, Velocity &amp; Battery &bull; KKOP &amp; 400ft Safety Audit</p>
           </div>
         </div>
 
-        <!-- Results panel -->
-        <div id="ulg-results" class="hidden space-y-4">
-          <!-- Stats grid -->
-          <div class="grid grid-cols-3 gap-3">
-            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
-              <div class="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider">Track Points</div>
-              <div id="ulg-stat-points" class="text-xl font-black text-emerald-700 mt-1">—</div>
+        <!-- Selected file banner (Active State) -->
+        <div id="ulg-file-info" class="hidden border border-black/5 bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="w-10 h-10 rounded-xl bg-rose-100/60 text-rose-600 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             </div>
-            <div class="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-center">
-              <div class="text-[9px] font-extrabold text-sky-600 uppercase tracking-wider">Max Altitude</div>
-              <div id="ulg-stat-alt" class="text-xl font-black text-sky-700 mt-1">—</div>
+            <div class="min-w-0">
+              <p id="ulg-file-name" class="text-xs font-bold text-gray-800 truncate">—</p>
+              <p id="ulg-file-size" class="text-[10px] text-gray-400 font-medium mt-0.5">—</p>
             </div>
-            <div class="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center">
-              <div class="text-[9px] font-extrabold text-violet-600 uppercase tracking-wider">Duration</div>
-              <div id="ulg-stat-duration" class="text-xl font-black text-violet-700 mt-1">—</div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button id="ulg-reupload-btn" class="px-3 py-1.5 rounded-xl border border-black/5 text-gray-600 hover:bg-black/5 text-[11px] font-bold transition-all">Change File</button>
+            <button id="ulg-clear-file" class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Remove log file">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Processing loader -->
+        <div id="ulg-loader" class="hidden flex flex-col items-center justify-center py-12 text-center text-gray-500 gap-3 border border-black/5 rounded-3xl bg-white shadow-sm">
+          <span class="animate-spin rounded-full h-10 w-10 border-2 border-rose-500 border-t-transparent"></span>
+          <div class="space-y-1">
+            <p class="text-sm font-bold text-gray-800">Processing ULog Telemetry Streams...</p>
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Unpacking GPS, Battery, Orientation &amp; Flight Phases</p>
+          </div>
+        </div>
+
+        <!-- Interactive Inspector Results View (Hidden until parsed) -->
+        <div id="ulg-results" class="hidden space-y-6">
+
+          <!-- Row 1: Key Telemetry Metric Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <!-- Max AGL Altitude -->
+            <div class="bg-white border border-black/5 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+              <div class="text-[9px] uppercase font-bold text-emerald-600 tracking-wider">Max Altitude (AGL)</div>
+              <div id="ulg-stat-agl" class="text-2xl font-black text-gray-800 mt-1.5">—</div>
+              <div id="ulg-stat-agl-sub" class="text-[10px] text-gray-400 font-semibold mt-0.5">Above Launch Pad</div>
+              <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[8px] font-bold border border-emerald-100">Ceiling Focus</div>
+            </div>
+
+            <!-- Max AMSL Altitude -->
+            <div class="bg-white border border-black/5 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+              <div class="text-[9px] uppercase font-bold text-sky-600 tracking-wider">Max Altitude (AMSL)</div>
+              <div id="ulg-stat-amsl" class="text-2xl font-black text-gray-800 mt-1.5">—</div>
+              <div id="ulg-stat-amsl-sub" class="text-[10px] text-gray-400 font-semibold mt-0.5">Above Sea Level</div>
+              <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-sky-50 text-sky-600 text-[8px] font-bold border border-sky-100">Airspace Alt</div>
+            </div>
+
+            <!-- Max Speed -->
+            <div class="bg-white border border-black/5 rounded-2xl p-4 shadow-sm">
+              <div class="text-[9px] uppercase font-bold text-orange-600 tracking-wider">Max Velocity</div>
+              <div id="ulg-stat-speed" class="text-2xl font-black text-gray-800 mt-1.5">—</div>
+              <div id="ulg-stat-speed-sub" class="text-[10px] text-gray-400 font-semibold mt-0.5">Ground Speed</div>
+            </div>
+
+            <!-- Duration & Points -->
+            <div class="bg-white border border-black/5 rounded-2xl p-4 shadow-sm">
+              <div class="text-[9px] uppercase font-bold text-indigo-600 tracking-wider">Flight Duration</div>
+              <div id="ulg-stat-duration" class="text-2xl font-black text-gray-800 mt-1.5">—</div>
+              <div id="ulg-stat-points-sub" class="text-[10px] text-gray-400 font-semibold mt-0.5">Total Points: —</div>
             </div>
           </div>
 
-          <!-- GPS info -->
-          <div class="bg-gray-50 border border-black/5 rounded-2xl p-4 space-y-2 text-xs">
-            <div class="flex justify-between">
-              <span class="text-gray-400 font-bold">GPS Topic</span>
-              <span id="ulg-stat-topic" class="font-mono font-bold text-gray-700">—</span>
+          <!-- Row 2: Aviation Compliance Banner (OTBAN VI Audit Scorecard) -->
+          <div id="ulg-compliance-card" class="rounded-2xl p-4 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm bg-emerald-50/50 border-emerald-200">
+            <div class="flex items-center gap-3">
+              <div id="ulg-compliance-icon" class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div>
+                <h4 id="ulg-compliance-title" class="text-xs font-bold text-gray-800">Airspace Safety Audit Passed</h4>
+                <p id="ulg-compliance-desc" class="text-[11px] text-gray-500 font-medium">Flight remained within the mandatory 400 ft AGL ceiling and CASR Part 107 speed bounds.</p>
+              </div>
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-400 font-bold">Center Coordinates</span>
-              <span id="ulg-stat-coords" class="font-mono font-bold text-gray-700">—</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-400 font-bold">Max Speed</span>
-              <span id="ulg-stat-speed" class="font-bold text-gray-700">—</span>
+            <div id="ulg-compliance-badges" class="flex gap-2">
+              <span id="ulg-badge-ceiling" class="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-100 text-emerald-700">Ceiling OK (&le;400ft AGL)</span>
+              <span id="ulg-badge-speed" class="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-100 text-emerald-700">Speed OK (&le;87kts)</span>
             </div>
           </div>
 
-          <!-- Download buttons -->
-          <div class="space-y-1.5">
-            <div class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Download Outputs</div>
-            <div class="flex flex-wrap gap-2">
-              <button id="ulg-dl-csv" class="hidden px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Download CSV
+          <!-- Row 3: Interactive Visualization Studio (Chart + Map) -->
+          <div class="bg-white border border-black/5 rounded-3xl p-5 shadow-sm space-y-4">
+            <!-- Studio Tab Switcher -->
+            <div class="flex items-center justify-between border-b border-black/5 pb-3">
+              <div class="flex flex-wrap gap-2 text-xs font-bold">
+                <button id="ulg-tab-combined" onclick="switchUlgStudioTab('combined')" class="px-3.5 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-100 transition-all">Combined Profile</button>
+                <button id="ulg-tab-agl" onclick="switchUlgStudioTab('agl')" class="px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 transition-all">Altitude AGL</button>
+                <button id="ulg-tab-amsl" onclick="switchUlgStudioTab('amsl')" class="px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 transition-all">Altitude AMSL</button>
+                <button id="ulg-tab-speed" onclick="switchUlgStudioTab('speed')" class="px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 transition-all">Velocity</button>
+                <button id="ulg-tab-battery" onclick="switchUlgStudioTab('battery')" class="px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 transition-all">Battery Health</button>
+                <button id="ulg-tab-map" onclick="switchUlgStudioTab('map')" class="px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 transition-all">Flight Route Map</button>
+              </div>
+
+              <!-- Ceilings & Settings Toggle -->
+              <div class="flex items-center gap-3 select-none text-[11px] font-bold text-gray-500">
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="ulg-toggle-ceiling-line" checked onchange="handleUlgChartRedraw()" class="w-3.5 h-3.5 text-rose-600 rounded accent-rose-500">
+                  <span>Show 400ft Cap (AGL)</span>
+                </label>
+
+                <!-- Map Settings Toolbar (Layer, Color Picker & Weight) -->
+                <div id="ulg-map-toolbar" class="hidden flex items-center gap-2.5">
+                  <!-- Street / Satellite Layer -->
+                  <div class="flex items-center gap-1 bg-black/5 p-0.5 rounded-lg text-[10px]">
+                    <button type="button" id="ulg-map-btn-osm" onclick="setUlgMapLayer('osm')" class="px-2 py-0.5 rounded-md font-bold bg-white text-gray-800 shadow-xs">Street</button>
+                    <button type="button" id="ulg-map-btn-sat" onclick="setUlgMapLayer('sat')" class="px-2 py-0.5 rounded-md font-bold text-gray-500 hover:text-gray-800">Satellite</button>
+                  </div>
+
+                  <!-- Color Presets & Picker -->
+                  <div class="flex items-center gap-1.5 bg-black/5 px-2 py-1 rounded-lg">
+                    <span class="text-[10px] font-bold text-gray-500">Color:</span>
+                    <!-- Quick Swatches -->
+                    <button type="button" onclick="setUlgRouteColor('#ffff00')" class="w-3.5 h-3.5 rounded-full bg-[#ffff00] border border-black/20 hover:scale-125 transition-transform" title="Google Earth Yellow"></button>
+                    <button type="button" onclick="setUlgRouteColor('#e11d48')" class="w-3.5 h-3.5 rounded-full bg-[#e11d48] border border-black/10 hover:scale-125 transition-transform" title="Ruby Rose"></button>
+                    <button type="button" onclick="setUlgRouteColor('#06b6d4')" class="w-3.5 h-3.5 rounded-full bg-[#06b6d4] border border-black/10 hover:scale-125 transition-transform" title="Cyan"></button>
+                    <button type="button" onclick="setUlgRouteColor('#10b981')" class="w-3.5 h-3.5 rounded-full bg-[#10b981] border border-black/10 hover:scale-125 transition-transform" title="Emerald Green"></button>
+                    <button type="button" onclick="setUlgRouteColor('#a855f7')" class="w-3.5 h-3.5 rounded-full bg-[#a855f7] border border-black/10 hover:scale-125 transition-transform" title="Purple"></button>
+                    
+                    <!-- Native Color Input -->
+                    <label class="relative cursor-pointer flex items-center ml-0.5" title="Custom Color Palette">
+                      <input type="color" id="ulg-route-color-picker" value="#ffff00" onchange="setUlgRouteColor(this.value)" class="w-4 h-4 rounded-full border border-black/20 cursor-pointer p-0 bg-transparent">
+                    </label>
+                  </div>
+
+                  <!-- Thickness Selector -->
+                  <div class="flex items-center gap-1.5 bg-black/5 px-2 py-1 rounded-lg">
+                    <span class="text-[10px] font-bold text-gray-500">Width:</span>
+                    <select id="ulg-route-weight-select" onchange="setUlgRouteWeight(this.value)" class="text-[10px] font-bold bg-transparent border-0 focus:outline-none cursor-pointer text-gray-700">
+                      <option value="1.5">Thin (1.5px)</option>
+                      <option value="2.8" selected>Medium (2.8px)</option>
+                      <option value="4.0">Bold (4.0px)</option>
+                      <option value="6.0">Heavy (6.0px)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="relative h-[380px] w-full">
+              <!-- Chart.js canvas -->
+              <div id="ulg-chart-wrapper" class="w-full h-full">
+                <canvas id="ulg-chart-canvas"></canvas>
+              </div>
+              <!-- Embedded Flight Path Leaflet Map -->
+              <div id="ulg-map-wrapper" class="w-full h-full rounded-2xl overflow-hidden border border-black/5 hidden">
+                <div id="ulg-leaflet-map" class="w-full h-full"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 4: Format Conversion & Export Center -->
+          <div class="bg-gray-50/70 border border-black/5 rounded-3xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-xs font-bold text-gray-800">Export &amp; Conversion Center</h4>
+                <p class="text-[10px] text-gray-400 font-medium">Export this inspected flight log into standardized formats</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-600 cursor-pointer">
+                  <input type="checkbox" id="ulg-opt-csv" checked class="w-3.5 h-3.5 rounded text-rose-500 accent-rose-500">
+                  <span>CSV (Airdata)</span>
+                </label>
+                <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-600 cursor-pointer">
+                  <input type="checkbox" id="ulg-opt-kml" checked class="w-3.5 h-3.5 rounded text-rose-500 accent-rose-500">
+                  <span>KML (Google Earth)</span>
+                </label>
+                <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-600 cursor-pointer">
+                  <input type="checkbox" id="ulg-opt-gpx" checked class="w-3.5 h-3.5 rounded text-rose-500 accent-rose-500">
+                  <span>GPX (Track)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 pt-1">
+              <button id="ulg-btn-export-files" onclick="ulgRunExportFiles()" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-all shadow-md shadow-rose-600/10 active:scale-95 flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Generate &amp; Save Selected Formats
               </button>
-              <button id="ulg-dl-kml" class="hidden px-4 py-2 rounded-xl bg-[#4a5d3e] hover:bg-[#2c3b26] text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Download KML
-              </button>
-              <button id="ulg-dl-gpx" class="hidden px-4 py-2 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Download GPX
-              </button>
-              <button id="ulg-load-on-map" class="hidden px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"/></svg>
-                View on Map
+
+              <button id="ulg-btn-open-folder" onclick="ulgOpenExportFolder()" class="hidden px-4 py-2.5 rounded-xl border border-black/5 bg-white text-gray-700 hover:bg-gray-100 font-bold text-xs transition-all flex items-center gap-1.5 shadow-sm">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"/></svg>
+                Show in File Explorer
               </button>
             </div>
           </div>
+
         </div>
 
       </div><!-- /modal body -->
 
       <!-- Modal Footer -->
-      <div class="p-5 border-t border-black/5 flex items-center justify-between bg-gray-50/50 shrink-0">
-        <span class="text-[10px] text-gray-400 font-medium">Supports PX4, WingtraOne, Pixhawk, Cube flight controllers</span>
-        <div class="flex gap-2">
-          <button id="ulg-cancel-btn" type="button" class="px-4 py-2 rounded-xl hover:bg-black/5 border border-transparent text-gray-600 font-bold transition-all text-xs">Close</button>
-          <button id="ulg-convert-btn" type="button" disabled class="px-5 py-2 rounded-xl bg-[#e8eee5] text-gray-400 font-bold cursor-not-allowed transition-all text-xs">Convert</button>
-        </div>
+      <div class="px-6 py-4 border-t border-black/5 flex items-center justify-between bg-white shrink-0">
+        <span class="text-[10px] text-gray-400 font-medium">Equipped for PX4 Autopilot &bull; WingtraOne &bull; Pixhawk &bull; Cube</span>
+        <button id="ulg-cancel-btn" type="button" class="px-5 py-2 rounded-xl hover:bg-black/5 border border-transparent text-gray-600 font-bold transition-all text-xs">Close Inspector</button>
       </div>
     </div>
   </div>

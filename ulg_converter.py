@@ -690,15 +690,63 @@ def convert_ulg(input_path, output_dir=None, formats_out=None):
         except Exception as e:
             errors.append(f'GPX: {e}')
 
+    # Calculate exact AGL & AMSL metrics
+    agls_ft = [p['height_above_takeoff_ft'] for p in track]
+    amsls_ft = [p['altitude_above_seaLevel_ft'] for p in track]
+    takeoff_amsl_ft = track[0]['altitude_above_seaLevel_ft']
+    max_agl_ft = max(agls_ft)
+    max_amsl_ft = max(amsls_ft)
+    min_amsl_ft = min(amsls_ft)
+
+    # Downsample time-series for smooth UI rendering (max 250 points)
+    step = max(1, len(track) // 250)
+    preview_points = []
+    for p in track[::step]:
+        preview_points.append({
+            'time_min': round(p['time_ms'] / 60000.0, 2),
+            'agl_ft': round(p['height_above_takeoff_ft'], 1),
+            'amsl_ft': round(p['altitude_above_seaLevel_ft'], 1),
+            'speed_knots': round(p['speed_knots'], 1),
+            'speed_mph': round(p['speed_mph'], 1),
+            'battery_pct': round(p['battery_percent'], 1),
+            'voltage_v': round(p['voltage_v'], 2),
+            'lat': p['lat'],
+            'lon': p['lon'],
+            'heading': round(p['compass_heading'], 1)
+        })
+
+    # Aviation Compliance Auditing (CASR Part 107 / PM 37)
+    breach_400ft = max_agl_ft > 400.0
+    speed_exceeded_87kts = max(p['speed_knots'] for p in track) > 87.0
+    
+    compliance = {
+        'ceiling_limit_ft': 400.0,
+        'max_agl_ft': round(max_agl_ft, 1),
+        'ceiling_breach': breach_400ft,
+        'speed_limit_knots': 87.0,
+        'max_speed_knots': round(max(p['speed_knots'] for p in track), 1),
+        'speed_breach': speed_exceeded_87kts,
+        'takeoff_amsl_ft': round(takeoff_amsl_ft, 1),
+        'takeoff_amsl_m': round(takeoff_amsl_ft / 3.28084, 1),
+        'min_battery_pct': round(min(p['battery_percent'] for p in track), 1) if any(p['battery_percent'] > 0 for p in track) else None,
+        'min_voltage_v': round(min(p['voltage_v'] for p in track), 2) if any(p['voltage_v'] > 0 for p in track) else None,
+    }
+
     return {
         'success': True,
         'ulog_version': version,
         'gps_topic': gps_topic,
         'track_points': len(track),
         'duration_sec': round(dur, 1),
-        'max_altitude_m': round(max(alts), 2),
-        'max_altitude_ft': round(max(alts) * 3.28084, 2),
-        'min_altitude_m': round(min(alts), 2),
+        'takeoff_amsl_ft': round(takeoff_amsl_ft, 1),
+        'takeoff_amsl_m': round(takeoff_amsl_ft / 3.28084, 1),
+        'max_agl_ft': round(max_agl_ft, 1),
+        'max_agl_m': round(max_agl_ft / 3.28084, 1),
+        'max_amsl_ft': round(max_amsl_ft, 1),
+        'max_amsl_m': round(max_amsl_ft / 3.28084, 1),
+        'min_amsl_ft': round(min_amsl_ft, 1),
+        'max_altitude_m': round(max_amsl_ft / 3.28084, 2),
+        'max_altitude_ft': round(max_amsl_ft, 2),
         'max_speed_ms': round(max(speeds), 2),
         'max_speed_kmh': round(max(speeds) * 3.6, 2),
         'max_speed_knots': round(max(speeds) * 1.943844, 2),
@@ -708,6 +756,9 @@ def convert_ulg(input_path, output_dir=None, formats_out=None):
         'center_lon': round(sum(lons)/len(lons), 6),
         'start_lat': track[0]['lat'],
         'start_lon': track[0]['lon'],
+        'compliance': compliance,
+        'preview_points': preview_points,
+        'map_points': [[p['lat'], p['lon']] for p in track],
         'outputs': outputs,
         'errors': errors,
     }

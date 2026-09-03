@@ -23,3 +23,4 @@ data/Cred.env
 data/session.json
 
 data/.electron-userdata/
+data/dji_keychains/

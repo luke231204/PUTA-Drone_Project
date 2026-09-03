@@ -830,18 +830,17 @@ function initMap() {
   // Add zoom control at bottom right
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-  // Load sleek light theme map tiles from CartoDB Positron
-  streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 20
+  // Load sleek street theme map tiles from OpenStreetMap
+  streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
   });
 
-  // Load sleek dark theme map tiles from CartoDB Dark Matter
-  darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 20
+  // Load dark theme map tiles from Carto Dark Matter without subdomains / with OpenStreetMap fallback
+  darkLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+    className: 'dark-map-tiles'
   });
 
   // Load satellite tiles
@@ -3787,14 +3786,9 @@ function initTelemetryAnalyzerMap() {
   if (!telemetryAnalyzerMap) {
     // Initialize Leaflet map
     telemetryAnalyzerMap = L.map('telemetry-analyzer-map').setView([-0.94, 100.35], 10);
-    const isDark = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
-    const tileUrl = isDark 
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' 
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    telemetryMapTileLayer = L.tileLayer(tileUrl, {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 20
+    telemetryMapTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
     }).addTo(telemetryAnalyzerMap);
   }
 
@@ -3971,13 +3965,9 @@ function toggleDarkMode() {
   // Update lazy-loaded telemetry analyzer map tiles if initialized
   if (telemetryAnalyzerMap && telemetryMapTileLayer) {
     telemetryAnalyzerMap.removeLayer(telemetryMapTileLayer);
-    const tileUrl = isDark 
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' 
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    telemetryMapTileLayer = L.tileLayer(tileUrl, {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 20
+    telemetryMapTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
     }).addTo(telemetryAnalyzerMap);
   }
 
@@ -4141,7 +4131,11 @@ window.processConverterFile = async function(file) {
     showToast(`Converting ${file.name} to KML...`, "info");
     
     // Call Electron main process handler via contextBridge
-    const res = await window.api.convertToKml(file.path);
+    const filePath = (window.api && window.api.getPathForFile) ? window.api.getPathForFile(file) : (file.path || '');
+    if (!filePath) {
+      throw new Error("Cannot determine file system path for document.");
+    }
+    const res = await window.api.convertToKml(filePath);
     
     loader.classList.add('hidden');
     stopLogoProcessing();
@@ -4567,13 +4561,8 @@ function initAdsbMap() {
   L.control.zoom({ position: 'bottomright' }).addTo(adsbMap);
 
   const isDark = document.body.classList.contains('dark');
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-
-  adsbMapTile = L.tileLayer(tileUrl, {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd',
+  adsbMapTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 18
   }).addTo(adsbMap);
 
@@ -5031,6 +5020,71 @@ window.selectAdsbFlight = function(icao) {
 // ============================================================================
 let ulgCurrentFilePath = null;
 let ulgLastResult = null;
+let ulgChartInstance = null;
+let ulgLeafletMapInstance = null;
+let ulgPolylineLayer = null;
+let ulgActiveTab = 'combined';
+let ulgOsmLayer = null;
+let ulgSatLayer = null;
+let ulgCurrentMapLayer = 'osm';
+let ulgRouteColor = '#ffff00';
+let ulgRouteWeight = 2.8;
+let flightInspectorMode = 'auto'; // 'auto' | 'px4' | 'dji'
+let djiApiKey = '07dadcba863fab453c6b46999a38eea';
+
+function setFlightInspectorMode(mode) {
+  flightInspectorMode = mode;
+  const tabs = ['auto', 'px4', 'dji'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`flight-tab-${t}`);
+    if (btn) {
+      if (t === mode) {
+        btn.className = "px-3 py-1 rounded-xl bg-white text-gray-800 shadow-xs transition-all font-bold";
+      } else {
+        btn.className = "px-3 py-1 rounded-xl text-gray-500 hover:text-gray-800 transition-all font-bold";
+      }
+    }
+  });
+
+  const dropTitle = document.getElementById('ulg-drop-title');
+  const dropDesc = document.getElementById('ulg-drop-desc');
+  const fileInput = document.getElementById('ulg-file-input');
+
+  if (mode === 'dji') {
+    if (dropTitle) dropTitle.innerHTML = 'Drop DJI flight log (<span class="text-blue-600 font-mono">DJIFlightRecord*.txt</span>) here';
+    if (dropDesc) dropDesc.textContent = 'Supports AES-encrypted v13+ & plaintext v1-v12 logs with offline keychain caching';
+    if (fileInput) fileInput.accept = '.txt,.dat';
+    const keyPanel = document.getElementById('dji-api-key-panel');
+    if (keyPanel) keyPanel.classList.remove('hidden');
+  } else if (mode === 'px4') {
+    if (dropTitle) dropTitle.innerHTML = 'Drop PX4 / Wingtra flight log (<span class="text-rose-600 font-mono">.ulg</span>) here';
+    if (dropDesc) dropDesc.textContent = 'Synchronizes AGL, AMSL, Airspeed, Battery, Orientation & EKF telemetry topics';
+    if (fileInput) fileInput.accept = '.ulg';
+    const keyPanel = document.getElementById('dji-api-key-panel');
+    if (keyPanel) keyPanel.classList.add('hidden');
+  } else {
+    if (dropTitle) dropTitle.innerHTML = 'Drop flight log (<span class="text-rose-600 font-mono">.ulg</span> or <span class="text-blue-600 font-mono">DJIFlightRecord*.txt</span>) here';
+    if (dropDesc) dropDesc.textContent = 'Smart auto-detects autopilot · Syncs AGL, AMSL, Velocity & Battery · KKOP & 400ft Safety Audit';
+    if (fileInput) fileInput.accept = '.ulg,.txt,.dat';
+    const keyPanel = document.getElementById('dji-api-key-panel');
+    if (keyPanel) keyPanel.classList.add('hidden');
+  }
+}
+
+function toggleDjiApiKeyInput() {
+  const panel = document.getElementById('dji-api-key-panel');
+  if (panel) {
+    panel.classList.toggle('hidden');
+  }
+}
+
+function saveDjiApiKey() {
+  const input = document.getElementById('dji-api-key-input');
+  if (input && input.value.trim()) {
+    djiApiKey = input.value.trim();
+    showToast('DJI Developer API Key saved successfully!', 'success');
+  }
+}
 
 function openUlgConverterModal() {
   const modal = document.getElementById('ulg-converter-modal');
@@ -5038,10 +5092,10 @@ function openUlgConverterModal() {
   modal.classList.remove('hidden');
   requestAnimationFrame(() => {
     modal.classList.remove('opacity-0');
-    modal.querySelector('.scale-95').classList.remove('scale-95');
+    const inner = modal.querySelector('div');
+    if (inner) inner.classList.remove('scale-95');
   });
   ulgResetState();
-  // Re-attach listeners every time (safe since we do it inside the function)
   setupUlgModalListeners();
 }
 
@@ -5049,25 +5103,50 @@ function closeUlgConverterModal() {
   const modal = document.getElementById('ulg-converter-modal');
   if (!modal) return;
   modal.classList.add('opacity-0');
-  modal.querySelector('div').classList.add('scale-95');
-  setTimeout(() => modal.classList.add('hidden'), 300);
+  const inner = modal.querySelector('div');
+  if (inner) inner.classList.add('scale-95');
+  setTimeout(() => {
+    modal.classList.add('hidden');
+    if (ulgChartInstance) {
+      ulgChartInstance.destroy();
+      ulgChartInstance = null;
+    }
+    if (ulgLeafletMapInstance) {
+      ulgLeafletMapInstance.remove();
+      ulgLeafletMapInstance = null;
+    }
+  }, 300);
 }
 
 function ulgResetState() {
   ulgCurrentFilePath = null;
   ulgLastResult = null;
-  document.getElementById('ulg-file-info').classList.add('hidden');
-  document.getElementById('ulg-file-name').textContent = '—';
-  document.getElementById('ulg-file-size').textContent = '—';
-  document.getElementById('ulg-format-picker').classList.add('hidden');
-  document.getElementById('ulg-loader').classList.add('hidden');
-  document.getElementById('ulg-results').classList.add('hidden');
-  document.getElementById('ulg-error-alert').classList.add('hidden');
-  document.getElementById('ulg-drop-zone').classList.remove('hidden');
-  const convertBtn = document.getElementById('ulg-convert-btn');
-  convertBtn.disabled = true;
-  convertBtn.className = 'px-5 py-2 rounded-xl bg-[#e8eee5] text-gray-400 font-bold cursor-not-allowed transition-all text-xs';
-  convertBtn.textContent = 'Convert';
+  ulgActiveTab = 'combined';
+  if (ulgChartInstance) {
+    ulgChartInstance.destroy();
+    ulgChartInstance = null;
+  }
+  if (ulgLeafletMapInstance) {
+    ulgLeafletMapInstance.remove();
+    ulgLeafletMapInstance = null;
+  }
+  const fileInfo = document.getElementById('ulg-file-info');
+  if (fileInfo) fileInfo.classList.add('hidden');
+  const loader = document.getElementById('ulg-loader');
+  if (loader) loader.classList.add('hidden');
+  const results = document.getElementById('ulg-results');
+  if (results) results.classList.add('hidden');
+  const errAlert = document.getElementById('ulg-error-alert');
+  if (errAlert) errAlert.classList.add('hidden');
+  const dropZone = document.getElementById('ulg-drop-zone');
+  if (dropZone) dropZone.classList.remove('hidden');
+
+  // Reset badges
+  const badge = document.getElementById('flight-inspector-badge');
+  if (badge) {
+    badge.className = 'text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider';
+    badge.textContent = 'Universal Core';
+  }
 }
 
 function setupUlgModalListeners() {
@@ -5075,159 +5154,643 @@ function setupUlgModalListeners() {
   if (!modal || modal._ulgListenersAttached) return;
   modal._ulgListenersAttached = true;
 
-  // Close buttons
-  document.getElementById('close-ulg-modal').onclick = closeUlgConverterModal;
-  document.getElementById('ulg-cancel-btn').onclick = closeUlgConverterModal;
+  const closeBtn = document.getElementById('close-ulg-modal');
+  if (closeBtn) closeBtn.onclick = closeUlgConverterModal;
+  const cancelBtn = document.getElementById('ulg-cancel-btn');
+  if (cancelBtn) cancelBtn.onclick = closeUlgConverterModal;
   modal.addEventListener('click', (e) => { if (e.target === modal) closeUlgConverterModal(); });
 
-  // Clear file
-  document.getElementById('ulg-clear-file').onclick = ulgResetState;
+  const clearBtn = document.getElementById('ulg-clear-file');
+  if (clearBtn) clearBtn.onclick = ulgResetState;
 
-  // Drop zone & file input
   const dropZone = document.getElementById('ulg-drop-zone');
   const fileInput = document.getElementById('ulg-file-input');
-  dropZone.onclick = () => fileInput.click();
-  fileInput.onchange = (e) => { if (e.target.files[0]) ulgSetFile(e.target.files[0]); };
-  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-rose-400', 'bg-rose-50/40'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-rose-400', 'bg-rose-50/40'));
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('border-rose-400', 'bg-rose-50/40');
-    if (e.dataTransfer.files[0]) ulgSetFile(e.dataTransfer.files[0]);
-  });
 
-  // Convert button
-  document.getElementById('ulg-convert-btn').onclick = ulgRunConversion;
+  const triggerSelectFile = async () => {
+    if (window.api && window.api.selectFile) {
+      let filters = [{ name: 'Flight Logs (*.ulg, *.txt, *.dat)', extensions: ['ulg', 'txt', 'dat'] }];
+      if (flightInspectorMode === 'px4') {
+        filters = [{ name: 'PX4 ULog (*.ulg)', extensions: ['ulg'] }];
+      } else if (flightInspectorMode === 'dji') {
+        filters = [{ name: 'DJI Flight Record (*.txt, *.dat)', extensions: ['txt', 'dat'] }];
+      }
 
-  // Download buttons
-  document.getElementById('ulg-dl-csv').onclick = () => ulgOpenFile(ulgLastResult?.outputs?.csv);
-  document.getElementById('ulg-dl-kml').onclick = () => ulgOpenFile(ulgLastResult?.outputs?.kml);
-  document.getElementById('ulg-dl-gpx').onclick = () => ulgOpenFile(ulgLastResult?.outputs?.gpx);
-  document.getElementById('ulg-load-on-map').onclick = ulgLoadOnMap;
-}
-
-function ulgSetFile(file) {
-  if (!file.name.endsWith('.ulg')) {
-    ulgShowError('Please select a valid .ulg drone log file.');
-    return;
-  }
-  ulgCurrentFilePath = file.path;
-  document.getElementById('ulg-drop-zone').classList.add('hidden');
-  document.getElementById('ulg-file-info').classList.remove('hidden');
-  document.getElementById('ulg-file-name').textContent = file.name;
-  const mb = (file.size / 1024 / 1024).toFixed(1);
-  document.getElementById('ulg-file-size').textContent = `${mb} MB · PX4 ULog`;
-  document.getElementById('ulg-format-picker').classList.remove('hidden');
-  document.getElementById('ulg-results').classList.add('hidden');
-  document.getElementById('ulg-error-alert').classList.add('hidden');
-
-  const convertBtn = document.getElementById('ulg-convert-btn');
-  convertBtn.disabled = false;
-  convertBtn.className = 'px-5 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold transition-all text-xs cursor-pointer shadow-sm';
-  convertBtn.textContent = 'Convert';
-}
-
-async function ulgRunConversion() {
-  if (!ulgCurrentFilePath) return;
-
-  const formats = [];
-  if (document.getElementById('ulg-fmt-csv').checked) formats.push('csv');
-  if (document.getElementById('ulg-fmt-kml').checked) formats.push('kml');
-  if (document.getElementById('ulg-fmt-gpx').checked) formats.push('gpx');
-  if (!formats.length) { ulgShowError('Please select at least one output format.'); return; }
-
-  // Show loader
-  document.getElementById('ulg-loader').classList.remove('hidden');
-  document.getElementById('ulg-results').classList.add('hidden');
-  document.getElementById('ulg-error-alert').classList.add('hidden');
-  const convertBtn = document.getElementById('ulg-convert-btn');
-  convertBtn.disabled = true;
-  convertBtn.textContent = 'Converting...';
-
-  try {
-    const outputDir = ulgCurrentFilePath.replace(/[^\\\/]+$/, '');
-    const result = await window.api.convertUlg(ulgCurrentFilePath, outputDir, formats);
-    ulgLastResult = result;
-
-    document.getElementById('ulg-loader').classList.add('hidden');
-
-    if (!result.success) {
-      ulgShowError(result.error || 'Conversion failed — no GPS data found in this log.');
-    } else {
-      ulgShowResults(result);
+      const res = await window.api.selectFile({
+        title: 'Select Drone Flight Log',
+        filters: filters
+      });
+      if (!res.canceled && res.filePath) {
+        ulgSetFileFromPath(res.filePath, res.name, res.size);
+        return;
+      }
+    } else if (fileInput) {
+      fileInput.click();
     }
-  } catch (err) {
-    document.getElementById('ulg-loader').classList.add('hidden');
-    ulgShowError('Conversion error: ' + (err.message || String(err)));
+  };
+
+  if (dropZone) {
+    dropZone.onclick = triggerSelectFile;
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-rose-400', 'bg-rose-50/40'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-rose-400', 'bg-rose-50/40'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-rose-400', 'bg-rose-50/40');
+      if (e.dataTransfer.files[0]) ulgSetFile(e.dataTransfer.files[0]);
+    });
   }
 
-  convertBtn.disabled = false;
-  convertBtn.textContent = 'Convert Again';
+  if (fileInput) {
+    fileInput.onchange = (e) => { if (e.target.files[0]) ulgSetFile(e.target.files[0]); };
+  }
+
+  const reuploadBtn = document.getElementById('ulg-reupload-btn');
+  if (reuploadBtn) {
+    reuploadBtn.onclick = triggerSelectFile;
+  }
 }
 
 function ulgShowError(msg) {
   const el = document.getElementById('ulg-error-alert');
-  el.textContent = '⚠ ' + msg;
-  el.classList.remove('hidden');
+  const txt = document.getElementById('ulg-error-text');
+  if (txt) txt.textContent = msg;
+  else if (el) el.textContent = '⚠ ' + msg;
+  if (el) el.classList.remove('hidden');
 }
 
-function ulgShowResults(r) {
-  document.getElementById('ulg-results').classList.remove('hidden');
+async function ulgSetFile(file) {
+  const name = file.name.toLowerCase();
+  if (!name.endsWith('.ulg') && !name.endsWith('.txt') && !name.endsWith('.dat')) {
+    ulgShowError('Please select a valid drone flight log (.ulg for PX4/Wingtra or .txt for DJI).');
+    return;
+  }
+  let filePath = '';
+  if (window.api && window.api.getPathForFile) {
+    filePath = window.api.getPathForFile(file);
+  } else if (file.path) {
+    filePath = file.path;
+  }
 
-  // Stats
-  document.getElementById('ulg-stat-points').textContent = (r.track_points || 0).toLocaleString();
+  if (!filePath) {
+    ulgShowError('Unable to access file system path in this environment. Please click to select file.');
+    return;
+  }
 
-  const maxAlt = r.max_altitude_m || 0;
-  document.getElementById('ulg-stat-alt').textContent =
-    `${maxAlt.toFixed(0)}m / ${(maxAlt * 3.28084).toFixed(0)}ft`;
+  return ulgSetFileFromPath(filePath, file.name, file.size);
+}
 
+async function ulgSetFileFromPath(filePath, fileName, fileSize) {
+  ulgCurrentFilePath = filePath;
+  const dropZone = document.getElementById('ulg-drop-zone');
+  if (dropZone) dropZone.classList.add('hidden');
+  const fileInfo = document.getElementById('ulg-file-info');
+  if (fileInfo) fileInfo.classList.remove('hidden');
+  const fileNameEl = document.getElementById('ulg-file-name');
+  if (fileNameEl) fileNameEl.textContent = fileName || 'flight_log';
+  const mb = ((fileSize || 0) / 1024 / 1024).toFixed(1);
+  const fileSizeEl = document.getElementById('ulg-file-size');
+
+  const lowerName = (fileName || '').toLowerCase();
+  const isDji = lowerName.endsWith('.txt') || lowerName.endsWith('.dat') || lowerName.startsWith('djiflightrecord');
+  if (fileSizeEl) {
+    fileSizeEl.textContent = isDji ? `${mb} MB · DJI FlightRecord` : `${mb} MB · PX4 Binary Log`;
+  }
+
+  const results = document.getElementById('ulg-results');
+  if (results) results.classList.add('hidden');
+  const errAlert = document.getElementById('ulg-error-alert');
+  if (errAlert) errAlert.classList.add('hidden');
+  const loader = document.getElementById('ulg-loader');
+  if (loader) loader.classList.remove('hidden');
+
+  try {
+    const key = djiApiKey || '07dadcba863fab453c6b46999a38eea';
+    let result = null;
+
+    if (window.api && window.api.parseFlightLog) {
+      result = await window.api.parseFlightLog(ulgCurrentFilePath, key, null, []);
+    } else {
+      result = await window.api.convertUlg(ulgCurrentFilePath, null, []);
+    }
+
+    ulgLastResult = result;
+    if (loader) loader.classList.add('hidden');
+
+    if (!result.success) {
+      ulgShowError(result.error || 'Parsing failed — no GPS telemetry topics found.');
+    } else {
+      ulgRenderInspector(result);
+    }
+  } catch (err) {
+    if (loader) loader.classList.add('hidden');
+    ulgShowError('Error parsing flight log: ' + (err.message || String(err)));
+  }
+}
+
+function ulgRenderInspector(r) {
+  const results = document.getElementById('ulg-results');
+  if (results) results.classList.remove('hidden');
+
+  // Update Brand Badge
+  const badge = document.getElementById('flight-inspector-badge');
+  const iconWrap = document.getElementById('flight-inspector-icon-wrap');
+  if (badge) {
+    if (r.drone_brand === 'DJI') {
+      badge.className = 'text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 uppercase tracking-wider';
+      badge.textContent = r.aircraft_name ? `DJI: ${r.aircraft_name}` : 'DJI Enterprise';
+      if (iconWrap) iconWrap.className = 'w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 shadow-sm transition-colors';
+    } else {
+      badge.className = 'text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider';
+      badge.textContent = 'PX4 / Wingtra';
+      if (iconWrap) iconWrap.className = 'w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 shadow-sm transition-colors';
+    }
+  }
+
+  // Populate Key Metric Cards
+  const statAgl = document.getElementById('ulg-stat-agl');
+  if (statAgl) statAgl.textContent = `${r.max_agl_ft} ft`;
+  const statAglSub = document.getElementById('ulg-stat-agl-sub');
+  if (statAglSub) statAglSub.textContent = `${r.max_agl_m} m AGL · Launch: ${r.takeoff_amsl_ft} ft`;
+
+  const statAmsl = document.getElementById('ulg-stat-amsl');
+  if (statAmsl) statAmsl.textContent = `${r.max_amsl_ft} ft`;
+  const statAmslSub = document.getElementById('ulg-stat-amsl-sub');
+  if (statAmslSub) statAmslSub.textContent = `${r.max_amsl_m} m AMSL (Sea Level)`;
+
+  const statSpeed = document.getElementById('ulg-stat-speed');
+  if (statSpeed) statSpeed.textContent = `${r.max_speed_knots} kts`;
+  const statSpeedSub = document.getElementById('ulg-stat-speed-sub');
+  if (statSpeedSub) statSpeedSub.textContent = `${r.max_speed_kmh} km/h · ${r.max_speed_ms} m/s`;
+
+  const statDuration = document.getElementById('ulg-stat-duration');
   const dur = r.duration_sec || 0;
   const durStr = dur < 60 ? `${Math.round(dur)}s` :
     dur < 3600 ? `${Math.floor(dur/60)}m ${Math.round(dur%60)}s` :
     `${Math.floor(dur/3600)}h ${Math.floor((dur%3600)/60)}m`;
-  document.getElementById('ulg-stat-duration').textContent = durStr;
+  if (statDuration) statDuration.textContent = durStr;
+  const statPointsSub = document.getElementById('ulg-stat-points-sub');
+  if (statPointsSub) statPointsSub.textContent = `Total Points: ${r.track_points.toLocaleString()}`;
 
-  document.getElementById('ulg-stat-topic').textContent = r.gps_topic || '—';
-  document.getElementById('ulg-stat-coords').textContent =
-    r.center_lat ? `${r.center_lat.toFixed(5)}, ${r.center_lon.toFixed(5)}` : '—';
-  const spd = r.max_speed_ms || 0;
-  document.getElementById('ulg-stat-speed').textContent =
-    spd > 0 ? `${spd.toFixed(1)} m/s · ${(spd * 3.6).toFixed(1)} km/h` : '0 m/s (no velocity data)';
+  // Populate Regulatory Compliance Card
+  const comp = r.compliance || {};
+  const compCard = document.getElementById('ulg-compliance-card');
+  const compTitle = document.getElementById('ulg-compliance-title');
+  const compDesc = document.getElementById('ulg-compliance-desc');
+  const compIcon = document.getElementById('ulg-compliance-icon');
+  const badgeCeiling = document.getElementById('ulg-badge-ceiling');
+  const badgeSpeed = document.getElementById('ulg-badge-speed');
 
-  // Download buttons
-  const dlCsv = document.getElementById('ulg-dl-csv');
-  const dlKml = document.getElementById('ulg-dl-kml');
-  const dlGpx = document.getElementById('ulg-dl-gpx');
-  const dlMap = document.getElementById('ulg-load-on-map');
+  if (comp.ceiling_breach) {
+    if (compCard) compCard.className = 'rounded-2xl p-4 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm bg-rose-50/60 border-rose-200';
+    if (compIcon) compIcon.className = 'w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0';
+    if (compTitle) compTitle.textContent = 'Ceiling Breach Detected ⚠️';
+    if (compDesc) compDesc.textContent = `Flight reached ${comp.max_agl_ft} ft AGL, exceeding the mandatory 400 ft (120 m) ceiling for drone operations.`;
+    if (badgeCeiling) {
+      badgeCeiling.className = 'px-2.5 py-1 rounded-xl text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200';
+      badgeCeiling.textContent = `Ceiling Breached (${comp.max_agl_ft} ft > 400 ft)`;
+    }
+  } else {
+    if (compCard) compCard.className = 'rounded-2xl p-4 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm bg-emerald-50/50 border-emerald-200';
+    if (compIcon) compIcon.className = 'w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0';
+    if (compTitle) compTitle.textContent = 'Airspace Safety Audit Passed ✅';
+    if (compDesc) compDesc.textContent = `Flight remained strictly within the 400 ft AGL ceiling (max: ${comp.max_agl_ft} ft AGL) and speed caps.`;
+    if (badgeCeiling) {
+      badgeCeiling.className = 'px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-100 text-emerald-700';
+      badgeCeiling.textContent = `Ceiling OK (Max ${comp.max_agl_ft} ft AGL)`;
+    }
+  }
 
-  dlCsv.classList.toggle('hidden', !r.outputs?.csv);
-  dlKml.classList.toggle('hidden', !r.outputs?.kml);
-  dlGpx.classList.toggle('hidden', !r.outputs?.gpx);
-  dlMap.classList.toggle('hidden', !r.outputs?.kml);
+  if (badgeSpeed) {
+    if (comp.speed_breach) {
+      badgeSpeed.className = 'px-2.5 py-1 rounded-xl text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200';
+      badgeSpeed.textContent = `Speed Warning (${comp.max_speed_knots} kts > 87 kts)`;
+    } else {
+      badgeSpeed.className = 'px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-100 text-emerald-700';
+      badgeSpeed.textContent = `Speed OK (${comp.max_speed_knots} kts)`;
+    }
+  }
 
-  showToast(`✅ Converted! ${r.track_points} GPS points extracted`, 'success');
+  // Render Charts & Maps
+  renderUlgChart();
+  showToast(`Parsed ${r.track_points.toLocaleString()} telemetry points successfully!`, 'success');
 }
 
-function ulgOpenFile(filePath) {
-  if (!filePath) return;
-  // Use Electron shell to open folder/file
-  if (window.require) {
-    const { shell } = window.require('electron');
-    shell.showItemInFolder(filePath);
+function switchUlgStudioTab(tab) {
+  ulgActiveTab = tab;
+  const tabs = ['combined', 'agl', 'amsl', 'speed', 'battery', 'map'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`ulg-tab-${t}`);
+    if (btn) {
+      if (t === tab) {
+        btn.className = 'px-3.5 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-100 transition-all font-bold';
+      } else {
+        btn.className = 'px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 transition-all font-bold';
+      }
+    }
+  });
+
+  const chartWrap = document.getElementById('ulg-chart-wrapper');
+  const mapWrap = document.getElementById('ulg-map-wrapper');
+  const mapToolbar = document.getElementById('ulg-map-toolbar');
+  const ceilingToggleLabel = document.getElementById('ulg-toggle-ceiling-line')?.parentElement;
+
+  if (tab === 'map') {
+    if (chartWrap) chartWrap.classList.add('hidden');
+    if (mapWrap) mapWrap.classList.remove('hidden');
+    if (mapToolbar) mapToolbar.classList.remove('hidden');
+    if (ceilingToggleLabel) ceilingToggleLabel.classList.add('hidden');
+    renderUlgLeafletMap();
   } else {
-    showToast('File saved at: ' + filePath, 'info');
+    if (mapWrap) mapWrap.classList.add('hidden');
+    if (chartWrap) chartWrap.classList.remove('hidden');
+    if (mapToolbar) mapToolbar.classList.add('hidden');
+    if (ceilingToggleLabel) ceilingToggleLabel.classList.remove('hidden');
+    renderUlgChart();
   }
 }
 
-function ulgLoadOnMap() {
-  if (!ulgLastResult?.outputs?.kml) return;
-  closeUlgConverterModal();
-  showToast('Opening Flight Telemetry Analyzer with KML...', 'info');
-  // Open telemetry analyzer modal with the KML file
+function handleUlgChartRedraw() {
+  if (ulgActiveTab !== 'map') {
+    renderUlgChart();
+  }
+}
+
+function renderUlgChart() {
+  if (!ulgLastResult || !ulgLastResult.preview_points) return;
+  const pts = ulgLastResult.preview_points;
+  const labels = pts.map(p => p.time_min);
+
+  const canvas = document.getElementById('ulg-chart-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  if (ulgChartInstance) {
+    ulgChartInstance.destroy();
+    ulgChartInstance = null;
+  }
+
+  const showCeiling = document.getElementById('ulg-toggle-ceiling-line')?.checked ?? true;
+  let datasets = [];
+  let yAxes = {};
+
+  if (ulgActiveTab === 'combined') {
+    datasets = [
+      {
+        label: 'Altitude AGL (ft)',
+        data: pts.map(p => p.agl_ft),
+        borderColor: '#10b981', // Emerald
+        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+        borderWidth: 2,
+        tension: 0.2,
+        yAxisID: 'yAlt',
+        pointRadius: 0
+      },
+      {
+        label: 'Altitude AMSL (ft)',
+        data: pts.map(p => p.amsl_ft),
+        borderColor: '#0284c7', // Sky blue
+        borderDash: [4, 4],
+        borderWidth: 1.5,
+        tension: 0.2,
+        yAxisID: 'yAlt',
+        pointRadius: 0
+      },
+      {
+        label: 'Ground Speed (knots)',
+        data: pts.map(p => p.speed_knots),
+        borderColor: '#f97316', // Orange
+        borderWidth: 2,
+        tension: 0.2,
+        yAxisID: 'ySpeed',
+        pointRadius: 0
+      }
+    ];
+
+    if (showCeiling) {
+      datasets.push({
+        label: '400 ft Regulatory Ceiling (AGL)',
+        data: pts.map(() => 400),
+        borderColor: '#ef4444',
+        borderDash: [6, 4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        yAxisID: 'yAlt'
+      });
+    }
+
+    yAxes = {
+      yAlt: {
+        type: 'linear',
+        position: 'left',
+        title: { display: true, text: 'Altitude (ft)', font: { size: 10, weight: 'bold' } },
+        grid: { color: 'rgba(0,0,0,0.04)' }
+      },
+      ySpeed: {
+        type: 'linear',
+        position: 'right',
+        title: { display: true, text: 'Speed (knots)', font: { size: 10, weight: 'bold' } },
+        grid: { drawOnChartArea: false }
+      }
+    };
+  } else if (ulgActiveTab === 'agl') {
+    datasets = [
+      {
+        label: 'Height Above Takeoff - AGL (ft)',
+        data: pts.map(p => p.agl_ft),
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        fill: true,
+        borderWidth: 2.5,
+        tension: 0.2,
+        pointRadius: 0
+      }
+    ];
+    if (showCeiling) {
+      datasets.push({
+        label: 'Mandatory 400 ft Ceiling Cap',
+        data: pts.map(() => 400),
+        borderColor: '#ef4444',
+        borderDash: [6, 4],
+        borderWidth: 2,
+        pointRadius: 0
+      });
+    }
+  } else if (ulgActiveTab === 'amsl') {
+    datasets = [
+      {
+        label: 'True Altitude - AMSL (ft Above Sea Level)',
+        data: pts.map(p => p.amsl_ft),
+        borderColor: '#0284c7',
+        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+        fill: true,
+        borderWidth: 2.5,
+        tension: 0.2,
+        pointRadius: 0
+      }
+    ];
+  } else if (ulgActiveTab === 'speed') {
+    datasets = [
+      {
+        label: 'Ground Velocity (knots)',
+        data: pts.map(p => p.speed_knots),
+        borderColor: '#f97316',
+        borderWidth: 2,
+        tension: 0.2,
+        pointRadius: 0
+      },
+      {
+        label: 'Ground Velocity (mph)',
+        data: pts.map(p => p.speed_mph),
+        borderColor: '#fbbf24',
+        borderWidth: 1.5,
+        tension: 0.2,
+        pointRadius: 0
+      }
+    ];
+  } else if (ulgActiveTab === 'battery') {
+    datasets = [
+      {
+        label: 'Battery Remaining (%)',
+        data: pts.map(p => p.battery_pct),
+        borderColor: '#8b5cf6',
+        borderWidth: 2.5,
+        tension: 0.2,
+        pointRadius: 0,
+        yAxisID: 'yPct'
+      },
+      {
+        label: 'Pack Voltage (V)',
+        data: pts.map(p => p.voltage_v),
+        borderColor: '#ec4899',
+        borderWidth: 1.5,
+        tension: 0.2,
+        pointRadius: 0,
+        yAxisID: 'yVolt'
+      }
+    ];
+    yAxes = {
+      yPct: {
+        type: 'linear',
+        position: 'left',
+        max: 100,
+        min: 0,
+        title: { display: true, text: 'Battery %', font: { size: 10, weight: 'bold' } }
+      },
+      yVolt: {
+        type: 'linear',
+        position: 'right',
+        title: { display: true, text: 'Voltage (V)', font: { size: 10, weight: 'bold' } },
+        grid: { drawOnChartArea: false }
+      }
+    };
+  }
+
+  ulgChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } },
+        tooltip: {
+          callbacks: {
+            title: (items) => `Time: ${items[0].label} mins`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Elapsed Flight Time (minutes)', font: { size: 10, weight: 'bold' } },
+          grid: { color: 'rgba(0,0,0,0.03)' }
+        },
+        ...yAxes
+      }
+    }
+  });
+}
+
+function setUlgMapLayer(layerType) {
+  ulgCurrentMapLayer = layerType;
+  const btnOsm = document.getElementById('ulg-map-btn-osm');
+  const btnSat = document.getElementById('ulg-map-btn-sat');
+
+  if (layerType === 'sat') {
+    if (btnSat) btnSat.className = "px-2 py-0.5 rounded-md font-bold bg-white text-gray-800 shadow-xs";
+    if (btnOsm) btnOsm.className = "px-2 py-0.5 rounded-md font-bold text-gray-500 hover:text-gray-800";
+    if (ulgLeafletMapInstance) {
+      if (ulgOsmLayer && ulgLeafletMapInstance.hasLayer(ulgOsmLayer)) {
+        ulgLeafletMapInstance.removeLayer(ulgOsmLayer);
+      }
+      if (!ulgSatLayer) {
+        ulgSatLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics',
+          maxZoom: 19
+        });
+      }
+      ulgSatLayer.addTo(ulgLeafletMapInstance);
+      if (ulgPolylineLayer) ulgPolylineLayer.bringToFront();
+    }
+  } else {
+    if (btnOsm) btnOsm.className = "px-2 py-0.5 rounded-md font-bold bg-white text-gray-800 shadow-xs";
+    if (btnSat) btnSat.className = "px-2 py-0.5 rounded-md font-bold text-gray-500 hover:text-gray-800";
+    if (ulgLeafletMapInstance) {
+      if (ulgSatLayer && ulgLeafletMapInstance.hasLayer(ulgSatLayer)) {
+        ulgLeafletMapInstance.removeLayer(ulgSatLayer);
+      }
+      if (ulgOsmLayer) {
+        ulgOsmLayer.addTo(ulgLeafletMapInstance);
+      }
+      if (ulgPolylineLayer) ulgPolylineLayer.bringToFront();
+    }
+  }
+}
+
+function setUlgRouteColor(color) {
+  ulgRouteColor = color;
+  const picker = document.getElementById('ulg-route-color-picker');
+  if (picker && picker.value !== color) {
+    picker.value = color;
+  }
+  if (ulgPolylineLayer) {
+    ulgPolylineLayer.setStyle({ color: color });
+  }
+}
+
+function setUlgRouteWeight(weight) {
+  ulgRouteWeight = parseFloat(weight) || 2.8;
+  if (ulgPolylineLayer) {
+    ulgPolylineLayer.setStyle({ weight: ulgRouteWeight });
+  }
+}
+
+function renderUlgLeafletMap() {
+  if (!ulgLastResult) return;
+  // Use high-resolution coordinates (map_points) if available, fallback to preview_points
+  const latlngs = ulgLastResult.map_points && ulgLastResult.map_points.length > 0
+    ? ulgLastResult.map_points
+    : (ulgLastResult.preview_points || []).map(p => [p.lat, p.lon]);
+
+  if (!latlngs.length) return;
+
+  const mapContainer = document.getElementById('ulg-leaflet-map');
+  if (!mapContainer) return;
+
+  if (!ulgLeafletMapInstance) {
+    ulgLeafletMapInstance = L.map('ulg-leaflet-map', {
+      zoomControl: true,
+      attributionControl: true
+    }).setView(latlngs[0], 15);
+
+    ulgOsmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(ulgLeafletMapInstance);
+  }
+
+  if (ulgPolylineLayer) {
+    ulgLeafletMapInstance.removeLayer(ulgPolylineLayer);
+  }
+
+  // Draw smooth flight vector polyline with user-selected color and weight
+  ulgPolylineLayer = L.polyline(latlngs, {
+    color: ulgRouteColor || '#ffff00',
+    weight: ulgRouteWeight || 2.8,
+    opacity: 0.95,
+    smoothFactor: 0 // Keep raw precision without any simplification
+  }).addTo(ulgLeafletMapInstance);
+
+  // Takeoff & Landing markers
+  const startPt = latlngs[0];
+  const endPt = latlngs[latlngs.length - 1];
+
+  L.circleMarker(startPt, {
+    radius: 7,
+    color: '#10b981',
+    fillColor: '#10b981',
+    fillOpacity: 0.9,
+    weight: 2
+  }).addTo(ulgLeafletMapInstance).bindPopup('<b>Takeoff Location</b><br>Elevation: ' + ulgLastResult.takeoff_amsl_ft + ' ft AMSL');
+
+  L.circleMarker(endPt, {
+    radius: 7,
+    color: '#ef4444',
+    fillColor: '#ef4444',
+    fillOpacity: 0.9,
+    weight: 2
+  }).addTo(ulgLeafletMapInstance).bindPopup('<b>Landing / Last Record</b>');
+
+  ulgLeafletMapInstance.fitBounds(ulgPolylineLayer.getBounds(), { padding: [30, 30] });
+
+  // Default to satellite view for flight routes if not already toggled
+  if (ulgCurrentMapLayer === 'sat') {
+    setUlgMapLayer('sat');
+  }
+
   setTimeout(() => {
-    showDashboard();
-    openTelemetryAnalyzer();
-  }, 400);
+    if (ulgLeafletMapInstance) ulgLeafletMapInstance.invalidateSize();
+  }, 200);
+}
+
+async function ulgRunExportFiles() {
+  if (!ulgCurrentFilePath) return;
+
+  const formats = [];
+  if (document.getElementById('ulg-opt-csv')?.checked) formats.push('csv');
+  if (document.getElementById('ulg-opt-kml')?.checked) formats.push('kml');
+  if (document.getElementById('ulg-opt-gpx')?.checked) formats.push('gpx');
+
+  if (!formats.length) {
+    showToast('Please select at least one format to export.', 'warning');
+    return;
+  }
+
+  const exportBtn = document.getElementById('ulg-btn-export-files');
+  if (exportBtn) {
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Generating Files...';
+  }
+
+  try {
+    const outputDir = ulgCurrentFilePath.replace(/[^\\\/]+$/, '');
+    const key = djiApiKey || '07dadcba863fab453c6b46999a38eea';
+    let result = null;
+
+    if (window.api && window.api.parseFlightLog) {
+      result = await window.api.parseFlightLog(ulgCurrentFilePath, key, outputDir, formats);
+    } else {
+      result = await window.api.convertUlg(ulgCurrentFilePath, outputDir, formats);
+    }
+
+    if (result.success) {
+      showToast(`Exported ${Object.keys(result.outputs || {}).length} format(s) to flight folder!`, 'success');
+      const openFolderBtn = document.getElementById('ulg-btn-open-folder');
+      if (openFolderBtn) openFolderBtn.classList.remove('hidden');
+    } else {
+      showToast(result.error || 'Export failed', 'error');
+    }
+  } catch (err) {
+    showToast('Export error: ' + err.message, 'error');
+  } finally {
+    if (exportBtn) {
+      exportBtn.disabled = false;
+      exportBtn.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Generate &amp; Save Selected Formats
+      `;
+    }
+  }
+}
+
+function ulgOpenExportFolder() {
+  if (!ulgCurrentFilePath) return;
+  if (window.require) {
+    const { shell } = window.require('electron');
+    shell.showItemInFolder(ulgCurrentFilePath);
+  } else {
+    showToast('Folder: ' + ulgCurrentFilePath, 'info');
+  }
 }
 
 // Global Sage & Forest radial progress calculator

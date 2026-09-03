@@ -1,12 +1,15 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+  getPathForFile: (file) => (webUtils && webUtils.getPathForFile ? webUtils.getPathForFile(file) : (file.path || '')),
   loadPermits: () => ipcRenderer.invoke('load-permits'),
   openPDF: (fileName, year) => ipcRenderer.invoke('open-pdf', fileName, year),
   savePermit: (permitData, localFilePath) => ipcRenderer.invoke('save-permit', permitData, localFilePath),
   convertToKml: (filePath) => ipcRenderer.invoke('convert-to-kml', filePath),
   loadAirportKml: () => ipcRenderer.invoke('load-airport-kml'),
   convertUlg: (filePath, outputDir, formats) => ipcRenderer.invoke('convert-ulg', filePath, outputDir, formats),
+  convertDji: (filePath, apiKey, outputDir, formats) => ipcRenderer.invoke('convert-dji', filePath, apiKey, outputDir, formats),
+  parseFlightLog: (filePath, apiKey, outputDir, formats) => ipcRenderer.invoke('parse-flight-log', filePath, apiKey, outputDir, formats),
   signUp: (email, password, role) => ipcRenderer.invoke('auth-sign-up', email, password, role),
   signIn: (email, password) => ipcRenderer.invoke('auth-sign-in', email, password),
   getSession: () => ipcRenderer.invoke('auth-get-session'),
@@ -16,4 +19,6 @@ contextBridge.exposeInMainWorld('api', {
   getAllProfiles: () => ipcRenderer.invoke('auth-get-all-profiles'),
   updateProfile: (userId, updates) => ipcRenderer.invoke('auth-update-profile', userId, updates),
   getDiagnostics: () => ipcRenderer.invoke('sys-get-diagnostics'),
+  selectFile: (options) => ipcRenderer.invoke('dialog-select-file', options),
 });
+
