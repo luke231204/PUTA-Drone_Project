@@ -5023,6 +5023,7 @@ let ulgLastResult = null;
 let ulgChartInstance = null;
 let ulgLeafletMapInstance = null;
 let ulgPolylineLayer = null;
+let ulgDroneMarker = null;
 let ulgActiveTab = 'combined';
 let ulgOsmLayer = null;
 let ulgSatLayer = null;
@@ -5031,6 +5032,13 @@ let ulgRouteColor = '#ffff00';
 let ulgRouteWeight = 2.8;
 let flightInspectorMode = 'auto'; // 'auto' | 'px4' | 'dji'
 let djiApiKey = '07dadcba863fab453c6b46999a38eea';
+
+// Flight Replay & Virtual Stick State
+let replayAnimationId = null;
+let isReplayPlaying = false;
+let replayCurrentIndex = 0;
+let replaySpeedMultiplier = 1;
+let replayPoints = [];
 
 function setFlightInspectorMode(mode) {
   flightInspectorMode = mode;
@@ -5400,6 +5408,7 @@ function switchUlgStudioTab(tab) {
     if (ceilingToggleLabel) ceilingToggleLabel.classList.add('hidden');
     renderUlgLeafletMap();
   } else {
+    pauseFlightReplay();
     if (mapWrap) mapWrap.classList.add('hidden');
     if (chartWrap) chartWrap.classList.remove('hidden');
     if (mapToolbar) mapToolbar.classList.add('hidden');
@@ -5721,6 +5730,34 @@ function renderUlgLeafletMap() {
     weight: 2
   }).addTo(ulgLeafletMapInstance).bindPopup('<b>Landing / Last Record</b>');
 
+  // Initialize or reset drone position marker for Flight Replay
+  if (ulgDroneMarker) {
+    ulgLeafletMapInstance.removeLayer(ulgDroneMarker);
+    ulgDroneMarker = null;
+  }
+
+  // Create pulsating drone marker
+  const droneIcon = L.divIcon({
+    className: 'custom-drone-replay-marker',
+    html: `
+      <div class="relative flex items-center justify-center w-8 h-8">
+        <div class="absolute w-8 h-8 rounded-full bg-rose-500/30 animate-ping"></div>
+        <div class="w-6 h-6 rounded-full bg-rose-600 border-2 border-white shadow-xl flex items-center justify-center text-white text-[10px]">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+          </svg>
+        </div>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+
+  ulgDroneMarker = L.marker(startPt, { icon: droneIcon, zIndexOffset: 1000 }).addTo(ulgLeafletMapInstance);
+
+  // Initialize Flight Replay Engine
+  initFlightReplay(r);
+
   ulgLeafletMapInstance.fitBounds(ulgPolylineLayer.getBounds(), { padding: [30, 30] });
 
   // Default to satellite view for flight routes if not already toggled
@@ -5731,6 +5768,228 @@ function renderUlgLeafletMap() {
   setTimeout(() => {
     if (ulgLeafletMapInstance) ulgLeafletMapInstance.invalidateSize();
   }, 200);
+}
+
+// ============================================================================
+// Flight Replay & RC Virtual Stick Visualizer Engine
+// ============================================================================
+function initFlightReplay(result) {
+  stopFlightReplay();
+  replayPoints = result.preview_points || [];
+  replayCurrentIndex = 0;
+
+  const totalTimeEl = document.getElementById('replay-time-total');
+  const durSec = result.duration_sec || 0;
+  const durStr = formatFlightTime(durSec);
+  if (totalTimeEl) totalTimeEl.textContent = durStr;
+
+  const slider = document.getElementById('replay-seek-slider');
+  if (slider) {
+    slider.value = 0;
+    slider.max = Math.max(0, replayPoints.length - 1);
+  }
+
+  updateReplayTelemetry(0);
+}
+
+function formatFlightTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function toggleFlightReplay() {
+  if (isReplayPlaying) {
+    pauseFlightReplay();
+  } else {
+    startFlightReplay();
+  }
+}
+
+function startFlightReplay() {
+  if (!replayPoints || !replayPoints.length) return;
+  isReplayPlaying = true;
+  updateReplayButtonUI(true);
+
+  if (replayCurrentIndex >= replayPoints.length - 1) {
+    replayCurrentIndex = 0;
+  }
+
+  runReplayLoop();
+}
+
+function pauseFlightReplay() {
+  isReplayPlaying = false;
+  if (replayAnimationId) {
+    cancelAnimationFrame(replayAnimationId);
+    replayAnimationId = null;
+  }
+  updateReplayButtonUI(false);
+}
+
+function stopFlightReplay() {
+  pauseFlightReplay();
+  replayCurrentIndex = 0;
+  const slider = document.getElementById('replay-seek-slider');
+  if (slider) slider.value = 0;
+}
+
+function resetFlightReplay() {
+  pauseFlightReplay();
+  replayCurrentIndex = 0;
+  const slider = document.getElementById('replay-seek-slider');
+  if (slider) slider.value = 0;
+  updateReplayTelemetry(0);
+  startFlightReplay();
+}
+
+function setReplaySpeed(multiplier) {
+  replaySpeedMultiplier = multiplier;
+  [1, 2, 5, 10].forEach(s => {
+    const btn = document.getElementById(`replay-speed-${s}`);
+    if (btn) {
+      if (s === multiplier) {
+        btn.className = "px-2 py-0.5 rounded-md font-bold bg-white text-gray-800 shadow-xs";
+      } else {
+        btn.className = "px-2 py-0.5 rounded-md font-bold text-gray-500 hover:text-gray-800";
+      }
+    }
+  });
+}
+
+function seekFlightReplay(val) {
+  pauseFlightReplay();
+  replayCurrentIndex = Math.min(Math.max(0, Math.round(Number(val))), replayPoints.length - 1);
+  updateReplayTelemetry(replayCurrentIndex);
+}
+
+function updateReplayButtonUI(playing) {
+  const playIcon = document.getElementById('replay-play-icon');
+  const pauseIcon = document.getElementById('replay-pause-icon');
+  if (playIcon && pauseIcon) {
+    if (playing) {
+      playIcon.classList.add('hidden');
+      pauseIcon.classList.remove('hidden');
+    } else {
+      playIcon.classList.remove('hidden');
+      pauseIcon.classList.add('hidden');
+    }
+  }
+}
+
+let lastReplayTick = 0;
+function runReplayLoop(timestamp) {
+  if (!isReplayPlaying) return;
+
+  if (!lastReplayTick) lastReplayTick = timestamp || performance.now();
+  const elapsed = (timestamp || performance.now()) - lastReplayTick;
+
+  // Interval step based on speed multiplier (~60ms base interval for 250 points)
+  const interval = 80 / replaySpeedMultiplier;
+
+  if (elapsed >= interval) {
+    lastReplayTick = timestamp || performance.now();
+    replayCurrentIndex++;
+
+    if (replayCurrentIndex >= replayPoints.length) {
+      replayCurrentIndex = replayPoints.length - 1;
+      updateReplayTelemetry(replayCurrentIndex);
+      pauseFlightReplay();
+      return;
+    }
+
+    updateReplayTelemetry(replayCurrentIndex);
+  }
+
+  replayAnimationId = requestAnimationFrame(runReplayLoop);
+}
+
+function updateReplayTelemetry(idx) {
+  if (!replayPoints || !replayPoints[idx]) return;
+  const p = replayPoints[idx];
+
+  // Update Timeline Slider
+  const slider = document.getElementById('replay-seek-slider');
+  if (slider) slider.value = idx;
+
+  // Update Time display
+  const timeCur = document.getElementById('replay-time-current');
+  const curSec = (p.time_min || 0) * 60;
+  if (timeCur) timeCur.textContent = formatFlightTime(curSec);
+
+  // Update Live Telemetry
+  const aglLabel = document.getElementById('replay-live-agl');
+  if (aglLabel) aglLabel.textContent = `${p.agl_ft} ft AGL`;
+  const spdLabel = document.getElementById('replay-live-spd');
+  if (spdLabel) spdLabel.textContent = `${p.speed_knots} kts`;
+
+  // Move Drone Marker on Leaflet Map
+  if (ulgDroneMarker && ulgLeafletMapInstance && p.lat && p.lon) {
+    const newPos = [p.lat, p.lon];
+    ulgDroneMarker.setLatLng(newPos);
+
+    // Rotate marker according to heading
+    const markerEl = ulgDroneMarker.getElement();
+    if (markerEl && p.heading !== undefined) {
+      const arrow = markerEl.querySelector('svg');
+      if (arrow) {
+        arrow.style.transform = `rotate(${p.heading}deg)`;
+        arrow.style.transformOrigin = 'center';
+      }
+    }
+  }
+
+  // Update Virtual RC Sticks
+  updateRCHud(p);
+}
+
+function updateRCHud(p) {
+  // DJI / PX4 RC channels normalization (-1.0 to +1.0 or 1000-2000 us)
+  let throttle = 0; // 0 to 100%
+  let rudder = 0;   // -1 to +1 (Yaw)
+  let elevator = 0; // -1 to +1 (Pitch)
+  let aileron = 0;  // -1 to +1 (Roll)
+
+  if (p.rc_throttle !== undefined && p.rc_throttle !== null) {
+    throttle = p.rc_throttle;
+    rudder = p.rc_rudder || 0;
+    elevator = p.rc_elevator || 0;
+    aileron = p.rc_aileron || 0;
+  } else {
+    // If raw RC stick channels are not in preview point, estimate from vertical speed & pitch
+    const spdKnots = p.speed_knots || 0;
+    throttle = Math.min(100, Math.max(10, Math.round(spdKnots * 2)));
+    rudder = Math.sin((p.heading || 0) * (Math.PI / 180)) * 0.5;
+    elevator = Math.cos((p.heading || 0) * (Math.PI / 180)) * 0.5;
+    aileron = 0;
+  }
+
+  // Bound stick knob travel inside 80px circle (-24px to +24px)
+  const maxTravelPx = 24;
+
+  // Left Stick: X = Rudder (-1 to +1), Y = Throttle (0 to 100% -> inverted Y)
+  const leftX = rudder * maxTravelPx;
+  const leftY = (0.5 - (throttle / 100.0)) * (maxTravelPx * 2);
+  const leftStick = document.getElementById('rc-stick-left');
+  if (leftStick) {
+    leftStick.style.transform = `translate(${leftX}px, ${leftY}px)`;
+  }
+  const leftVal = document.getElementById('rc-stick-left-val');
+  if (leftVal) {
+    leftVal.textContent = `T: ${Math.round(throttle)}% | R: ${(rudder * 100).toFixed(0)}%`;
+  }
+
+  // Right Stick: X = Aileron (-1 to +1), Y = Elevator (-1 to +1, inverted)
+  const rightX = aileron * maxTravelPx;
+  const rightY = -elevator * maxTravelPx;
+  const rightStick = document.getElementById('rc-stick-right');
+  if (rightStick) {
+    rightStick.style.transform = `translate(${rightX}px, ${rightY}px)`;
+  }
+  const rightVal = document.getElementById('rc-stick-right-val');
+  if (rightVal) {
+    rightVal.textContent = `P: ${(elevator * 100).toFixed(0)}% | R: ${(aileron * 100).toFixed(0)}%`;
+  }
 }
 
 async function ulgRunExportFiles() {

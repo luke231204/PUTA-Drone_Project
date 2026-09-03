@@ -175,7 +175,11 @@ async function parseDjiLog(filePath, apiKey = '', outputDir = null, formats = []
         voltage_v: Math.round(p.voltage_v * 100) / 100,
         lat: p.lat,
         lon: p.lon,
-        heading: Math.round(p.heading * 10) / 10
+        heading: Math.round(p.heading * 10) / 10,
+        rc_throttle: p.rc_throttle || 0,
+        rc_rudder: p.rc_rudder || 0,
+        rc_elevator: p.rc_elevator || 0,
+        rc_aileron: p.rc_aileron || 0
       });
     }
 

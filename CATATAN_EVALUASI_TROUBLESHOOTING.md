@@ -129,6 +129,15 @@ Untuk mendukung kerja inspektur di lapangan (*remote site* tanpa internet):
 * Jika file log tersebut dibuka kembali di kemudian hari, aplikasi membaca kunci lokal dan mendekripsinya secara instan tanpa perlu akses internet.
 * Folder `data/dji_keychains/` telah didaftarkan ke [.gitignore](file:///c:/Users/Luke/Downloads/Project%20Latsar%20PUTA/.gitignore) agar kredensial aman.
 
+### Fitur Interaktif: Flight Replay & RC Virtual Stick Visualizer
+Mengadopsi inspirasi performa dari *Open DroneLog*, di dalam tab peta satelit telah ditambahkan:
+1. **Interactive Timeline Bar**: Kontrol Play/Pause/Reset, slider timeline, dan pengatur kecepatan ($1\times, 2\times, 5\times, 10\times$).
+2. **Pulsating Drone Marker**: Marker drone dinamis dengan orientasi rotasi derajat kompas (*heading*) yang bergerak mulus di atas garis lintasan.
+3. **Dual Virtual RC Joysticks (HUD Overlay)**:
+   * **Stik Kiri**: Throttle (0–100%) dan Rudder/Yaw (-100% s/d +100%).
+   * **Stik Kanan**: Elevator/Pitch dan Aileron/Roll.
+   * Nilai posisi stik dihitung secara langsung dari channel RC log DJI / estimasi vektor aerodinamika.
+
 ---
 
 ## 4. Rekomendasi Operasional Lapangan (SOP)
