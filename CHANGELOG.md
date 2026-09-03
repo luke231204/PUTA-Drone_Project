@@ -39,7 +39,7 @@ Dokumen ini mencatat seluruh riwayat perubahan fungsional (*features*), peningka
 - **Normalisasi Sinyal RC 11-Bit DJI**: Memetakan sinyal PWM mentah DJI ($364 \text{ s/d } 1684$, netral $1024$) ke format persentase realistis ($0-100\%$), mengatasi bug nilai $102400\%$.
 - **Eliminasi Double-Trigger Bounce pada Tombol Play**: Menghapus listener ganda yang memicu *toggle ON/OFF* seketika pada satu kali klik tombol.
 - **Layer Z-Index & Event Propagation**: Menaikkan z-index bilah replay ke `z-[2000]` dengan `pointer-events-auto` agar event klik tidak tertelan layer Leaflet map.
-- **Data Fallback Replay Engine**: Menghubungkan fungsi inisialisasi replay langsung ke `ulgLastResult.preview_points`.
+- **Pembersihan Dokumentasi (Documentation Pruning)**: Menghapus 5 file draft/blueprint usang (`gemini-code-*`, `puta_project_summary-v2`, `Telemetry_Feature_Specification_v2`, `TELEMETRY_FEATURE_BLUEPRINT`, `implementation_plan`) dan menyatukan seluruh spesifikasi ke `PROJECT_OVERVIEW.md` dan `CHANGELOG.md`.
 
 ---
 

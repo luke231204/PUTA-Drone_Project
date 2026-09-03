@@ -24,3 +24,11 @@ data/session.json
 
 data/.electron-userdata/
 data/dji_keychains/
+
+# Large drone telemetry logs (>100MB exceeds GitHub limits)
+*.ulg
+*.bin
+*.dat
+Log/
+Contoh Laporan/
+*.pptx
