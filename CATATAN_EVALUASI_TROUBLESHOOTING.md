@@ -102,17 +102,30 @@ Dokumen ini disusun sebagai dokumentasi teknis komprehensif atas proses reverse 
 
 ---
 
-### Bug 6: Tombol Play Flight Replay Tidak Berjalan Saat Diklik
+### Bug 6: Tombol Play/Pause Replay Memantul (Double Click Trigger)
 * **Gejala**:
-  Ketika tab *Flight Route Map* dibuka dan tombol Play diklik, tidak ada animasi drone yang bergerak, slider timeline tidak berjalan, dan tuas virtual joystick diam di tempat.
+  Ketika tab *Flight Route Map* dibuka dan tombol Play diklik, tombol tidak berjalan atau animasi langsung terhenti, sehingga pengguna harus memakai tombol putar ulang (*restart circle*).
 * **Akar Masalah (Root Cause)**:
-  1. **Z-Index Layering vs Leaflet Tile Layer**: Elemen Leaflet map memiliki z-index internal hingga 1000. Replay toolbar awalnya diset `z-[1000]` sehingga event `click` mouse terkadang tertelan oleh Leaflet drag-pan listener di lapisan canvas belakangnya.
-  2. **Parameter Data `initFlightReplay(r)`**: Pada fungsi `renderUlgLeafletMap()`, parameter dipanggil tanpa argumen `r`, sehingga `initFlightReplay(undefined)` gagal memuat array koordinat telemetri `replayPoints`.
-  3. **Window Scope Binding**: Fungsi `toggleFlightReplay` belum diekspos secara eksplisit ke objek global `window`, sehingga pemanggilan inline `onclick="toggleFlightReplay()"` di HTML tidak terpicu secara konsisten.
+  Tombol `btn-replay-play` memiliki atribut inline `onclick="toggleFlightReplay()"` dan secara bersamaan dipasangkan `playBtn.addEventListener('click', toggleFlightReplay)` di `renderer.js`. Akibatnya, setiap 1 kali klik memicu fungsi dua kali sekaligus (*toggle ON lalu seketika toggle OFF*).
 * **Solusi yang Diterapkan**:
-  1. Menaikkan z-index bilah kontrol replay menjadi `z-[2000]` dengan kelas `pointer-events-auto`.
-  2. Memperbaiki `initFlightReplay(ulgLastResult)` dengan fallback otomatis ke variabel global `ulgLastResult.preview_points`.
-  3. Menambahkan listener resmi `addEventListener('click')` di `setupUlgModalListeners()` dan mengekspos `window.toggleFlightReplay = toggleFlightReplay`.
+  Menghapus `addEventListener` ganda dan mempertahankan satu handler resmi `onclick="toggleFlightReplay()"` yang telah terhubung ke `window.toggleFlightReplay`. Menambahkan `pointer-events-none` pada tag `<svg>` di dalam tombol agar target klik mouse murni mengenai elemen `<button>`.
+
+---
+
+### Bug 7: Nilai Persentase Stik RC Menampilkan `102400%` (DJI 11-Bit Channel Range)
+* **Gejala**:
+  Saat memutar log penerbangan drone DJI (contoh: *chrisshe-MAVIC 2*), HUD Virtual Stick menampilkan angka ganjil: `T: 1024% | R: 102400% | P: 102400% | R: 102400%` dan stik knob keluar batas.
+* **Akar Masalah (Root Cause)**:
+  Pada protokol telemetri DJI, sinyal Remote Controller menggunakan representasi **11-bit unsigned integer**:
+  * Nilai Minimum: `364`
+  * Nilai Netral / Tengah: `1024`
+  * Nilai Maksimum: `1684`
+  Formula awal berasumsi nilai stik sudah dinormalisasi $-1.0 \text{ s/d } +1.0$, sehingga angka netral `1024` dikalikan `100%` menghasilkan `102400%`.
+* **Solusi yang Diterapkan**:
+  Menerapkan normalisasi 11-bit DJI resmi di `updateRCHud()`:
+  $$\text{Throttle (\%)} = \frac{\text{raw} - 364}{1684 - 364} \times 100\% \quad (50\% \text{ saat netral})$$
+  $$\text{Rudder / Pitch / Roll} = \frac{\text{raw} - 1024}{660} \quad (-1.0 \text{ s/d } +1.0)$$
+  Kini tuas stik bergerak proporsional dan teks menampilkan persentase realistis ($0\% - 100\%$).
 
 ---
 

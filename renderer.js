@@ -5216,15 +5216,7 @@ function setupUlgModalListeners() {
     reuploadBtn.onclick = triggerSelectFile;
   }
 
-  // Replay control buttons explicit event listeners
-  const playBtn = document.getElementById('btn-replay-play');
-  if (playBtn) {
-    playBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleFlightReplay();
-    });
-  }
-
+  // Replay timeline slider explicit input listener
   const slider = document.getElementById('replay-seek-slider');
   if (slider) {
     slider.addEventListener('input', (e) => {
@@ -5972,47 +5964,60 @@ function updateReplayTelemetry(idx) {
 }
 
 function updateRCHud(p) {
-  // DJI / PX4 RC channels normalization (-1.0 to +1.0 or 1000-2000 us)
-  let throttle = 0; // 0 to 100%
-  let rudder = 0;   // -1 to +1 (Yaw)
-  let elevator = 0; // -1 to +1 (Pitch)
-  let aileron = 0;  // -1 to +1 (Roll)
+  // DJI / PX4 RC channels normalization (-1.0 to +1.0 and 0 to 100% throttle)
+  let throttle = 50; // 0 to 100% (neutral hover is 50%)
+  let rudder = 0;   // -1 to +1 (Yaw: negative=left, positive=right)
+  let elevator = 0; // -1 to +1 (Pitch: positive=forward, negative=backward)
+  let aileron = 0;  // -1 to +1 (Roll: positive=right, negative=left)
 
-  if (p.rc_throttle !== undefined && p.rc_throttle !== null) {
-    throttle = p.rc_throttle;
-    rudder = p.rc_rudder || 0;
-    elevator = p.rc_elevator || 0;
-    aileron = p.rc_aileron || 0;
+  if (p.rc_throttle !== undefined && p.rc_throttle !== null && p.rc_throttle > 0) {
+    // DJI Remote Controller standard 11-bit PWM channel mapping:
+    // Min: 364, Center/Neutral: 1024, Max: 1684 (Span: 660 from center)
+    if (p.rc_throttle > 100) {
+      const djiCenter = 1024;
+      const djiSpan = 660; // 1684 - 1024
+
+      throttle = Math.min(100, Math.max(0, Math.round(((p.rc_throttle - 364) / (1684 - 364)) * 100)));
+      rudder = Math.min(1, Math.max(-1, (p.rc_rudder - djiCenter) / djiSpan));
+      elevator = Math.min(1, Math.max(-1, (p.rc_elevator - djiCenter) / djiSpan));
+      aileron = Math.min(1, Math.max(-1, (p.rc_aileron - djiCenter) / djiSpan));
+    } else {
+      // Direct percentage format (0 to 100 or -1 to 1)
+      throttle = p.rc_throttle;
+      rudder = p.rc_rudder || 0;
+      elevator = p.rc_elevator || 0;
+      aileron = p.rc_aileron || 0;
+    }
   } else {
-    // If raw RC stick channels are not in preview point, estimate from vertical speed & pitch
+    // Kinematic estimation fallback from velocity and heading changes
     const spdKnots = p.speed_knots || 0;
-    throttle = Math.min(100, Math.max(10, Math.round(spdKnots * 2)));
-    rudder = Math.sin((p.heading || 0) * (Math.PI / 180)) * 0.5;
-    elevator = Math.cos((p.heading || 0) * (Math.PI / 180)) * 0.5;
-    aileron = 0;
+    throttle = Math.min(100, Math.max(20, Math.round(50 + (p.agl_ft > 50 ? 10 : 0))));
+    rudder = Math.sin((p.heading || 0) * (Math.PI / 180)) * 0.4;
+    elevator = Math.min(0.8, spdKnots / 30.0);
+    aileron = Math.cos((p.heading || 0) * (Math.PI / 180)) * 0.2;
   }
 
   // Bound stick knob travel inside 80px circle (-24px to +24px)
   const maxTravelPx = 24;
 
-  // Left Stick: X = Rudder (-1 to +1), Y = Throttle (0 to 100% -> inverted Y)
+  // Left Stick: X = Rudder (-1 to +1), Y = Throttle (0 to 100% -> inverted Y, 50% is center)
   const leftX = rudder * maxTravelPx;
-  const leftY = (0.5 - (throttle / 100.0)) * (maxTravelPx * 2);
+  const leftY = ((50 - throttle) / 50.0) * maxTravelPx;
   const leftStick = document.getElementById('rc-stick-left');
   if (leftStick) {
-    leftStick.style.transform = `translate(${leftX}px, ${leftY}px)`;
+    leftStick.style.transform = `translate(${leftX.toFixed(1)}px, ${leftY.toFixed(1)}px)`;
   }
   const leftVal = document.getElementById('rc-stick-left-val');
   if (leftVal) {
     leftVal.textContent = `T: ${Math.round(throttle)}% | R: ${(rudder * 100).toFixed(0)}%`;
   }
 
-  // Right Stick: X = Aileron (-1 to +1), Y = Elevator (-1 to +1, inverted)
+  // Right Stick: X = Aileron (-1 to +1), Y = Elevator (-1 to +1, inverted: positive pitch moves stick forward/up)
   const rightX = aileron * maxTravelPx;
   const rightY = -elevator * maxTravelPx;
   const rightStick = document.getElementById('rc-stick-right');
   if (rightStick) {
-    rightStick.style.transform = `translate(${rightX}px, ${rightY}px)`;
+    rightStick.style.transform = `translate(${rightX.toFixed(1)}px, ${rightY.toFixed(1)}px)`;
   }
   const rightVal = document.getElementById('rc-stick-right-val');
   if (rightVal) {
