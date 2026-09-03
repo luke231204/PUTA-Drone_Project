@@ -102,6 +102,20 @@ Dokumen ini disusun sebagai dokumentasi teknis komprehensif atas proses reverse 
 
 ---
 
+### Bug 6: Tombol Play Flight Replay Tidak Berjalan Saat Diklik
+* **Gejala**:
+  Ketika tab *Flight Route Map* dibuka dan tombol Play diklik, tidak ada animasi drone yang bergerak, slider timeline tidak berjalan, dan tuas virtual joystick diam di tempat.
+* **Akar Masalah (Root Cause)**:
+  1. **Z-Index Layering vs Leaflet Tile Layer**: Elemen Leaflet map memiliki z-index internal hingga 1000. Replay toolbar awalnya diset `z-[1000]` sehingga event `click` mouse terkadang tertelan oleh Leaflet drag-pan listener di lapisan canvas belakangnya.
+  2. **Parameter Data `initFlightReplay(r)`**: Pada fungsi `renderUlgLeafletMap()`, parameter dipanggil tanpa argumen `r`, sehingga `initFlightReplay(undefined)` gagal memuat array koordinat telemetri `replayPoints`.
+  3. **Window Scope Binding**: Fungsi `toggleFlightReplay` belum diekspos secara eksplisit ke objek global `window`, sehingga pemanggilan inline `onclick="toggleFlightReplay()"` di HTML tidak terpicu secara konsisten.
+* **Solusi yang Diterapkan**:
+  1. Menaikkan z-index bilah kontrol replay menjadi `z-[2000]` dengan kelas `pointer-events-auto`.
+  2. Memperbaiki `initFlightReplay(ulgLastResult)` dengan fallback otomatis ke variabel global `ulgLastResult.preview_points`.
+  3. Menambahkan listener resmi `addEventListener('click')` di `setupUlgModalListeners()` dan mengekspos `window.toggleFlightReplay = toggleFlightReplay`.
+
+---
+
 ## 3. Arsitektur Teknis Universal Flight Inspector
 
 ### Distingsi Kritis: AGL vs. AMSL

@@ -5215,6 +5215,22 @@ function setupUlgModalListeners() {
   if (reuploadBtn) {
     reuploadBtn.onclick = triggerSelectFile;
   }
+
+  // Replay control buttons explicit event listeners
+  const playBtn = document.getElementById('btn-replay-play');
+  if (playBtn) {
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFlightReplay();
+    });
+  }
+
+  const slider = document.getElementById('replay-seek-slider');
+  if (slider) {
+    slider.addEventListener('input', (e) => {
+      seekFlightReplay(e.target.value);
+    });
+  }
 }
 
 function ulgShowError(msg) {
@@ -5756,7 +5772,7 @@ function renderUlgLeafletMap() {
   ulgDroneMarker = L.marker(startPt, { icon: droneIcon, zIndexOffset: 1000 }).addTo(ulgLeafletMapInstance);
 
   // Initialize Flight Replay Engine
-  initFlightReplay(r);
+  initFlightReplay(ulgLastResult);
 
   ulgLeafletMapInstance.fitBounds(ulgPolylineLayer.getBounds(), { padding: [30, 30] });
 
@@ -5774,12 +5790,15 @@ function renderUlgLeafletMap() {
 // Flight Replay & RC Virtual Stick Visualizer Engine
 // ============================================================================
 function initFlightReplay(result) {
+  const data = result || ulgLastResult;
+  if (!data) return;
+
   stopFlightReplay();
-  replayPoints = result.preview_points || [];
+  replayPoints = data.preview_points || [];
   replayCurrentIndex = 0;
 
   const totalTimeEl = document.getElementById('replay-time-total');
-  const durSec = result.duration_sec || 0;
+  const durSec = data.duration_sec || 0;
   const durStr = formatFlightTime(durSec);
   if (totalTimeEl) totalTimeEl.textContent = durStr;
 
@@ -5807,8 +5826,16 @@ function toggleFlightReplay() {
 }
 
 function startFlightReplay() {
-  if (!replayPoints || !replayPoints.length) return;
+  if (!replayPoints || !replayPoints.length) {
+    if (ulgLastResult && ulgLastResult.preview_points) {
+      initFlightReplay(ulgLastResult);
+    } else {
+      return;
+    }
+  }
+
   isReplayPlaying = true;
+  lastReplayTick = 0;
   updateReplayButtonUI(true);
 
   if (replayCurrentIndex >= replayPoints.length - 1) {
@@ -5881,14 +5908,15 @@ let lastReplayTick = 0;
 function runReplayLoop(timestamp) {
   if (!isReplayPlaying) return;
 
-  if (!lastReplayTick) lastReplayTick = timestamp || performance.now();
-  const elapsed = (timestamp || performance.now()) - lastReplayTick;
+  const now = timestamp || performance.now();
+  if (!lastReplayTick) lastReplayTick = now;
+  const elapsed = now - lastReplayTick;
 
-  // Interval step based on speed multiplier (~60ms base interval for 250 points)
-  const interval = 80 / replaySpeedMultiplier;
+  // Interval step based on speed multiplier (~100ms base interval for 250 points)
+  const interval = 100 / replaySpeedMultiplier;
 
   if (elapsed >= interval) {
-    lastReplayTick = timestamp || performance.now();
+    lastReplayTick = now;
     replayCurrentIndex++;
 
     if (replayCurrentIndex >= replayPoints.length) {
@@ -6070,3 +6098,19 @@ function updateRadialProgress(percentage) {
     descLabel.innerText = `${Math.round(percentage)}%`;
   }
 }
+
+// Explicit window bindings for HTML onclick handlers
+window.toggleFlightReplay = toggleFlightReplay;
+window.resetFlightReplay = resetFlightReplay;
+window.setReplaySpeed = setReplaySpeed;
+window.seekFlightReplay = seekFlightReplay;
+window.setFlightInspectorMode = setFlightInspectorMode;
+window.toggleDjiApiKeyInput = toggleDjiApiKeyInput;
+window.saveDjiApiKey = saveDjiApiKey;
+window.switchUlgStudioTab = switchUlgStudioTab;
+window.setUlgMapLayer = setUlgMapLayer;
+window.setUlgRouteColor = setUlgRouteColor;
+window.setUlgRouteWeight = setUlgRouteWeight;
+window.handleUlgChartRedraw = handleUlgChartRedraw;
+window.ulgRunExportFiles = ulgRunExportFiles;
+window.ulgOpenExportFolder = ulgOpenExportFolder;
