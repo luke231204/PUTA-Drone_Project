@@ -6025,6 +6025,22 @@ function updateRCHud(p) {
   }
 }
 
+let isRCHudVisible = true;
+function toggleRCHudPanel() {
+  const panel = document.getElementById('rc-hud-panel');
+  const btn = document.getElementById('btn-toggle-rc-hud');
+  if (!panel) return;
+
+  isRCHudVisible = !isRCHudVisible;
+  if (isRCHudVisible) {
+    panel.classList.remove('hidden');
+    if (btn) btn.className = 'flex items-center gap-1 px-2 py-1 rounded-lg bg-black/10 text-gray-900 text-[10px] font-bold transition-all';
+  } else {
+    panel.classList.add('hidden');
+    if (btn) btn.className = 'flex items-center gap-1 px-2 py-1 rounded-lg bg-black/5 text-gray-400 hover:text-gray-700 text-[10px] font-bold transition-all';
+  }
+}
+
 async function ulgRunExportFiles() {
   if (!ulgCurrentFilePath) return;
 
@@ -6117,5 +6133,6 @@ window.setUlgMapLayer = setUlgMapLayer;
 window.setUlgRouteColor = setUlgRouteColor;
 window.setUlgRouteWeight = setUlgRouteWeight;
 window.handleUlgChartRedraw = handleUlgChartRedraw;
+window.toggleRCHudPanel = toggleRCHudPanel;
 window.ulgRunExportFiles = ulgRunExportFiles;
 window.ulgOpenExportFolder = ulgOpenExportFolder;

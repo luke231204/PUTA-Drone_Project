@@ -129,6 +129,14 @@ Dokumen ini disusun sebagai dokumentasi teknis komprehensif atas proses reverse 
 
 ---
 
+### Fitur Tambahan: Tombol Toggle / Sembunyikan Virtual RC Sticks HUD
+* **Deskripsi**:
+  Menambahkan tombol cepat `RC Sticks` di toolbar peta serta tombol close `×` di pojok kanan atas panel joystick HUD.
+* **Kegunaan Lapangan**:
+  Memungkinkan inspektur penerbangan menyembunyikan panel joystick (Throttle/Yaw & Pitch/Roll) jika ingin melihat visual rute penerbangan dan area KKOP di pojok kanan bawah peta secara penuh tanpa terhalang elemen HUD.
+
+---
+
 ## 3. Arsitektur Teknis Universal Flight Inspector
 
 ### Distingsi Kritis: AGL vs. AMSL
