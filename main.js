@@ -217,7 +217,7 @@ ipcMain.handle('auth-sign-up', async (event, email, password, role) => {
     console.error("[IPC] auth-sign-up failed: Supabase not configured");
     return { success: false, error: "Supabase not configured." };
   }
-  
+
   const url = `${supabaseUrl.replace(/\/$/, '')}/auth/v1/signup`;
   try {
     const res = await fetch(url, {
@@ -270,7 +270,7 @@ ipcMain.handle('auth-sign-in', async (event, email, password) => {
         'Authorization': `Bearer ${serviceKey}`
       }
     });
-    
+
     let profile = null;
     if (profRes.ok) {
       const profData = await profRes.json();
@@ -279,12 +279,12 @@ ipcMain.handle('auth-sign-in', async (event, email, password) => {
         console.log(`[IPC] Profile loaded from DB: role=${profile.role}, approved=${profile.approved}`);
       }
     }
-    
+
     // Fallback profile if database triggers are missing or RLS prevents fetching
     if (!profile) {
       console.log(`[IPC] Profile not found in database. Reconstructing from metadata fallback...`);
       const metaRole = data.user.user_metadata ? data.user.user_metadata.role : 'regular';
-      
+
       // Auto-bootstrap any admin/dev email as dev, others get metadata role
       const assignedRole = (email === 'admin@puta.com' || email === 'lukmanyudand@gmail.com' || email.includes('admin') || email.includes('dev')) ? 'dev' : metaRole;
       profile = { id: data.user.id, email: data.user.email, role: assignedRole, approved: true };
@@ -348,7 +348,7 @@ ipcMain.handle('auth-get-session', async () => {
       } catch (err) {
         console.warn("[IPC] Failed to refresh session profile from DB:", err);
       }
-      
+
       // Fallback: If DB query fails, RLS blocks, or returns empty, use locally cached session/metadata fallback
       console.log("[IPC] auth-get-session: Profile not found in DB or query failed. Using fallback profile.");
       if (!saved.profile) {
@@ -430,7 +430,7 @@ ipcMain.handle('auth-get-all-profiles', async () => {
   loadEnv();
   const supabaseUrl = process.env.SUPABASE_URL;
   if (!supabaseUrl) return { success: false, error: "Supabase not configured." };
-  
+
   const url = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/profiles?select=*`;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
   try {
@@ -531,9 +531,9 @@ ipcMain.handle('open-pdf', async (event, fileName, year) => {
       return { success: true, openedLocally: false };
     }
 
-    return { 
-      success: false, 
-      error: "PDF not found locally, and cloud storage (Supabase) is not configured." 
+    return {
+      success: false,
+      error: "PDF not found locally, and cloud storage (Supabase) is not configured."
     };
   } catch (error) {
     console.error("Error opening PDF:", error);
@@ -554,7 +554,7 @@ async function syncToSupabase(newPermit, localFilePath) {
   }
 
   const sanitizedUrl = supabaseUrl.replace(/\/$/, '');
-  
+
   // 1. Upload Database Record
   try {
     const dbUrl = `${sanitizedUrl}/rest/v1/permits`;
@@ -615,7 +615,7 @@ ipcMain.handle('save-permit', async (event, newPermit, localFilePath) => {
     // 2. Copy physical file locally to GDrive or fallback local folder
     const gdrive = findGDriveFolder();
     let targetPath = '';
-    
+
     if (gdrive) {
       let relDir = '';
       if (newPermit.year === 2024) relDir = '2024';
