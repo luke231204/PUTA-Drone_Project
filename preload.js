@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('api', {
   getPathForFile: (file) => (webUtils && webUtils.getPathForFile ? webUtils.getPathForFile(file) : (file.path || '')),
   loadPermits: () => ipcRenderer.invoke('load-permits'),
   openPDF: (fileName, year) => ipcRenderer.invoke('open-pdf', fileName, year),
+  attachNotam: (permitId, localFilePath) => ipcRenderer.invoke('attach-notam', permitId, localFilePath),
+  openNotam: (notamFile) => ipcRenderer.invoke('open-notam', notamFile),
   savePermit: (permitData, localFilePath) => ipcRenderer.invoke('save-permit', permitData, localFilePath),
   convertToKml: (filePath) => ipcRenderer.invoke('convert-to-kml', filePath),
   loadAirportKml: () => ipcRenderer.invoke('load-airport-kml'),

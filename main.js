@@ -657,6 +657,198 @@ ipcMain.handle('save-permit', async (event, newPermit, localFilePath) => {
   }
 });
 
+// Helper function to sync NOTAM to Supabase Cloud
+async function syncNotamToSupabase(permit, notamFilePath) {
+  loadEnv();
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+  if (!supabaseUrl || !serviceKey) {
+    console.warn("Supabase credentials not configured, skipping NOTAM cloud sync.");
+    return;
+  }
+
+  const sanitizedUrl = supabaseUrl.replace(/\/$/, '');
+
+  // 1. Upload NOTAM PDF to 'notam-pdfs' storage bucket
+  try {
+    const fileBuffer = fs.readFileSync(notamFilePath);
+    const storagePath = encodeURIComponent(permit.notam_file);
+    const storageUrl = `${sanitizedUrl}/storage/v1/object/notam-pdfs/${storagePath}`;
+    const uploadRes = await fetch(storageUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/pdf',
+        'x-upsert': 'true'
+      },
+      body: fileBuffer
+    });
+    if (!uploadRes.ok) {
+      console.warn("NOTAM Storage upload warning:", await uploadRes.text());
+    } else {
+      console.log(`Uploaded NOTAM ${permit.notam_file} to Supabase notam-pdfs storage bucket.`);
+    }
+  } catch (err) {
+    console.warn("Failed to upload NOTAM to Storage:", err.message);
+  }
+
+  // 2. Update Database Record in 'permits' table
+  try {
+    const dbUrl = `${sanitizedUrl}/rest/v1/permits?permit_id=eq.${encodeURIComponent(permit.permit_id)}`;
+    const updateBody = {
+      notam_file: permit.notam_file,
+      notam_reference: permit.notam_reference,
+      coordinates: permit.coordinates,
+      max_altitude_ft: permit.max_altitude_ft,
+      altitude_ceiling_note: permit.altitude_ceiling_note
+    };
+    const patchRes = await fetch(dbUrl, {
+      method: 'PATCH',
+      headers: {
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(updateBody)
+    });
+    if (!patchRes.ok) {
+      console.warn("Permit NOTAM PATCH warning:", await patchRes.text());
+    } else {
+      console.log(`Updated permit ${permit.permit_id} in Supabase with NOTAM metadata.`);
+    }
+  } catch (err) {
+    console.warn("Failed to update permit in Supabase:", err.message);
+  }
+}
+
+// IPC Handler to attach a NOTAM PDF to an existing permit
+ipcMain.handle('attach-notam', async (event, permitId, localFilePath) => {
+  try {
+    const permitsPath = path.join(__dirname, 'data', 'permits.json');
+    if (!fs.existsSync(permitsPath)) {
+      throw new Error("permits.json does not exist.");
+    }
+    const permits = JSON.parse(fs.readFileSync(permitsPath, 'utf8'));
+    const permitIndex = permits.findIndex(p => p.permit_id === permitId);
+    if (permitIndex === -1) {
+      throw new Error(`Permit with ID ${permitId} not found.`);
+    }
+
+    // 1. Parse NOTAM to extract real coordinates, NOTAM ID & altitude ceiling
+    const { execFile } = require('child_process');
+    const pythonScript = path.join(__dirname, 'convert_to_kml.py');
+    const parsedData = await new Promise((resolve) => {
+      execFile('python', [pythonScript, localFilePath], (error, stdout, stderr) => {
+        if (error) {
+          console.warn("Could not parse NOTAM geometry:", stderr || error.message);
+          resolve(null);
+          return;
+        }
+        try {
+          const trimmed = stdout.trim();
+          const s = trimmed.indexOf('{');
+          const e = trimmed.lastIndexOf('}');
+          if (s !== -1 && e !== -1) {
+            resolve(JSON.parse(trimmed.substring(s, e + 1)));
+          } else {
+            resolve(null);
+          }
+        } catch (err) {
+          resolve(null);
+        }
+      });
+    });
+
+    // 2. Standardized File Naming: e.g. "B0598_26 NOTAMN - PT Timah Tbk - 0015.pdf"
+    const permit = permits[permitIndex];
+    const rawNotamCode = (parsedData && parsedData.permit_id) ? parsedData.permit_id : 'NOTAM';
+    const notamCodeClean = cleanFilenameStr(rawNotamCode);
+    const opClean = cleanFilenameStr(permit.operator_name || 'Operator');
+    const numClean = cleanFilenameStr((permit.permit_id || 'Unknown').split('/')[0]);
+    const standardizedNotamName = `${notamCodeClean} - ${opClean} - ${numClean}.pdf`;
+
+    // 3. Save copy to project Notam directory with standardized name
+    const notamDir = path.join(__dirname, 'Notam');
+    if (!fs.existsSync(notamDir)) {
+      fs.mkdirSync(notamDir, { recursive: true });
+    }
+    const destPath = path.join(notamDir, standardizedNotamName);
+    fs.copyFileSync(localFilePath, destPath);
+
+    // 4. Update permit fields
+    permit.notam_file = standardizedNotamName;
+    if (parsedData && parsedData.success) {
+      permit.notam_reference = parsedData.permit_id || rawNotamCode;
+      if (parsedData.coordinates && parsedData.coordinates.length > 0) {
+        // If permit has location Belitung or Bangka, pick the matching area if multi-area
+        if (parsedData.areas && parsedData.areas.length > 1) {
+          const locLower = (permit.location || '').toLowerCase();
+          let matchedArea = parsedData.areas.find(a => locLower.includes(a.name.toLowerCase().replace(' area', '')));
+          if (matchedArea) {
+            permit.coordinates = matchedArea.coordinates;
+          } else {
+            permit.coordinates = parsedData.areas[0].coordinates;
+          }
+        } else {
+          permit.coordinates = parsedData.coordinates;
+        }
+      }
+      if (parsedData.max_altitude_ft) {
+        permit.max_altitude_ft = parsedData.max_altitude_ft;
+      }
+      if (parsedData.upper_limit) {
+        permit.altitude_ceiling_note = parsedData.upper_limit;
+      }
+    } else {
+      permit.notam_reference = notamCodeClean;
+    }
+
+    permits[permitIndex] = permit;
+    fs.writeFileSync(permitsPath, JSON.stringify(permits, null, 2), 'utf8');
+
+    // 4. Automatic Cloud Sync to Supabase (Database & notam-pdfs Storage Bucket)
+    await syncNotamToSupabase(permit, destPath);
+
+    return {
+      success: true,
+      notam_file: permit.notam_file,
+      notam_reference: permit.notam_reference,
+      coordinates_count: permit.coordinates ? permit.coordinates.length : 0,
+      max_altitude_ft: permit.max_altitude_ft
+    };
+  } catch (error) {
+    console.error("Failed to attach NOTAM:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler to open attached NOTAM file
+ipcMain.handle('open-notam', async (event, notamFile) => {
+  try {
+    const notamPath = path.join(__dirname, 'Notam', notamFile);
+    if (fs.existsSync(notamPath)) {
+      const err = await shell.openPath(notamPath);
+      if (!err) return { success: true, openedLocally: true };
+    }
+
+    // Cloud fallback from Supabase Storage
+    loadEnv();
+    const supabaseUrl = process.env.SUPABASE_URL;
+    if (supabaseUrl) {
+      const sanitizedUrl = supabaseUrl.replace(/\/$/, '');
+      const cloudUrl = `${sanitizedUrl}/storage/v1/object/public/notam-pdfs/${encodeURIComponent(notamFile)}`;
+      await shell.openExternal(cloudUrl);
+      return { success: true, openedLocally: false };
+    }
+
+    return { success: false, error: "NOTAM file not found locally or in cloud." };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // IPC Handler to convert PDF/Image to KML
 ipcMain.handle('convert-to-kml', async (event, filePath) => {
   const { execFile } = require('child_process');
@@ -674,7 +866,14 @@ ipcMain.handle('convert-to-kml', async (event, filePath) => {
       }
 
       try {
-        const result = JSON.parse(stdout.trim());
+        const trimmed = stdout.trim();
+        const jsonStart = trimmed.indexOf('{');
+        const jsonEnd = trimmed.lastIndexOf('}');
+        if (jsonStart === -1 || jsonEnd === -1) {
+          throw new Error("No JSON object found in stdout");
+        }
+        const cleanJson = trimmed.substring(jsonStart, jsonEnd + 1);
+        const result = JSON.parse(cleanJson);
         resolve(result);
       } catch (err) {
         console.error("Failed to parse Python stdout:", stdout, err);

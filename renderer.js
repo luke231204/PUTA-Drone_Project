@@ -10,12 +10,72 @@ let airportLayers = {};
 let countdownInterval = null;
 let currentYearFilter = 'All';
 let currentStatusFilter = 'All'; // 'All', 'ACTIVE', 'PENDING', or 'EXPIRED'
+let isFocusMode = false;
+let customPermitColors = {};
+try {
+  const savedColors = localStorage.getItem('puta_custom_permit_colors');
+  if (savedColors) customPermitColors = JSON.parse(savedColors);
+} catch (e) {
+  console.warn('Failed to parse saved permit colors', e);
+}
+
+function updateFocusModeUI() {
+  const btn = document.getElementById('map-toggle-focus');
+  const txt = document.getElementById('map-toggle-focus-text');
+  if (!btn || !txt) return;
+
+  if (isFocusMode) {
+    btn.className = "flex items-center gap-1.5 cursor-pointer text-indigo-600 font-bold transition-colors";
+    txt.textContent = "Focus Active: ON";
+    const icon = btn.querySelector('svg');
+    if (icon) {
+      icon.classList.remove('text-gray-500');
+      icon.classList.add('text-indigo-600');
+    }
+  } else {
+    btn.className = "flex items-center gap-1.5 cursor-pointer text-gray-600 hover:text-indigo-600 transition-colors";
+    txt.textContent = "Focus Active Only";
+    const icon = btn.querySelector('svg');
+    if (icon) {
+      icon.classList.remove('text-indigo-600');
+      icon.classList.add('text-gray-500');
+    }
+  }
+}
+
+function setPermitColor(permitId, color) {
+  if (!color) {
+    delete customPermitColors[permitId];
+  } else {
+    customPermitColors[permitId] = color;
+  }
+  try {
+    localStorage.setItem('puta_custom_permit_colors', JSON.stringify(customPermitColors));
+  } catch (e) {
+    console.warn('Failed to save permit colors', e);
+  }
+
+  const poly = polygonLayers[permitId];
+  if (poly) {
+    const status = selectedPermit ? getPermitStatus(selectedPermit) : 'ACTIVE';
+    const defaultColor = status === 'ACTIVE' ? '#10b981' : (status === 'PENDING' ? '#f59e0b' : '#8e9aa6');
+    const effectiveColor = color || defaultColor;
+    poly.setStyle({
+      color: effectiveColor,
+      fillColor: effectiveColor
+    });
+  }
+
+  renderDashboard();
+  renderInspector();
+  showToast(color ? `Airspace color updated: ${color}` : "Color reset to default status color", "info");
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global Auth Action — called directly from button onclick in HTML
 // This bypasses ALL event listener setup to guarantee the button always works.
 // ─────────────────────────────────────────────────────────────────────────────
-window.doAuthAction = async function() {
+window.doAuthAction = async function () {
   const email = (document.getElementById('auth-email') ? document.getElementById('auth-email').value : '').trim();
   const password = document.getElementById('auth-password') ? document.getElementById('auth-password').value : '';
   const alertBox = document.getElementById('auth-alert');
@@ -203,14 +263,22 @@ const LOCATION_COORDS = {
   "pt. prima alumga": [-3.30, 104.80],
   "pt. pinang witmas sejati": [-2.30, 103.95],
   "pt skytech indonesia_pt. bmh": [-3.20, 104.20],
-  "sumsel, bengkulu dan lampung": [-3.50, 103.50]
+  "sumsel, bengkulu dan lampung": [-3.50, 103.50],
+  "sengeti": [-1.40, 103.60],
+  "merlung": [-1.26, 103.04],
+  "pesisir selatan": [-1.35, 100.57],
+  "tanjung enim": [-3.75, 103.80],
+  "mukomuko": [-2.58, 101.12],
+  "muko muko": [-2.58, 101.12],
+  "air manjunto": [-2.54, 101.14],
+  "pangkal pinang": [-2.13, 106.11]
 };
 
 function getCoordsFromLocation(locStr) {
   if (!locStr) return null;
   const normalized = locStr.toLowerCase().trim();
   if (LOCATION_COORDS[normalized]) return LOCATION_COORDS[normalized];
-  
+
   for (const [key, coords] of Object.entries(LOCATION_COORDS)) {
     if (normalized.includes(key) || key.includes(normalized)) {
       return coords;
@@ -227,7 +295,7 @@ function getEmergencyTower(locationStr) {
 
   // Jambi jurisdiction
   if (loc.includes('jambi') || loc.includes('sekernan') || loc.includes('bungo') ||
-      loc.includes('kaos') || loc.includes('jabung') || loc.includes('muara bungo')) {
+    loc.includes('kaos') || loc.includes('jabung') || loc.includes('muara bungo')) {
     return { name: "AirNav Jambi Tower", phone: "+62 (741) 57321" };
   }
   // Bengkulu jurisdiction (includes Muko-Muko and Enggano which are in Bengkulu province)
@@ -236,12 +304,12 @@ function getEmergencyTower(locationStr) {
   }
   // Palembang / South Sumatra jurisdiction (includes Pagar Alam and Lubuk Linggau)
   if (loc.includes('palembang') || loc.includes('ogan komering') || loc.includes('oki') ||
-      loc.includes('muara enim') || loc.includes('kayu agung') || loc.includes('sumsel') ||
-      loc.includes('sumatera selatan') || loc.includes('musi hutan') || loc.includes('gelam') ||
-      loc.includes('dayung') || loc.includes('sambar') || loc.includes('sumpal') ||
-      loc.includes('rebon jaro') || loc.includes('bayung') || loc.includes('witmas') ||
-      loc.includes('pagar alam') || loc.includes('lubuk linggau') || loc.includes('lahat') ||
-      loc.includes('baturaja') || loc.includes('ogan ilir')) {
+    loc.includes('muara enim') || loc.includes('kayu agung') || loc.includes('sumsel') ||
+    loc.includes('sumatera selatan') || loc.includes('musi hutan') || loc.includes('gelam') ||
+    loc.includes('dayung') || loc.includes('sambar') || loc.includes('sumpal') ||
+    loc.includes('rebon jaro') || loc.includes('bayung') || loc.includes('witmas') ||
+    loc.includes('pagar alam') || loc.includes('lubuk linggau') || loc.includes('lahat') ||
+    loc.includes('baturaja') || loc.includes('ogan ilir')) {
     return { name: "AirNav Palembang Tower", phone: "+62 (711) 385006" };
   }
   // Belitung / Bangka Belitung jurisdiction
@@ -586,31 +654,31 @@ function updateUserDisplay() {
 let activeAdminTab = 'users';
 let allAdminProfiles = [];
 
-window.openAdminModal = async function() {
+window.openAdminModal = async function () {
   const modal = document.getElementById('admin-modal');
   if (!modal) return;
   modal.classList.remove('hidden');
   requestAnimationFrame(() => modal.classList.remove('opacity-0'));
-  
+
   // Set default tab
   switchAdminTab('users');
 };
 
-window.closeAdminModal = function() {
+window.closeAdminModal = function () {
   const modal = document.getElementById('admin-modal');
   if (!modal) return;
   modal.classList.add('opacity-0');
   setTimeout(() => modal.classList.add('hidden'), 300);
 };
 
-window.switchAdminTab = function(tabName) {
+window.switchAdminTab = function (tabName) {
   activeAdminTab = tabName;
   const tabs = ['users', 'system', 'cache'];
-  
+
   tabs.forEach(t => {
     const btn = document.getElementById(`admin-tab-${t}`);
     const panel = document.getElementById(`admin-panel-${t}`);
-    
+
     if (btn) {
       if (t === tabName) {
         btn.className = "pb-2.5 border-b-2 border-indigo-600 text-indigo-600 focus:outline-none transition-all";
@@ -618,7 +686,7 @@ window.switchAdminTab = function(tabName) {
         btn.className = "pb-2.5 border-b-2 border-transparent hover:text-[#2a2334] focus:outline-none transition-all";
       }
     }
-    
+
     if (panel) {
       if (t === tabName) panel.classList.remove('hidden');
       else panel.classList.add('hidden');
@@ -650,7 +718,7 @@ async function refreshAdminProfiles() {
   }
 }
 
-window.renderAdminProfilesList = function() {
+window.renderAdminProfilesList = function () {
   const list = document.getElementById('admin-users-list');
   const loading = document.getElementById('admin-users-loading');
   const searchInput = document.getElementById('admin-users-search');
@@ -698,7 +766,7 @@ window.renderAdminProfilesList = function() {
   }).join('');
 };
 
-window.updateUserProfile = async function(userId, updates) {
+window.updateUserProfile = async function (userId, updates) {
   showToast("Updating user profile...", "info");
   const res = await window.api.updateProfile(userId, updates);
   if (res && res.success) {
@@ -724,11 +792,11 @@ async function refreshAdminDiagnostics() {
     const el = (id) => document.getElementById(id);
     if (el('diag-supabase-url')) el('diag-supabase-url').textContent = res.supabaseUrl;
     if (el('diag-gdrive-path')) el('diag-gdrive-path').textContent = res.gdrivePath;
-    
+
     // Cache size formatting
     const sizeKB = (res.cacheSize / 1024).toFixed(1);
     if (el('diag-cache-size')) el('diag-cache-size').textContent = `${sizeKB} KB (${res.cacheSize} bytes)`;
-    
+
     // Active session details
     if (el('diag-active-session')) {
       el('diag-active-session').textContent = currentUser ? currentUser.user.email : "No active session";
@@ -749,7 +817,7 @@ async function refreshAdminDiagnostics() {
   }
 }
 
-window.triggerAdminSync = async function() {
+window.triggerAdminSync = async function () {
   const btn = document.getElementById('admin-btn-sync');
   if (btn) {
     btn.disabled = true;
@@ -771,10 +839,10 @@ window.triggerAdminSync = async function() {
   }
 };
 
-window.triggerAdminCacheReset = async function() {
+window.triggerAdminCacheReset = async function () {
   const confirmReset = confirm("CRITICAL WARNING:\nAre you sure you want to clear local cache, delete session tokens, and log out? This will completely reset the application state.");
   if (!confirmReset) return;
-  
+
   showToast("Clearing local storage cache and session...", "info");
   try {
     await window.api.logout();
@@ -912,6 +980,23 @@ function initMap() {
     });
   }
 
+  // Focus Active Airspace Toggle
+  const focusToggleBtn = document.getElementById('map-toggle-focus');
+  if (focusToggleBtn) {
+    focusToggleBtn.addEventListener('click', () => {
+      isFocusMode = !isFocusMode;
+      updateFocusModeUI();
+      renderDashboard();
+      if (selectedPermit) {
+        renderInspector();
+        showToast(isFocusMode ? "Focus Mode: Only active permit airspace is displayed" : "Focus Mode: All regional airspaces restored", "info");
+      } else {
+        showToast(isFocusMode ? "Focus Mode enabled. Select a permit to isolate its airspace." : "Focus Mode disabled", "info");
+      }
+    });
+  }
+  updateFocusModeUI();
+
   // Plot KKOP Airport Safety zones (indigo border rings) & Interactive IATA code badges
   REGION_AIRPORTS.forEach(airport => {
     // 5km Ring (No Fly Zone buffer)
@@ -946,7 +1031,7 @@ function initMap() {
     nfzRing.on('click', handleAirportClick);
 
     airportLayers[airport.code] = { ring: nfzRing, marker: marker };
-    
+
     kkopLayers.push(nfzRing);
     kkopLayers.push(marker);
   });
@@ -957,10 +1042,10 @@ async function loadAndRenderData() {
   try {
     // Pull permit JSON via the electron IPC bridge
     permits = await window.api.loadPermits();
-    
+
     // Sort permits by year desc, then permit ID
     permits.sort((a, b) => b.year - a.year || a.permit_id.localeCompare(b.permit_id));
-    
+
     renderDashboard();
     // Pre-populate portal stats so they're ready when portal is shown
     setTimeout(updatePortalStats, 100);
@@ -979,10 +1064,10 @@ function getPermitStatus(permit) {
 
   // Format local date today as YYYY-MM-DD in the local timezone (not UTC)
   const todayStr = now.toLocaleDateString('en-CA'); // returns YYYY-MM-DD in local time
-  
+
   if (todayStr < permit.date_start) return 'PENDING';
   if (todayStr > permit.date_end) return 'EXPIRED';
-  
+
   // Clean time strings (remove GMT / timezone additions)
   const cleanTime = (t) => t.split(' ')[0].replace('.', ':');
   const tStart = cleanTime(permit.time_start);
@@ -990,13 +1075,13 @@ function getPermitStatus(permit) {
 
   const [startH, startM] = tStart.split(':').map(Number);
   const [endH, endM] = tEnd.split(':').map(Number);
-  
+
   const startTime = new Date(now);
   startTime.setHours(startH, startM, 0, 0);
-  
+
   const endTime = new Date(now);
   endTime.setHours(endH, endM, 0, 0);
-  
+
   if (now < startTime) return 'PENDING';
   if (now > endTime) return 'EXPIRED';
   return 'ACTIVE';
@@ -1265,23 +1350,23 @@ function setupEventListeners() {
 
   const converterDropZone = document.getElementById('converter-drop-zone');
   const converterFileInput = document.getElementById('converter-file-input');
-  
+
   if (converterDropZone && converterFileInput) {
     converterDropZone.addEventListener('click', () => converterFileInput.click());
     converterFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) processConverterFile(file);
     });
-    
+
     converterDropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       converterDropZone.classList.add('border-indigo-400');
     });
-    
+
     converterDropZone.addEventListener('dragleave', () => {
       converterDropZone.classList.remove('border-indigo-400');
     });
-    
+
     converterDropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       converterDropZone.classList.remove('border-indigo-400');
@@ -1292,6 +1377,9 @@ function setupEventListeners() {
 
   const btnDownloadKml = document.getElementById('btn-download-conv-kml');
   if (btnDownloadKml) btnDownloadKml.addEventListener('click', downloadConvertedKml);
+
+  const btnViewConvMap = document.getElementById('btn-view-conv-map');
+  if (btnViewConvMap) btnViewConvMap.addEventListener('click', viewConvertedPolygonsOnMap);
 
   // ==========================================
   // Auth and Role Management Event Listeners
@@ -1400,27 +1488,43 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const deltaLambda = (lon2 - lon1) * Math.PI / 180;
 
   const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-            Math.cos(phi1) * Math.cos(phi2) *
-            Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    Math.cos(phi1) * Math.cos(phi2) *
+    Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // in metres
 }
 
+function countCoordinatesVertices(coords) {
+  if (!coords || !Array.isArray(coords) || coords.length === 0) return 0;
+  if (Array.isArray(coords[0]) && Array.isArray(coords[0][0])) {
+    return coords.reduce((acc, ring) => acc + (Array.isArray(ring) ? ring.length : 0), 0);
+  }
+  if (Array.isArray(coords[0]) && typeof coords[0][0] === 'number') {
+    return coords.length;
+  }
+  return 0;
+}
+
 function isPermitNearAirport(permit, airport) {
   let coords = null;
   if (permit.coordinates && permit.coordinates.length > 0) {
-    coords = permit.coordinates[0];
-  } else {
+    if (Array.isArray(permit.coordinates[0]) && Array.isArray(permit.coordinates[0][0])) {
+      coords = permit.coordinates[0][0];
+    } else if (Array.isArray(permit.coordinates[0]) && typeof permit.coordinates[0][0] === 'number') {
+      coords = permit.coordinates[0];
+    }
+  }
+  if (!coords) {
     coords = getCoordsFromLocation(permit.location);
   }
   if (!coords) return false;
-  
+
   const dist = getDistance(coords[0], coords[1], airport.lat, airport.lng);
   return dist <= 25000; // 25 km radius
 }
 
-window.clearNearAirportFilter = function() {
+window.clearNearAirportFilter = function () {
   currentNearAirportFilter = null;
   const banner = document.getElementById('active-filters-banner');
   if (banner) {
@@ -1448,7 +1552,7 @@ function renderDashboard() {
 
   permits.forEach(permit => {
     const status = getPermitStatus(permit);
-    
+
     // Update Global Statistics
     if (status === 'ACTIVE') activeCount++;
     else if (status === 'PENDING') pendingCount++;
@@ -1466,69 +1570,96 @@ function renderDashboard() {
     }
 
     // Apply Search Filter
-    const matchesSearch = 
+    const matchesSearch =
       permit.operator_name.toLowerCase().includes(query) ||
       permit.permit_id.toLowerCase().includes(query) ||
       permit.location.toLowerCase().includes(query);
     if (!matchesSearch) return;
 
     displayedCount++;
-    
+
     // Draw Permit shapes on Leaflet Map (Polygon or Fallback Circle)
-    const color = status === 'ACTIVE' ? '#10b981' : (status === 'PENDING' ? '#f59e0b' : '#8e9aa6');
+    const isSelected = selectedPermit && selectedPermit.permit_id === permit.permit_id;
+    const defaultColor = status === 'ACTIVE' ? '#10b981' : (status === 'PENDING' ? '#f59e0b' : '#8e9aa6');
+    const color = customPermitColors[permit.permit_id] || defaultColor;
+
     let mapShape = null;
     let isFallback = false;
+    const totalVertices = countCoordinatesVertices(permit.coordinates);
 
     if (typeof L !== 'undefined' && map) {
-      if (permit.coordinates && permit.coordinates.length > 0) {
-        mapShape = L.polygon(permit.coordinates, {
-          color: color,
-          fillColor: color,
-          fillOpacity: 0.2,
-          weight: selectedPermit && selectedPermit.permit_id === permit.permit_id ? 3 : 1.5
-        });
+      // If Focus Mode is enabled AND a permit is selected, isolate active permit and skip other polygons
+      if (isFocusMode && selectedPermit && !isSelected) {
+        // Skip unselected permits on the map to prevent visual confusion
       } else {
-        // Fallback location lookup
-        const fallbackCoords = getCoordsFromLocation(permit.location);
-        if (fallbackCoords) {
-          isFallback = true;
-          mapShape = L.circle(fallbackCoords, {
+        const isDimmed = selectedPermit && !isSelected;
+        const fillOpacity = isSelected ? 0.35 : (isDimmed ? 0.04 : 0.2);
+        const strokeOpacity = isSelected ? 1.0 : (isDimmed ? 0.25 : 0.8);
+        const weight = isSelected ? 3.5 : (isDimmed ? 1 : 1.5);
+
+        if (totalVertices >= 3) {
+          mapShape = L.polygon(permit.coordinates, {
             color: color,
             fillColor: color,
-            fillOpacity: 0.15,
-            weight: selectedPermit && selectedPermit.permit_id === permit.permit_id ? 3.5 : 1.5,
-            radius: 6000 // 6 kilometers approximate radius
+            fillOpacity: fillOpacity,
+            opacity: strokeOpacity,
+            weight: weight
           });
+        } else {
+          // Fallback location lookup
+          const fallbackCoords = getCoordsFromLocation(permit.location);
+          if (fallbackCoords) {
+            isFallback = true;
+            mapShape = L.circle(fallbackCoords, {
+              color: color,
+              fillColor: color,
+              fillOpacity: isSelected ? 0.25 : (isDimmed ? 0.03 : 0.15),
+              opacity: strokeOpacity,
+              weight: weight,
+              radius: 6000 // 6 kilometers approximate radius
+            });
+          }
         }
-      }
 
-      if (mapShape) {
-        mapShape.addTo(map);
+        if (mapShape) {
+          mapShape.addTo(map);
 
-        // Popup content
-        mapShape.bindPopup(`
-          <div class="text-xs space-y-1">
-            <div class="font-bold text-[#2a2334]">${permit.operator_name}</div>
-            <div class="text-[10px] text-gray-500 font-mono">ID: ${permit.permit_id}</div>
-            ${isFallback ? '<div class="text-[9px] text-amber-600 font-bold mt-1">Approximate Area Fallback</div>' : ''}
-            <div class="flex items-center gap-1.5 mt-1">
-              <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${color}"></span>
-              <span class="font-bold uppercase tracking-wider text-[9px]" style="color: ${color}">${status}</span>
+          // Popup content
+          let coordBadge = '';
+          if (totalVertices >= 3) {
+            if (permit.notam_reference) {
+              coordBadge = `<div class="text-[9px] text-indigo-600 font-bold mt-1">Airspace: NOTAM Polygon (${totalVertices} pts)</div>`;
+            } else {
+              const srcName = permit.coordinate_source || 'Permit Attachment';
+              coordBadge = `<div class="text-[9px] text-emerald-600 font-bold mt-1">Airspace: ${srcName} (${totalVertices} pts)</div>`;
+            }
+          } else if (isFallback) {
+            coordBadge = '<div class="text-[9px] text-amber-600 font-bold mt-1">Approximate Area Fallback</div>';
+          }
+
+          mapShape.bindPopup(`
+            <div class="text-xs space-y-1">
+              <div class="font-bold text-[#2a2334]">${permit.operator_name}</div>
+              <div class="text-[10px] text-gray-500 font-mono">ID: ${permit.permit_id}</div>
+              ${coordBadge}
+              <div class="flex items-center gap-1.5 mt-1">
+                <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${color}"></span>
+                <span class="font-bold uppercase tracking-wider text-[9px]" style="color: ${color}">${status}</span>
+              </div>
             </div>
-          </div>
-        `);
-        
-        polygonLayers[permit.permit_id] = mapShape;
-        
-        // Select permit when clicking its map shape
-        mapShape.on('click', () => selectPermitCard(permit));
+          `);
+
+          polygonLayers[permit.permit_id] = mapShape;
+
+          // Select permit when clicking its map shape
+          mapShape.on('click', () => selectPermitCard(permit));
+        }
       }
     }
 
     // Append Permit Card to list
     const card = document.createElement('div');
-    const isSelected = selectedPermit && selectedPermit.permit_id === permit.permit_id;
-    
+
     let statusBadgeColor = 'bg-gray-100 text-gray-600 border-gray-200';
     let statusDot = 'bg-gray-400';
     let pulseClass = '';
@@ -1542,16 +1673,20 @@ function renderDashboard() {
       statusDot = 'bg-amber-500';
     }
 
-    card.className = `p-4 border rounded-2xl cursor-pointer transition-all duration-300 ${
-      isSelected 
-        ? 'active-permit-card' 
+    card.className = `p-4 border rounded-2xl cursor-pointer transition-all duration-300 ${isSelected
+        ? 'active-permit-card'
         : 'bg-white/70 border-black/5 hover:bg-white hover:shadow-sm text-gray-800'
-    }`;
+      }`;
+
+    if (customPermitColors[permit.permit_id]) {
+      card.style.borderLeftWidth = '4px';
+      card.style.borderLeftColor = customPermitColors[permit.permit_id];
+    }
 
     const pilotVal = Array.isArray(permit.pilot_name) && permit.pilot_name.length > 0
       ? permit.pilot_name.join(', ')
       : (typeof permit.pilot_name === 'string' && permit.pilot_name ? permit.pilot_name : "Unknown Pilot");
-      
+
     const registryVal = Array.isArray(permit.puta_registry) && permit.puta_registry.length > 0
       ? permit.puta_registry.join(', ')
       : (typeof permit.puta_registry === 'string' && permit.puta_registry ? permit.puta_registry : "Unknown Registry");
@@ -1602,13 +1737,13 @@ function renderDashboard() {
 function selectAirport(airport) {
   selectedAirport = airport;
   selectedPermit = null; // Clear selected permit
-  
+
   // Highlight selected airport on map
   highlightAirportOnMap(airport ? airport.code : null);
-  
+
   renderDashboard(); // Updates dashboard list/map styles
   renderInspector();  // Fills inspector panel with airport details
-  
+
   if (airport && map) {
     map.setView([airport.lat, airport.lng], 11, { animate: true, duration: 1 });
   }
@@ -1627,7 +1762,7 @@ function highlightAirportOnMap(airportCode) {
         weight: isSelected ? 3 : 1.5,
         dashArray: isSelected ? '0' : '4, 4'
       });
-      
+
       const markerEl = layers.marker.getElement();
       if (markerEl) {
         const div = markerEl.querySelector('.flex');
@@ -1648,14 +1783,15 @@ function selectPermitCard(permit) {
   selectedPermit = permit;
   selectedAirport = null; // Clear selected airport
   highlightAirportOnMap(null); // Reset airport highlights
-  
+
   renderDashboard(); // Updates list styles and map weights
   renderInspector();  // Fills inspector panel details
 
   // Fly to the coordinates bounds if they exist (or fallback bounds)
-  if ((permit.coordinates && permit.coordinates.length > 0) || getCoordsFromLocation(permit.location)) {
+  const totalVerts = countCoordinatesVertices(permit.coordinates);
+  if (totalVerts >= 3 || getCoordsFromLocation(permit.location)) {
     const poly = polygonLayers[permit.permit_id];
-    if (poly && map) {
+    if (poly && map && poly.getBounds && poly.getBounds().isValid()) {
       map.fitBounds(poly.getBounds(), { padding: [50, 50], maxZoom: 12 });
       poly.openPopup();
     }
@@ -1787,7 +1923,7 @@ function renderAirportInspector(airport) {
       selectAirport(null);
     });
   }
-  
+
   const btnFocusAp = document.getElementById('btn-focus-airport');
   if (btnFocusAp) {
     btnFocusAp.addEventListener('click', () => {
@@ -1860,7 +1996,7 @@ function renderInspector() {
   const pilotVal = Array.isArray(permit.pilot_name) && permit.pilot_name.length > 0
     ? permit.pilot_name.join(', ')
     : (typeof permit.pilot_name === 'string' && permit.pilot_name ? permit.pilot_name : "Unknown Pilot");
-    
+
   const registryVal = Array.isArray(permit.puta_registry) && permit.puta_registry.length > 0
     ? permit.puta_registry.join(', ')
     : (typeof permit.puta_registry === 'string' && permit.puta_registry ? permit.puta_registry : "Unknown Registry");
@@ -1877,7 +2013,7 @@ function renderInspector() {
 
   let statusBadgeColor = 'bg-gray-100 border-gray-200 text-gray-600';
   let gaugeColor = 'bg-gray-400';
-  
+
   if (status === 'ACTIVE') {
     statusBadgeColor = 'bg-emerald-50 border-emerald-200 text-emerald-700';
     gaugeColor = 'bg-emerald-500';
@@ -1885,6 +2021,17 @@ function renderInspector() {
     statusBadgeColor = 'bg-amber-50 border-amber-200 text-amber-700';
     gaugeColor = 'bg-amber-500';
   }
+
+  const currentPermitColor = customPermitColors[permit.permit_id] || (status === 'ACTIVE' ? '#10b981' : (status === 'PENDING' ? '#f59e0b' : '#8e9aa6'));
+  const colorPresets = [
+    { name: 'Emerald', hex: '#10b981' },
+    { name: 'Sky Blue', hex: '#0284c7' },
+    { name: 'Indigo', hex: '#6366f1' },
+    { name: 'Purple', hex: '#9333ea' },
+    { name: 'Amber', hex: '#f59e0b' },
+    { name: 'Crimson', hex: '#ef4444' },
+    { name: 'Neon Lime', hex: '#84cc16' }
+  ];
 
   panel.innerHTML = `
     <!-- Top Details Title -->
@@ -1914,6 +2061,52 @@ function renderInspector() {
       <div class="flex justify-between text-[10px] text-gray-500 font-semibold pt-1">
         <span>Start: ${permit.time_start}</span>
         <span>End: ${permit.time_end}</span>
+      </div>
+    </div>
+
+    <!-- Airspace Focus & Styling Control Panel -->
+    <div class="p-6 border-b border-black/5 space-y-3 bg-gradient-to-br from-indigo-50/30 to-purple-50/30">
+      <div class="flex items-center justify-between">
+        <h3 class="text-[10px] uppercase font-extrabold text-indigo-700 tracking-wider flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3" stroke-width="2"></circle>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h2m14 0h2M12 3v2m0 14v2"></path>
+          </svg>
+          Airspace Focus & Styling
+        </h3>
+        <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ${isFocusMode ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500'}">
+          ${isFocusMode ? 'ISOLATED' : 'ALL VISIBLE'}
+        </span>
+      </div>
+
+      <!-- Isolate / Show All Toggle Button -->
+      <button id="btn-toggle-isolate" class="w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border ${isFocusMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-700 shadow-md shadow-indigo-600/20' : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200 shadow-sm'}">
+        <svg class="w-4 h-4 ${isFocusMode ? 'text-white' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3" stroke-width="2"></circle>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h2m14 0h2M12 3v2m0 14v2"></path>
+        </svg>
+        <span>${isFocusMode ? 'Focus Active: Other Polygons Hidden' : 'Isolate This Airspace (Hide Others)'}</span>
+      </button>
+
+      <!-- Color Palette Picker -->
+      <div class="space-y-1.5 pt-1">
+        <div class="flex items-center justify-between text-[10px] font-bold text-gray-500">
+          <span>Airspace Color:</span>
+          ${customPermitColors[permit.permit_id] ? `
+            <button id="btn-reset-color" class="text-[10px] text-red-500 hover:text-red-700 transition-colors font-bold flex items-center gap-0.5" title="Reset to standard status color">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Reset Color
+            </button>` : `<span class="text-[9px] text-gray-400 font-normal">Default Status Color</span>`}
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          ${colorPresets.map(cp => `
+            <button type="button" class="color-preset-chip w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 active:scale-95 ${currentPermitColor.toLowerCase() === cp.hex.toLowerCase() ? 'ring-2 ring-indigo-600 ring-offset-2 scale-110 border-white' : 'border-white shadow-sm'}" data-color="${cp.hex}" style="background-color: ${cp.hex};" title="${cp.name} (${cp.hex})"></button>
+          `).join('')}
+          <label class="relative w-6 h-6 rounded-full border-2 border-dashed border-gray-300 hover:border-indigo-400 cursor-pointer flex items-center justify-center overflow-hidden transition-colors" title="Custom Hex Color Picker">
+            <input type="color" id="permit-color-input" value="${currentPermitColor}" class="opacity-0 absolute inset-0 cursor-pointer w-full h-full">
+            <span class="text-[10px] font-bold text-gray-500">+</span>
+          </label>
+        </div>
       </div>
     </div>
 
@@ -1978,7 +2171,42 @@ function renderInspector() {
           <span class="text-gray-500 font-semibold">Attachment Reference</span>
           <span id="pdf-reference-link" class="text-[#4a5d3e] font-semibold hover:underline cursor-pointer truncate max-w-[200px]" title="${permit.file_name}">${permit.file_name}</span>
         </div>
+        ${permit.notam_reference ? `
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-gray-500 font-semibold">NOTAM Reference</span>
+          <span class="font-mono text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">${permit.notam_reference}</span>
+        </div>` : ''}
+        ${permit.notam_file ? `
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-gray-500 font-semibold">Attached NOTAM</span>
+          <span id="notam-reference-link" class="text-indigo-600 font-semibold hover:underline cursor-pointer truncate max-w-[180px]" title="${permit.notam_file}">${permit.notam_file}</span>
+        </div>` : ''}
       </div>
+    </div>
+
+    <!-- NOTAM Airspace Attachment Panel -->
+    <div class="p-6 border-b border-black/5 space-y-3 bg-indigo-50/20">
+      <div class="flex items-center justify-between">
+        <h3 class="text-[10px] uppercase font-extrabold text-indigo-600 tracking-wider">AirNav NOTAM Airspace</h3>
+        ${permit.notam_reference ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">LINKED</span>' : '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">NO NOTAM</span>'}
+      </div>
+      <input type="file" id="notam-attach-input" accept=".pdf" class="hidden">
+      <button id="btn-attach-notam" class="w-full py-2 bg-white hover:bg-indigo-50 text-indigo-700 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 border border-indigo-200 shadow-sm">
+        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+        ${permit.notam_file ? 'Update Attached NOTAM (.pdf)' : 'Attach NOTAM PDF (.pdf)'}
+      </button>
+      ${permit.notam_reference ? `
+      <div class="text-[10px] text-gray-500 bg-white p-2.5 rounded-xl border border-black/5 space-y-1">
+        <div class="flex justify-between font-medium"><span>NOTAM:</span> <b class="text-gray-800">${permit.notam_reference}</b></div>
+        <div class="flex justify-between font-medium"><span>Airspace Ceiling:</span> <b class="text-indigo-600">${permit.altitude_ceiling_note || permit.max_altitude_ft + ' ft'}</b></div>
+        <div class="flex justify-between font-medium"><span>Boundary Vertices:</span> <b class="text-emerald-600">${countCoordinatesVertices(permit.coordinates)} points</b></div>
+      </div>` : (countCoordinatesVertices(permit.coordinates) >= 3 ? `
+      <div class="text-[10px] text-emerald-800 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200/60 space-y-1">
+        <div class="flex justify-between font-medium"><span>Boundary Polygon:</span> <b class="text-emerald-900">${permit.coordinate_source || 'Permit Attachment'}</b></div>
+        <div class="flex justify-between font-medium"><span>Airspace Ceiling:</span> <b class="text-emerald-700">${permit.altitude_ceiling_note || permit.max_altitude_ft + ' ft'}</b></div>
+        <div class="flex justify-between font-medium"><span>Boundary Vertices:</span> <b class="text-emerald-700">${countCoordinatesVertices(permit.coordinates)} points (From Permit)</b></div>
+        <div class="text-[9px] text-emerald-600 italic mt-0.5">AirNav NOTAM pending. You can still attach NOTAM PDF above when published.</div>
+      </div>` : '')}
     </div>
 
     <!-- Flight Log Evaluation Panel -->
@@ -2054,6 +2282,42 @@ function renderInspector() {
     </div>
   `;
 
+  // Airspace Focus & Isolation toggle handler
+  const isolateBtn = document.getElementById('btn-toggle-isolate');
+  if (isolateBtn) {
+    isolateBtn.addEventListener('click', () => {
+      isFocusMode = !isFocusMode;
+      updateFocusModeUI();
+      renderDashboard();
+      renderInspector();
+      showToast(isFocusMode ? "Airspace isolated: all other polygons hidden" : "All regional airspaces restored", "info");
+    });
+  }
+
+  // Preset color chips handlers
+  document.querySelectorAll('.color-preset-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      const chosenColor = e.currentTarget.getAttribute('data-color');
+      setPermitColor(permit.permit_id, chosenColor);
+    });
+  });
+
+  // Custom hex color picker handler
+  const colorInput = document.getElementById('permit-color-input');
+  if (colorInput) {
+    colorInput.addEventListener('change', (e) => {
+      setPermitColor(permit.permit_id, e.target.value);
+    });
+  }
+
+  // Reset color button handler
+  const resetColorBtn = document.getElementById('btn-reset-color');
+  if (resetColorBtn) {
+    resetColorBtn.addEventListener('click', () => {
+      setPermitColor(permit.permit_id, null);
+    });
+  }
+
   // Close inspector button handler
   document.getElementById('close-inspector').addEventListener('click', () => {
     selectedPermit = null;
@@ -2069,6 +2333,55 @@ function renderInspector() {
       const res = await window.api.openPDF(permit.file_name, permit.year);
       if (res && !res.success) {
         showToast(res.error || "Failed to open PDF reference", 'error');
+      }
+    });
+  }
+
+  // Open Attached NOTAM PDF event handler
+  const notamLink = document.getElementById('notam-reference-link');
+  if (notamLink && permit.notam_file) {
+    notamLink.addEventListener('click', async () => {
+      showToast(`Opening NOTAM: ${permit.notam_file}...`, 'info');
+      const res = await window.api.openNotam(permit.notam_file);
+      if (res && !res.success) {
+        showToast(res.error || "Failed to open NOTAM document", 'error');
+      }
+    });
+  }
+
+  // Wire up NOTAM upload click trigger
+  const btnAttachNotam = document.getElementById('btn-attach-notam');
+  const notamInput = document.getElementById('notam-attach-input');
+  if (btnAttachNotam && notamInput) {
+    btnAttachNotam.addEventListener('click', () => notamInput.click());
+    notamInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const filePath = (window.api && window.api.getPathForFile) ? window.api.getPathForFile(file) : (file.path || '');
+      if (!filePath) {
+        showToast("Cannot determine file path.", "error");
+        return;
+      }
+
+      showToast(`Attaching and parsing NOTAM: ${file.name}...`, "info");
+      const res = await window.api.attachNotam(permit.permit_id, filePath);
+
+      if (res && res.success) {
+        showToast(`NOTAM attached! Updated airspace with ${res.coordinates_count} vertices.`, "success");
+        // Update local object & re-render
+        permit.notam_file = res.notam_file;
+        permit.notam_reference = res.notam_reference;
+        permit.max_altitude_ft = res.max_altitude_ft;
+
+        // Reload permits list and inspector
+        if (typeof loadPermitsData === 'function') {
+          await loadPermitsData();
+        } else {
+          window.location.reload();
+        }
+      } else {
+        showToast(res ? res.error : "Failed to attach NOTAM.", "error");
       }
     });
   }
@@ -2099,10 +2412,10 @@ function renderInspector() {
 // 6. Clock cycle helper counting down active limits
 function startCountdown(permit, initialStatus) {
   const timerElement = document.getElementById('countdown-timer');
-  
+
   const updateTimer = () => {
     const now = new Date();
-    
+
     // Check clean times
     const cleanTime = (t) => t.split(' ')[0].replace('.', ':');
     const tStart = cleanTime(permit.time_start);
@@ -2110,10 +2423,10 @@ function startCountdown(permit, initialStatus) {
 
     const [startH, startM] = tStart.split(':').map(Number);
     const [endH, endM] = tEnd.split(':').map(Number);
-    
+
     const startTime = new Date(now);
     startTime.setHours(startH, startM, 0, 0);
-    
+
     const endTime = new Date(now);
     endTime.setHours(endH, endM, 0, 0);
 
@@ -2155,7 +2468,7 @@ function startCountdown(permit, initialStatus) {
     const secs = Math.floor((diff / 1000) % 60);
     const mins = Math.floor((diff / 1000 / 60) % 60);
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    
+
     const displayTime = [
       hours.toString().padStart(2, '0'),
       mins.toString().padStart(2, '0'),
@@ -2175,7 +2488,7 @@ function showToast(message, type = 'info') {
   if (!container) return;
 
   const toast = document.createElement('div');
-  
+
   let bgClass = 'bg-white/95 border-black/5 text-[#2a2334]';
   let icon = `
     <svg class="w-4 h-4 text-sky-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -2225,11 +2538,11 @@ function openAddPermitModal() {
   const modal = document.getElementById('add-permit-modal');
   const modalBox = modal.querySelector('div');
   const form = document.getElementById('add-permit-form');
-  
+
   // Clear any errors and reset form
   form.reset();
   document.getElementById('form-error-alert').classList.add('hidden');
-  
+
   // Reset selected file label
   const selectedPdfName = document.getElementById('selected-pdf-name');
   if (selectedPdfName) {
@@ -2245,7 +2558,7 @@ function openAddPermitModal() {
   document.getElementById('input-time-start').value = "07.00 WIB";
   document.getElementById('input-time-end').value = "17.30 WIB";
   document.getElementById('input-altitude').value = "400";
-  
+
   modal.classList.remove('hidden');
   // Animate in
   setTimeout(() => {
@@ -2257,10 +2570,10 @@ function openAddPermitModal() {
 function closeAddPermitModal() {
   const modal = document.getElementById('add-permit-modal');
   const modalBox = modal.querySelector('div');
-  
+
   modal.classList.add('opacity-0');
   modalBox.classList.add('scale-95');
-  
+
   // Wait for transition before hiding
   setTimeout(() => {
     modal.classList.add('hidden');
@@ -2269,7 +2582,7 @@ function closeAddPermitModal() {
 
 async function handleAddPermitSubmit(e) {
   e.preventDefault();
-  
+
   const permitId = document.getElementById('input-permit-id').value.trim();
   const year = parseInt(document.getElementById('input-year').value);
   const operatorName = document.getElementById('input-operator').value.trim();
@@ -2282,7 +2595,7 @@ async function handleAddPermitSubmit(e) {
   const coordsInput = document.getElementById('input-coords').value.trim();
   const pilotsInput = document.getElementById('input-pilots').value.trim();
   const registryInput = document.getElementById('input-registry').value.trim();
-  
+
   const fileInput = document.getElementById('input-pdf-file');
   const fileObject = fileInput.files[0];
   const errorAlert = document.getElementById('form-error-alert');
@@ -2294,20 +2607,20 @@ async function handleAddPermitSubmit(e) {
   }
 
   const localFilePath = fileObject.path;
-  
+
   // Basic Validations
   if (!permitId || !operatorName || !location || !dateStart || !dateEnd || !timeStart || !timeEnd || !localFilePath) {
     errorAlert.textContent = "Please fill in all required fields.";
     errorAlert.classList.remove('hidden');
     return;
   }
-  
+
   if (dateEnd < dateStart) {
     errorAlert.textContent = "End date cannot be earlier than start date.";
     errorAlert.classList.remove('hidden');
     return;
   }
-  
+
   // Parse coordinates if provided
   let coordinates = [];
   if (coordsInput) {
@@ -2332,16 +2645,16 @@ async function handleAddPermitSubmit(e) {
       return;
     }
   }
-  
+
   // Parse pilot names and registries as arrays
-  const pilot_name = pilotsInput 
+  const pilot_name = pilotsInput
     ? pilotsInput.split(',').map(s => s.trim()).filter(s => s.length > 0)
     : [];
-  
+
   const puta_registry = registryInput
     ? registryInput.split(',').map(s => s.trim()).filter(s => s.length > 0)
     : [];
-  
+
   const newPermit = {
     permit_id: permitId,
     operator_name: operatorName,
@@ -2357,11 +2670,11 @@ async function handleAddPermitSubmit(e) {
     puta_registry: puta_registry,
     file_name: "" // backend will auto-generate and fill this standardized name
   };
-  
+
   // Save permit via IPC
   showToast("Saving new permission & syncing to Supabase...", "info");
   const res = await window.api.savePermit(newPermit, localFilePath);
-  
+
   if (res && res.success) {
     showToast("Permit saved and uploaded successfully!", "success");
     closeAddPermitModal();
@@ -2383,18 +2696,18 @@ function handleFlightLogUpload(event) {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     const text = e.target.result;
     const extension = file.name.split('.').pop().toLowerCase();
-    
+
     try {
       showToast(`Parsing ${file.name}...`, 'info');
       const parsed = parseLogData(text, extension);
-      
+
       if (!parsed || parsed.points.length === 0) {
         throw new Error("No coordinate data found in log file.");
       }
-      
+
       // Save parsed data locally linked to selectedPermit
       flightLogData = {
         permit_id: selectedPermit.permit_id,
@@ -2406,16 +2719,16 @@ function handleFlightLogUpload(event) {
         speeds: parsed.speeds,
         timestamps: parsed.timestamps
       };
-      
+
       // Check compliance
       runComplianceChecks();
-      
+
       // Plot path on map
       plotFlightPath();
-      
+
       // Update inspector DOM
       updateEvaluationStatusUI();
-      
+
       showToast("Flight log evaluated successfully!", "success");
     } catch (error) {
       console.error(error);
@@ -2460,10 +2773,10 @@ function parseKmlCoordinates(text) {
 }
 
 function parseLogData(text, extension) {
-  let points = []; 
+  let points = [];
   let maxAltitude = 0;
   let maxSpeed = 0;
-  
+
   let altitudes = [];
   let speeds = [];
   let timestamps = [];
@@ -2478,10 +2791,10 @@ function parseLogData(text, extension) {
         const lat = parseFloat(parts[1]);
         let altM = parts.length >= 3 ? parseFloat(parts[2]) : 0;
         let altFt = altM * 3.28084; // Convert meters to feet
-        
+
         // Approximate speed / default values since KML holds coordinates only
         points.push([lat, lng, altFt, 0, index]);
-        
+
         // Downsample slightly to prevent rendering bottlenecks (take 1 of every 5 points)
         if (index % 5 === 0) {
           altitudes.push(altFt);
@@ -2496,13 +2809,13 @@ function parseLogData(text, extension) {
     if (lines.length < 2) {
       throw new Error("CSV file is empty or corrupted.");
     }
-    
+
     const header = lines[0].split(',');
-    
+
     // Find column indexes with robust lower-casing
     const latIndex = header.findIndex(h => h.toLowerCase().trim() === 'latitude');
     const lngIndex = header.findIndex(h => h.toLowerCase().trim() === 'longitude');
-    
+
     let heightIndex = header.findIndex(h => h.toLowerCase().trim().includes('height_above_takeoff'));
     if (heightIndex === -1) {
       heightIndex = header.findIndex(h => h.toLowerCase().trim().includes('height_above_ground'));
@@ -2510,58 +2823,58 @@ function parseLogData(text, extension) {
     if (heightIndex === -1) {
       heightIndex = header.findIndex(h => h.toLowerCase().trim() === 'altitude(feet)' || h.toLowerCase().trim() === 'altitude');
     }
-    
+
     let speedIndex = header.findIndex(h => h.toLowerCase().trim().includes('speed') && !h.toLowerCase().trim().includes('max'));
     const timeIndex = header.findIndex(h => h.toLowerCase().trim().includes('datetime') || h.toLowerCase().trim().includes('time'));
-    
+
     if (latIndex === -1 || lngIndex === -1) {
       throw new Error("CSV log must contain 'latitude' and 'longitude' columns.");
     }
-    
+
     let pointCount = 0;
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
       const row = lines[i].split(',');
       if (row.length < header.length) continue;
-      
+
       const lat = parseFloat(row[latIndex]);
       const lng = parseFloat(row[lngIndex]);
-      
+
       if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) continue;
-      
+
       let altFt = heightIndex !== -1 ? parseFloat(row[heightIndex]) : 0;
       if (isNaN(altFt)) altFt = 0;
-      
+
       let speedMph = speedIndex !== -1 ? parseFloat(row[speedIndex]) : 0;
       if (isNaN(speedMph)) speedMph = 0;
       let speedKnots = speedMph * 0.868976; // convert mph to knots
-      
+
       // Clean noise readings
       if (altFt < -100 || altFt > 10000) altFt = 0;
       if (speedKnots < 0 || speedKnots > 300) speedKnots = 0;
-      
+
       let timeVal = timeIndex !== -1 ? row[timeIndex].trim() : `Point ${pointCount}`;
-      
+
       // Downsample log data (take 1 point every 20 records to keep PDF size small and charts readable)
       pointCount++;
       if (pointCount % 20 === 0) {
         points.push([lat, lng, altFt, speedKnots, timeVal]);
-        
+
         altitudes.push(altFt);
         speeds.push(speedKnots);
-        
+
         let formattedTime = timeVal;
         if (timeVal.includes(' ')) {
-          formattedTime = timeVal.split(' ')[1]; 
+          formattedTime = timeVal.split(' ')[1];
         }
         timestamps.push(formattedTime);
-        
+
         if (altFt > maxAltitude) maxAltitude = altFt;
         if (speedKnots > maxSpeed) maxSpeed = speedKnots;
       }
     }
   }
-  
+
   return {
     points,
     maxAltitude,
@@ -2574,23 +2887,23 @@ function parseLogData(text, extension) {
 
 function runComplianceChecks() {
   if (!flightLogData || !selectedPermit) return;
-  
+
   const points = flightLogData.points;
   const limitAlt = selectedPermit.max_altitude_ft || 400;
   const limitSpeed = 87; // civil aviation safety limit in knots
-  
+
   // 1. Altitude Compliance
   flightLogData.altCompliant = flightLogData.maxAltitude <= limitAlt;
-  
+
   // 2. Speed Compliance
   flightLogData.speedCompliant = flightLogData.maxSpeed <= limitSpeed;
-  
+
   // 3. Geofence Boundary Compliance
   let geofenceBreached = false;
   let breachCount = 0;
-  
+
   const polygon = selectedPermit.coordinates;
-  
+
   if (polygon && polygon.length > 0) {
     // Check points inside boundary polygon
     for (const pt of points) {
@@ -2614,7 +2927,7 @@ function runComplianceChecks() {
       }
     }
   }
-  
+
   flightLogData.geofenceCompliant = !geofenceBreached;
   flightLogData.breachCount = breachCount;
 
@@ -2626,7 +2939,7 @@ function runComplianceChecks() {
   for (const pt of points) {
     const lat = pt[0];
     const lng = pt[1];
-    
+
     for (const airport of REGION_AIRPORTS) {
       const insideKkop = isPointInCircle([lat, lng], [airport.lat, airport.lng], 5000);
       if (insideKkop) {
@@ -2744,26 +3057,31 @@ function parseTimeToLocal(timeVal) {
 function isPointInCircle(point, center, radiusM) {
   const lat1 = point[0], lon1 = point[1];
   const lat2 = center[0], lon2 = center[1];
-  
+
   const R = 6371e3; // Earth radius in meters
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  
+
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c <= radiusM;
 }
 
 function isPointInPolygon(point, vs) {
+  if (!vs || !Array.isArray(vs) || vs.length === 0) return false;
+  // If MultiPolygon (array of polygon rings)
+  if (Array.isArray(vs[0]) && Array.isArray(vs[0][0])) {
+    return vs.some(ring => isPointInPolygon(point, ring));
+  }
   const lat = point[0], lng = point[1];
   let inside = false;
   for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
     const xi = vs[i][1], yi = vs[i][0]; // xi = longitude, yi = latitude
     const xj = vs[j][1], yj = vs[j][0]; // xj = longitude, yj = latitude
     const intersect = ((yi > lat) !== (yj > lat))
-        && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+      && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
     if (intersect) inside = !inside;
   }
   return inside;
@@ -2771,14 +3089,14 @@ function isPointInPolygon(point, vs) {
 
 function plotFlightPath() {
   if (!flightLogData || !map) return;
-  
+
   // Clean previous path overlay
   if (flightPathPolyline) {
     map.removeLayer(flightPathPolyline);
   }
-  
+
   const latlngs = flightLogData.points.map(pt => [pt[0], pt[1]]);
-  
+
   // Render bold dotted yellow flight path line
   flightPathPolyline = L.polyline(latlngs, {
     color: '#f59e0b',
@@ -2786,25 +3104,25 @@ function plotFlightPath() {
     opacity: 0.85,
     dashArray: '5, 5'
   }).addTo(map);
-  
+
   map.fitBounds(flightPathPolyline.getBounds(), { padding: [40, 40] });
 }
 
 function updateEvaluationStatusUI() {
   const statusContainer = document.getElementById('log-evaluation-status');
   if (!statusContainer || !flightLogData) return;
-  
+
   statusContainer.classList.remove('hidden');
   document.getElementById('log-filename').textContent = flightLogData.filename;
-  
+
   const altEl = document.getElementById('log-max-alt');
   altEl.innerHTML = `${Math.round(flightLogData.maxAltitude)} ft <span class="text-[9px] text-gray-400">/ ${selectedPermit.max_altitude_ft} ft limit</span>`;
   altEl.className = flightLogData.altCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600 animate-pulse";
-  
+
   const speedEl = document.getElementById('log-max-speed');
   speedEl.innerHTML = `${Math.round(flightLogData.maxSpeed)} knots <span class="text-[9px] text-gray-400">/ 87 limit</span>`;
   speedEl.className = flightLogData.speedCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600 animate-pulse";
-  
+
   const geoEl = document.getElementById('log-geofence');
   geoEl.textContent = flightLogData.geofenceCompliant ? "Compliant (100% in bounds)" : `Breached (${flightLogData.breachCount} points out)`;
   geoEl.className = flightLogData.geofenceCompliant ? "font-bold text-emerald-600" : "font-bold text-red-600 animate-pulse";
@@ -2876,14 +3194,14 @@ function resetTelemetryAnalyzer() {
 
 function switchTelemetryTab(tabName) {
   currentActiveTelemetryTab = tabName;
-  
+
   // Hide all wrappers
   document.getElementById('wrapper-chart-combined').classList.add('hidden');
   document.getElementById('wrapper-chart-altitude').classList.add('hidden');
   document.getElementById('wrapper-chart-amsl').classList.add('hidden');
   document.getElementById('wrapper-chart-speed').classList.add('hidden');
   document.getElementById('wrapper-chart-map').classList.add('hidden');
-  
+
   // Reset active classes on all tab buttons
   const tabs = ['combined', 'altitude', 'amsl', 'speed', 'map'];
   tabs.forEach(t => {
@@ -2892,11 +3210,11 @@ function switchTelemetryTab(tabName) {
       btn.className = "text-[11px] font-bold px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 hover:text-gray-700 transition-all border border-transparent";
     }
   });
-  
+
   // Show active wrapper and set active styles
   const activeWrapper = document.getElementById(`wrapper-chart-${tabName}`);
   if (activeWrapper) activeWrapper.classList.remove('hidden');
-  
+
   const activeBtn = document.getElementById(`btn-tab-${tabName}`);
   if (activeBtn) {
     activeBtn.className = "text-[11px] font-bold px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 transition-all border border-indigo-100/50";
@@ -2945,7 +3263,7 @@ function clearTelemetryCsv() {
   document.getElementById('telemetry-csv-file-info').classList.add('hidden');
   document.getElementById('telemetry-csv-drop-zone').classList.remove('hidden');
   document.getElementById('telemetry-csv-input').value = '';
-  
+
   if (telemetryChartCombinedInstance) {
     telemetryChartCombinedInstance.destroy();
     telemetryChartCombinedInstance = null;
@@ -2973,7 +3291,7 @@ function clearTelemetryKml() {
   document.getElementById('telemetry-kml-file-info').classList.add('hidden');
   document.getElementById('telemetry-kml-drop-zone').classList.remove('hidden');
   document.getElementById('telemetry-kml-input').value = '';
-  
+
   if (map && flightPathPolyline) {
     map.removeLayer(flightPathPolyline);
     flightPathPolyline = null;
@@ -2986,7 +3304,7 @@ function clearTelemetryKml() {
 function processTelemetryCsv(file) {
   startLogoProcessing();
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     try {
       const text = e.target.result;
       const rows = text.trim().split('\n');
@@ -2996,7 +3314,7 @@ function processTelemetryCsv(file) {
 
       // --- Column Index Detection ---
       const timeIdx = header.findIndex(h => h.includes('time(millisecond)') || h === 'time(ms)' || h === 'time');
-      
+
       // Speed (mph / ms / knots)
       let speedIdx = header.findIndex(h => h.includes('speed(knots)') || h.includes('speed(kts)') || h === 'speed_knots' || h === 'speed_kts');
       let speedUnit = 'knots';
@@ -3079,7 +3397,7 @@ function processTelemetryCsv(file) {
         speedData.push(parseFloat(speed.toFixed(2)));
         aglData.push(parseFloat(aglAlt.toFixed(1)));
         amslData.push(parseFloat(amslAlt.toFixed(1)));
-        
+
         if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
           coords.push([lat, lng]);
         }
@@ -3228,7 +3546,7 @@ function showTelemetryFileInfo(filename, points, filtered, maxSpeed, maxAgl, max
 function processTelemetryKml(file) {
   startLogoProcessing();
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     try {
       const text = e.target.result;
       // Use shared KML coordinate parser helper
@@ -3247,18 +3565,18 @@ function processTelemetryKml(file) {
       });
 
       if (points.length === 0) throw new Error("No valid coordinates found in KML.");
-      
+
       uploadedKmlFile = file;
       uploadedKmlCoords = points;
-      
+
       // Update UI file badge
       document.getElementById('telemetry-kml-drop-zone').classList.add('hidden');
       const infoEl = document.getElementById('telemetry-kml-file-info');
       infoEl.classList.remove('hidden');
-      
+
       document.getElementById('telemetry-kml-filename').textContent = file.name;
       document.getElementById('telemetry-kml-stats').textContent = `${points.length} boundary coordinates parsed`;
-      
+
       // Plot immediate feedback on the main map
       if (map) {
         if (flightPathPolyline) {
@@ -3272,11 +3590,11 @@ function processTelemetryKml(file) {
         }).addTo(map);
         map.fitBounds(flightPathPolyline.getBounds(), { padding: [40, 40] });
       }
-      
+
       showToast("KML flight path loaded and plotted on map!", "success");
       updateTelemetryAnalyzerUI();
       stopLogoProcessing();
-      
+
     } catch (err) {
       console.error("KML parse error:", err);
       showToast(err.message || "Failed to parse KML file.", "error");
@@ -3286,10 +3604,10 @@ function processTelemetryKml(file) {
   reader.readAsText(file);
 }
 
-window.handleTelemetryAveragesToggle = function() {
+window.handleTelemetryAveragesToggle = function () {
   const checkbox = document.getElementById('enable-flight-averages');
   telemetryAveragesEnabled = checkbox ? checkbox.checked : true;
-  
+
   const avgInfoElements = document.querySelectorAll('.telemetry-avg-info');
   avgInfoElements.forEach(el => {
     if (telemetryAveragesEnabled) {
@@ -3335,18 +3653,18 @@ function handleTelemetryLimitChange() {
 
 function updateTelemetryChartsLimits() {
   if (!uploadedCsvData) return;
-  
+
   const labels = telemetryChartCombinedInstance ? telemetryChartCombinedInstance.data.labels : [];
-  
+
   // 1. Update Combined Chart
   if (telemetryChartCombinedInstance) {
     const datasets = telemetryChartCombinedInstance.data.datasets;
     const cleanDatasets = datasets.filter(d => !d.label.includes('Limit'));
-    
+
     if (telemetryLimitEnabled) {
       const activeAltLimit = telemetryAltLimitMode === 'agl' ? telemetryLimitAgl : telemetryLimitAmsl;
       const activeAltLabel = telemetryAltLimitMode === 'agl' ? 'Alt AGL Limit (ft)' : 'Alt AMSL Limit (ft)';
-      
+
       cleanDatasets.push({
         label: activeAltLabel,
         data: Array(labels.length).fill(activeAltLimit),
@@ -3357,7 +3675,7 @@ function updateTelemetryChartsLimits() {
         pointRadius: 0,
         yAxisID: 'yAlt',
       });
-      
+
       cleanDatasets.push({
         label: 'Speed Limit (knots)',
         data: Array(labels.length).fill(telemetryLimitSpeed),
@@ -3369,11 +3687,11 @@ function updateTelemetryChartsLimits() {
         yAxisID: 'ySpeed',
       });
     }
-    
+
     telemetryChartCombinedInstance.data.datasets = cleanDatasets;
     telemetryChartCombinedInstance.update();
   }
-  
+
   // 2. Update Altitude AGL Chart
   if (telemetryChartAltitudeInstance) {
     const cleanDatasets = telemetryChartAltitudeInstance.data.datasets.filter(d => !d.label.includes('Limit'));
@@ -3458,14 +3776,14 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
   // ---- Downsample if too many points (keep max 600 for performance) ----
   let labels = timeData;
   let speeds = speedData;
-  let agls   = aglData;
-  let amsls  = amslData;
+  let agls = aglData;
+  let amsls = amslData;
   if (timeData.length > 600) {
     const step = Math.ceil(timeData.length / 600);
-    labels = timeData.filter((_, i)  => i % step === 0);
+    labels = timeData.filter((_, i) => i % step === 0);
     speeds = speedData.filter((_, i) => i % step === 0);
-    agls   = aglData.filter((_, i)   => i % step === 0);
-    amsls  = amslData.filter((_, i)  => i % step === 0);
+    agls = aglData.filter((_, i) => i % step === 0);
+    amsls = amslData.filter((_, i) => i % step === 0);
   }
 
   const isDarkMode = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
@@ -3509,7 +3827,7 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
   // 1. COMBINED PROFILE CHART
   const combinedCtx = document.getElementById('telemetry-chart-combined').getContext('2d');
   const combinedDatasets = [];
-  
+
   combinedDatasets.push({
     label: 'Altitude AGL (ft)',
     data: agls,
@@ -3554,7 +3872,7 @@ function renderTelemetryChart(timeData, speedData, aglData, amslData, hasAgl, ha
   if (telemetryLimitEnabled) {
     const activeAltLimit = telemetryAltLimitMode === 'agl' ? telemetryLimitAgl : telemetryLimitAmsl;
     const activeAltLabel = telemetryAltLimitMode === 'agl' ? 'Alt AGL Limit (ft)' : 'Alt AMSL Limit (ft)';
-    
+
     combinedDatasets.push({
       label: activeAltLabel,
       data: Array(labels.length).fill(activeAltLimit),
@@ -3795,7 +4113,7 @@ function initTelemetryAnalyzerMap() {
   // Force map invalidation to trigger correct rendering in dynamic/hidden containers
   setTimeout(() => {
     telemetryAnalyzerMap.invalidateSize();
-    
+
     // Clear old layers
     if (telemetryAnalyzerPolylineKml) {
       telemetryAnalyzerMap.removeLayer(telemetryAnalyzerPolylineKml);
@@ -3820,7 +4138,7 @@ function initTelemetryAnalyzerMap() {
         opacity: 0.85,
         dashArray: '5, 5'
       }).addTo(telemetryAnalyzerMap);
-      
+
       uploadedKmlCoords.forEach(pt => bounds.push(pt));
     }
 
@@ -3913,9 +4231,9 @@ function updateTelemetryAnalyzerUI() {
 function initDarkMode() {
   const savedMode = localStorage.getItem('darkMode');
   const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  
+
   const isDark = savedMode === 'enabled' || (savedMode === null && systemPrefersDark);
-  
+
   if (isDark) {
     document.documentElement.classList.add('dark');
     document.body.classList.add('dark');
@@ -3936,16 +4254,16 @@ function initDarkMode() {
 function toggleDarkMode() {
   const isDark = document.body.classList.toggle('dark');
   document.documentElement.classList.toggle('dark', isDark);
-  
+
   localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
-  
+
   const sunIcon = document.getElementById('dark-mode-icon-sun');
   const moonIcon = document.getElementById('dark-mode-icon-moon');
-  
+
   if (isDark) {
     if (sunIcon) sunIcon.classList.remove('hidden');
     if (moonIcon) moonIcon.classList.add('hidden');
-    
+
     // Swap Leaflet map layers to CartoDB Dark Matter
     if (map && activeTileMode === 'streets') {
       map.removeLayer(streetLayer);
@@ -3954,7 +4272,7 @@ function toggleDarkMode() {
   } else {
     if (sunIcon) sunIcon.classList.add('hidden');
     if (moonIcon) moonIcon.classList.remove('hidden');
-    
+
     // Swap Leaflet map layers to CartoDB Positron
     if (map && activeTileMode === 'streets') {
       map.removeLayer(darkLayer);
@@ -3985,31 +4303,31 @@ function toggleDarkMode() {
 }
 
 // --- Premium View Switching and Portal Navigation Logic ---
-window.showPortal = function() {
+window.showPortal = function () {
   const portal = document.getElementById('portal-container');
   const appWorkspace = document.getElementById('app-workspace-container');
-  
+
   if (portal && appWorkspace) {
     // Start transition
     appWorkspace.classList.add('view-transition', 'view-fade-out');
-    
+
     setTimeout(() => {
       appWorkspace.classList.add('hidden');
       appWorkspace.classList.remove('view-transition', 'view-fade-out');
-      
+
       portal.classList.remove('hidden');
       portal.classList.add('view-fade-out');
-      
+
       // Force reflow
       void portal.offsetWidth;
-      
+
       portal.classList.add('view-transition');
       portal.classList.remove('view-fade-out');
       portal.classList.add('view-fade-in');
-      
+
       setTimeout(() => {
         portal.classList.remove('view-transition', 'view-fade-in');
-        
+
         // Defer CPU-intensive state clearing and list rendering until after portal fade-in finishes
         selectedPermit = null;
         selectedAirport = null;
@@ -4036,28 +4354,28 @@ function updatePortalStats() {
   if (el('portal-stat-expired')) el('portal-stat-expired').textContent = expired;
 }
 
-window.showDashboard = function() {
+window.showDashboard = function () {
   const portal = document.getElementById('portal-container');
   const appWorkspace = document.getElementById('app-workspace-container');
-  
+
   if (portal && appWorkspace) {
     // Start transition
     portal.classList.add('view-transition', 'view-fade-out');
-    
+
     setTimeout(() => {
       portal.classList.add('hidden');
       portal.classList.remove('view-transition', 'view-fade-out');
-      
+
       appWorkspace.classList.remove('hidden');
       appWorkspace.classList.add('view-fade-out');
-      
+
       // Force reflow
       void appWorkspace.offsetWidth;
-      
+
       appWorkspace.classList.add('view-transition');
       appWorkspace.classList.remove('view-fade-out');
       appWorkspace.classList.add('view-fade-in');
-      
+
       setTimeout(() => {
         appWorkspace.classList.remove('view-transition', 'view-fade-in');
         // Invalidate Leaflet map size AFTER the workspace is fully visible to prevent animation stuttering
@@ -4075,10 +4393,10 @@ window.showDashboard = function() {
 let generatedKmlContent = null;
 let generatedKmlFilename = "";
 
-window.openConverterModal = function() {
+window.openConverterModal = function () {
   const modal = document.getElementById('kml-converter-modal');
   const box = modal.querySelector('div');
-  
+
   // Reset fields
   generatedKmlContent = null;
   generatedKmlFilename = "";
@@ -4086,11 +4404,11 @@ window.openConverterModal = function() {
   document.getElementById('converter-loader').classList.add('hidden');
   document.getElementById('converter-results').classList.add('hidden');
   document.getElementById('converter-error-alert').classList.add('hidden');
-  
+
   const dlBtn = document.getElementById('btn-download-conv-kml');
   dlBtn.disabled = true;
   dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#e8eee5] text-gray-400 font-bold cursor-not-allowed transition-all shadow-sm";
-  
+
   modal.classList.remove('hidden');
   setTimeout(() => {
     modal.classList.remove('opacity-0');
@@ -4098,7 +4416,7 @@ window.openConverterModal = function() {
   }, 10);
 };
 
-window.closeConverterModal = function() {
+window.closeConverterModal = function () {
   const modal = document.getElementById('kml-converter-modal');
   const box = modal.querySelector('div');
   modal.classList.add('opacity-0');
@@ -4106,57 +4424,75 @@ window.closeConverterModal = function() {
   setTimeout(() => modal.classList.add('hidden'), 300);
 };
 
-window.processConverterFile = async function(file) {
+let lastConvertedData = null;
+let customNotamMapLayers = [];
+
+window.processConverterFile = async function (file) {
   if (!file) return;
-  
+
   const dropZone = document.getElementById('converter-drop-zone');
   const loader = document.getElementById('converter-loader');
   const results = document.getElementById('converter-results');
   const errorAlert = document.getElementById('converter-error-alert');
   const dlBtn = document.getElementById('btn-download-conv-kml');
-  
+  const viewMapBtn = document.getElementById('btn-view-conv-map');
+
   // Hide drop zone, show loader
   dropZone.classList.add('hidden');
   errorAlert.classList.add('hidden');
   results.classList.add('hidden');
   loader.classList.remove('hidden');
   startLogoProcessing();
-  
+
   try {
-    // Check if window.api.convertToKml exists (meaning we're inside Electron)
     if (!window.api || !window.api.convertToKml) {
       throw new Error("KML conversion requires running in the Electron desktop environment.");
     }
-    
+
     showToast(`Converting ${file.name} to KML...`, "info");
-    
-    // Call Electron main process handler via contextBridge
+
     const filePath = (window.api && window.api.getPathForFile) ? window.api.getPathForFile(file) : (file.path || '');
     if (!filePath) {
       throw new Error("Cannot determine file system path for document.");
     }
     const res = await window.api.convertToKml(filePath);
-    
+
     loader.classList.add('hidden');
     stopLogoProcessing();
-    
+
     if (res && res.success) {
+      lastConvertedData = res;
       generatedKmlContent = res.kml_content;
-      generatedKmlFilename = `PUTA_Safety_Boundary_${res.permit_id.replace(/[\/\\:]/g, '_')}.kml`;
-      
+      generatedKmlFilename = `PUTA_Airspace_${res.permit_id.replace(/[\/\\:\s]/g, '_')}.kml`;
+
       // Update UI labels
       document.getElementById('conv-permit-id').textContent = res.permit_id;
       document.getElementById('conv-operator').textContent = res.operator;
-      document.getElementById('conv-altitude').textContent = `${res.max_altitude_ft} ft AGL`;
-      document.getElementById('conv-coords-count').textContent = `${res.coords_count} coordinates extracted`;
-      
+      const altDisplay = res.upper_limit ? `${res.max_altitude_ft} ft (${res.upper_limit})` : `${res.max_altitude_ft} ft AGL`;
+      document.getElementById('conv-altitude').textContent = altDisplay;
+
+      const areasCount = res.areas ? res.areas.length : 0;
+      const areaDesc = areasCount > 1 ? ` (${areasCount} distinct polygon areas)` : '';
+      document.getElementById('conv-coords-count').textContent = `${res.coords_count} coordinates extracted${areaDesc}`;
+
       results.classList.remove('hidden');
-      
+
       // Enable download button
       dlBtn.disabled = false;
-      dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#4a5d3e] hover:bg-[#2c3b26] text-white font-bold transition-all shadow-md shadow-[#4a5d3e]/15";
-      
-      showToast("Document converted successfully!", "success");
+      dlBtn.className = "px-6 py-2.5 rounded-2xl bg-[#4a5d3e] hover:bg-[#2c3b26] text-white font-bold transition-all shadow-md shadow-[#4a5d3e]/15 text-xs";
+
+      // Enable View on Map button if coordinates exist
+      if (viewMapBtn) {
+        if (res.coords_count > 0) {
+          viewMapBtn.disabled = false;
+          viewMapBtn.className = "px-5 py-2.5 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700 font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center gap-2 text-xs cursor-pointer";
+        } else {
+          viewMapBtn.disabled = true;
+          viewMapBtn.className = "px-5 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-400 font-bold transition-all flex items-center gap-2 text-xs opacity-50 cursor-not-allowed";
+        }
+      }
+
+      showToast("Document parsed and 3D KML generated!", "success");
     } else {
       throw new Error(res ? res.error : "Unknown conversion error.");
     }
@@ -4165,23 +4501,89 @@ window.processConverterFile = async function(file) {
     loader.classList.add('hidden');
     dropZone.classList.remove('hidden');
     stopLogoProcessing();
-    
+
     errorAlert.textContent = `Error: ${err.message}`;
     errorAlert.classList.remove('hidden');
     showToast("Conversion failed.", "error");
   }
 };
 
-window.downloadConvertedKml = function() {
+window.viewConvertedPolygonsOnMap = function () {
+  if (!lastConvertedData || !lastConvertedData.areas || lastConvertedData.areas.length === 0) {
+    showToast("No boundary coordinates available to display on map.", "warning");
+    return;
+  }
+
+  if (typeof L === 'undefined' || !map) {
+    showToast("Map instance is not ready.", "error");
+    return;
+  }
+
+  // Close modal to reveal map
+  closeConverterModal();
+
+  // Clear previous temporary NOTAM layers
+  customNotamMapLayers.forEach(layer => map.removeLayer(layer));
+  customNotamMapLayers = [];
+
+  const boundsGroup = L.featureGroup();
+  const palette = ['#dc2626', '#f59e0b', '#06b6d4', '#10b981', '#8b5cf6'];
+
+  lastConvertedData.areas.forEach((area, idx) => {
+    if (!area.coordinates || area.coordinates.length === 0) return;
+
+    const strokeColor = palette[idx % palette.length];
+    const poly = L.polygon(area.coordinates, {
+      color: strokeColor,
+      weight: 3,
+      fillColor: strokeColor,
+      fillOpacity: 0.22,
+      dashArray: '4, 4'
+    });
+
+    const popupHtml = `
+      <div class="text-xs space-y-1.5 p-1 min-w-[200px]">
+        <div class="font-extrabold text-[#2a2334] text-sm">${area.name || 'Permitted Airspace'}</div>
+        <div class="text-[10px] text-gray-500 font-mono">Doc: <b>${lastConvertedData.permit_id}</b></div>
+        <div class="text-[10px] text-gray-600">Operator: <b>${lastConvertedData.operator}</b></div>
+        <div class="mt-1 pt-1 border-t border-gray-200 flex justify-between items-center text-[10px]">
+          <span class="text-gray-500">Vertical Ceiling:</span>
+          <span class="font-bold text-indigo-600">${lastConvertedData.upper_limit || lastConvertedData.max_altitude_ft + ' FT'}</span>
+        </div>
+        <div class="flex justify-between items-center text-[10px]">
+          <span class="text-gray-500">Lower Limit:</span>
+          <span class="font-bold text-gray-700">${lastConvertedData.lower_limit || 'SFC'}</span>
+        </div>
+        <div class="flex justify-between items-center text-[10px]">
+          <span class="text-gray-500">Vertices:</span>
+          <span class="font-bold text-emerald-600">${area.coordinates.length} points</span>
+        </div>
+      </div>
+    `;
+
+    poly.bindPopup(popupHtml);
+    poly.addTo(map);
+    boundsGroup.addLayer(poly);
+    customNotamMapLayers.push(poly);
+  });
+
+  // Fit camera bounds with smooth animation
+  if (customNotamMapLayers.length > 0) {
+    map.fitBounds(boundsGroup.getBounds(), { padding: [50, 50], maxZoom: 13, animate: true, duration: 1.5 });
+    showToast(`Displaying ${lastConvertedData.areas.length} real airspace polygon(s) on map!`, "success");
+  }
+};
+
+window.downloadConvertedKml = function () {
   if (!generatedKmlContent) return;
-  
+
   try {
     const blob = new Blob([generatedKmlContent], { type: 'application/vnd.google-earth.kml+xml' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = generatedKmlFilename;
     link.click();
-    showToast("KML file downloaded!", "success");
+    showToast("3D KML file downloaded for Google Earth Pro!", "success");
     closeConverterModal();
   } catch (err) {
     console.error("Download failed:", err);
@@ -4326,13 +4728,13 @@ const REGULATION_TEXTS = {
   `
 };
 
-window.openRegulationsLibrary = function() {
+window.openRegulationsLibrary = function () {
   const modal = document.getElementById('regulations-modal');
   const box = modal.querySelector('div');
-  
+
   // Load default tab
   switchRegulationTab('pm37');
-  
+
   modal.classList.remove('hidden');
   setTimeout(() => {
     modal.classList.remove('opacity-0');
@@ -4340,16 +4742,16 @@ window.openRegulationsLibrary = function() {
   }, 10);
 };
 
-window.closeRegulationsLibrary = function() {
+window.closeRegulationsLibrary = function () {
   const modal = document.getElementById('regulations-modal');
   const box = modal.querySelector('div');
-  
+
   modal.classList.add('opacity-0');
   box.classList.add('scale-95');
   setTimeout(() => modal.classList.add('hidden'), 300);
 };
 
-window.switchRegulationTab = function(tabId) {
+window.switchRegulationTab = function (tabId) {
   // Update button styles
   const tabs = ['pm37', 'pm63', 'kp242', 'pr09'];
   tabs.forEach(t => {
@@ -4362,7 +4764,7 @@ window.switchRegulationTab = function(tabId) {
       }
     }
   });
-  
+
   // Set content
   const contentArea = document.getElementById('regulations-content-area');
   if (contentArea && REGULATION_TEXTS[tabId]) {
@@ -4370,12 +4772,12 @@ window.switchRegulationTab = function(tabId) {
   }
 };
 
-window.openAuthorModal = function() {
+window.openAuthorModal = function () {
   const modal = document.getElementById('author-modal');
   const box = modal.querySelector('div');
-  
+
   switchAuthorTab('dev');
-  
+
   modal.classList.remove('hidden');
   setTimeout(() => {
     modal.classList.remove('opacity-0');
@@ -4383,21 +4785,21 @@ window.openAuthorModal = function() {
   }, 10);
 };
 
-window.closeAuthorModal = function() {
+window.closeAuthorModal = function () {
   const modal = document.getElementById('author-modal');
   const box = modal.querySelector('div');
-  
+
   modal.classList.add('opacity-0');
   box.classList.add('scale-95');
   setTimeout(() => modal.classList.add('hidden'), 300);
 };
 
-window.switchAuthorTab = function(tabId) {
+window.switchAuthorTab = function (tabId) {
   const btnDev = document.getElementById('btn-author-tab-dev');
   const btnOkc = document.getElementById('btn-author-tab-okc');
   const panelDev = document.getElementById('author-panel-dev');
   const panelOkc = document.getElementById('author-panel-okc');
-  
+
   if (tabId === 'dev') {
     if (btnDev) btnDev.className = "py-2.5 text-xs font-bold text-[#4a5d3e] border-b-2 border-[#4a5d3e] transition-all focus:outline-none";
     if (btnOkc) btnOkc.className = "py-2.5 text-xs font-bold text-gray-500 hover:text-gray-800 transition-all focus:outline-none";
@@ -4408,7 +4810,7 @@ window.switchAuthorTab = function(tabId) {
     if (btnOkc) btnOkc.className = "py-2.5 text-xs font-bold text-[#007AC1] border-b-2 border-[#007AC1] transition-all focus:outline-none";
     if (panelDev) panelDev.classList.add('hidden');
     if (panelOkc) panelOkc.classList.remove('hidden');
-    
+
     // Reset OKC sub-panels to default stats view
     const statsPanel = document.getElementById('okc-stats-view');
     const rosterPanel = document.getElementById('okc-roster-view');
@@ -4427,11 +4829,11 @@ window.switchAuthorTab = function(tabId) {
   }
 };
 
-window.toggleOkcRoster = function() {
+window.toggleOkcRoster = function () {
   const statsPanel = document.getElementById('okc-stats-view');
   const rosterPanel = document.getElementById('okc-roster-view');
   const btnToggle = document.getElementById('btn-toggle-okc-roster');
-  
+
   if (rosterPanel.classList.contains('hidden')) {
     statsPanel.classList.add('hidden');
     rosterPanel.classList.remove('hidden');
@@ -4455,7 +4857,7 @@ window.toggleOkcRoster = function() {
   }
 };
 
-window.startLogoProcessing = function() {
+window.startLogoProcessing = function () {
   const containers = [
     document.getElementById('nav-logo-container'),
     document.getElementById('hero-logo-container'),
@@ -4467,7 +4869,7 @@ window.startLogoProcessing = function() {
   });
 };
 
-window.stopLogoProcessing = function() {
+window.stopLogoProcessing = function () {
   const containers = [
     document.getElementById('nav-logo-container'),
     document.getElementById('hero-logo-container'),
@@ -4532,7 +4934,7 @@ function openAdsbMonitor() {
   updateAdsbPolling();
 }
 
-window.closeAdsbMonitor = function() {
+window.closeAdsbMonitor = function () {
   isAdsbModalOpen = false;
   const modal = document.getElementById('adsb-modal');
   const box = modal.querySelector('div');
@@ -4662,10 +5064,10 @@ function renderAdsbFlightList(flights) {
 
   const filtered = adsbSearchQuery
     ? flights.filter(f => {
-        const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').toLowerCase();
-        const icao = (f[OPENSKY_FIELDS.ICAO24] || '').toLowerCase();
-        return callsign.includes(adsbSearchQuery) || icao.includes(adsbSearchQuery);
-      })
+      const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').toLowerCase();
+      const icao = (f[OPENSKY_FIELDS.ICAO24] || '').toLowerCase();
+      return callsign.includes(adsbSearchQuery) || icao.includes(adsbSearchQuery);
+    })
     : flights;
 
   if (filtered.length === 0) {
@@ -4731,11 +5133,11 @@ function renderAdsbFlightList(flights) {
 
 async function fetchFlightDetails(icao, callsign) {
   const cacheKey = icao.toLowerCase();
-  
+
   if (adsbFlightDetailsCache[cacheKey] && !adsbFlightDetailsCache[cacheKey].error) {
     return adsbFlightDetailsCache[cacheKey];
   }
-  
+
   adsbFlightDetailsCache[cacheKey] = {
     loading: true,
     aircraft: null,
@@ -4744,7 +5146,7 @@ async function fetchFlightDetails(icao, callsign) {
   };
 
   const cleanCallsign = (callsign || '').trim();
-  
+
   try {
     const fetchPromises = [
       fetch(`https://hexdb.io/api/v1/aircraft/${cacheKey}`, { signal: AbortSignal.timeout(5000) })
@@ -4775,7 +5177,7 @@ async function fetchFlightDetails(icao, callsign) {
     }
 
     const [aircraftResult, routeResult] = await Promise.all(fetchPromises);
-    
+
     adsbFlightDetailsCache[cacheKey] = {
       loading: false,
       aircraft: aircraftResult,
@@ -4791,7 +5193,7 @@ async function fetchFlightDetails(icao, callsign) {
       error: true
     };
   }
-  
+
   return adsbFlightDetailsCache[cacheKey];
 }
 
@@ -4805,7 +5207,7 @@ function getFlightPopupHtml(icao, callsign, flight, cachedDetails) {
   const isConflict = flight ? checkSingleFlightKkop(flight) : false;
 
   let detailsHtml = '';
-  
+
   if (cachedDetails) {
     if (cachedDetails.loading) {
       detailsHtml = `
@@ -4815,7 +5217,7 @@ function getFlightPopupHtml(icao, callsign, flight, cachedDetails) {
     } else {
       const a = cachedDetails.aircraft;
       const r = cachedDetails.route;
-      
+
       const aircraftModel = (a && a.model) ? a.model : null;
       const typeCode = (a && a.typecode) ? a.typecode : null;
       const registration = (a && a.registration) ? a.registration : null;
@@ -4925,16 +5327,16 @@ function renderAdsbMapMarkers(flights) {
         const cached = adsbFlightDetailsCache[cacheKey];
         if (!cached || cached.error) {
           const currentFlight = adsbFlightData.find(fl => fl[OPENSKY_FIELDS.ICAO24] === icao) || f;
-          
+
           // Start the fetch (sets cache to loading state synchronously)
           const fetchPromise = fetchFlightDetails(icao, callsign);
-          
+
           // Show spinner immediately
           marker.setPopupContent(getFlightPopupHtml(icao, callsign, currentFlight, adsbFlightDetailsCache[cacheKey]));
-          
+
           // Wait for the fetch to resolve
           const details = await fetchPromise;
-          
+
           // Update popup with results
           marker.setPopupContent(getFlightPopupHtml(icao, callsign, currentFlight, details));
         }
@@ -4947,7 +5349,7 @@ function renderAdsbMapMarkers(flights) {
       if (isAdsbOnMainMap && map) {
         marker.addTo(map);
       }
-      
+
       // Add to adsbMap if modal is open
       if (isAdsbModalOpen && adsbMap) {
         marker.addTo(adsbMap);
@@ -4990,7 +5392,7 @@ function checkAdsbKkopConflicts(flights) {
   }
 }
 
-window.selectAdsbFlight = function(icao) {
+window.selectAdsbFlight = function (icao) {
   adsbSelectedIcao = icao;
 
   // Pan map to aircraft (dynamic based on which map shows the marker)
@@ -5340,8 +5742,8 @@ function ulgRenderInspector(r) {
   const statDuration = document.getElementById('ulg-stat-duration');
   const dur = r.duration_sec || 0;
   const durStr = dur < 60 ? `${Math.round(dur)}s` :
-    dur < 3600 ? `${Math.floor(dur/60)}m ${Math.round(dur%60)}s` :
-    `${Math.floor(dur/3600)}h ${Math.floor((dur%3600)/60)}m`;
+    dur < 3600 ? `${Math.floor(dur / 60)}m ${Math.round(dur % 60)}s` :
+      `${Math.floor(dur / 3600)}h ${Math.floor((dur % 3600) / 60)}m`;
   if (statDuration) statDuration.textContent = durStr;
   const statPointsSub = document.getElementById('ulg-stat-points-sub');
   if (statPointsSub) statPointsSub.textContent = `Total Points: ${r.track_points.toLocaleString()}`;
@@ -6106,13 +6508,13 @@ function updateRadialProgress(percentage) {
   const circle = document.getElementById('radial-fill-bar');
   const valueLabel = document.getElementById('radial-percent-val');
   const descLabel = document.getElementById('radial-percent-desc');
-  
+
   if (!circle || !valueLabel) return;
-  
+
   // Circumference = 2 * PI * Radius (70) ~ 440px
   const circumference = 440;
   const offset = circumference - (circumference * percentage / 100);
-  
+
   circle.style.strokeDashoffset = offset;
   valueLabel.innerText = `${Math.round(percentage)}%`;
   if (descLabel) {

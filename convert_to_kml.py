@@ -2,17 +2,13 @@ import os
 import re
 import sys
 import json
+import math
 import traceback
-from pypdf import PdfReader
+import warnings
+warnings.filterwarnings("ignore")
+import pymupdf as fitz
 
-# Configuration and mappings from sync-pdf.py
-MONTHS_ID = {
-    'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
-    'mei': '05', 'juni': '06', 'juli': '07', 'agustus': '08',
-    'september': '09', 'oktober': '10', 'november': '11', 'desember': '12'
-}
-
-def dms_to_dd(deg, mins, secs, direction):
+def dms_str_to_dd(deg, mins, secs, direction):
     """Converts Degrees Minutes Seconds to Decimal Degrees."""
     try:
         dd = float(deg) + float(mins)/60.0 + float(secs)/3600.0
@@ -22,207 +18,127 @@ def dms_to_dd(deg, mins, secs, direction):
     except Exception:
         return 0.0
 
-def extract_coordinates(text):
+def parse_notam_text(full_text):
     """
-    Extracts coordinate points from text.
-    Handles both Decimal and DMS formats.
+    Parses standard ICAO NOTAM text into structured metadata and polygon areas.
     """
-    coords = []
+    # 1. NOTAM Number (e.g. B0598/26 NOTAMN)
+    notam_no_m = re.search(r'([A-Z]\d{4}/\d{2}\s+NOTAM[NR])', full_text)
+    notam_no = notam_no_m.group(1).strip() if notam_no_m else "UNKNOWN_NOTAM"
+
+    # 2. Validity Schedule B) and C)
+    b_m = re.search(r'B\)\s+(\d{10})', full_text)
+    c_m = re.search(r'C\)\s+(\d{10})', full_text)
+    d_m = re.search(r'D\)\s+([^\n\r]+)', full_text)
     
-    # 1. Look for DMS coordinates (lenient symbols, allowing spaces or newlines as separator)
-    dms_pattern = re.compile(
-        r'(\d+)\s*[°o*]?\s*(\d+)\s*\'?\s*(\d+(?:\.\d+)?)\s*"?\s*(LS|LU|S|N)\s*(?:[-–—:]|\s+)\s*(\d+)\s*[°o*]?\s*(\d+)\s*\'?\s*(\d+(?:\.\d+)?)\s*"?\s*(BT|BB|E|W)',
-        re.IGNORECASE
-    )
-    for match in dms_pattern.finditer(text):
-        lat_deg, lat_min, lat_sec, lat_dir, lng_deg, lng_min, lng_sec, lng_dir = match.groups()
-        lat_dd = dms_to_dd(lat_deg, lat_min, lat_sec, lat_dir)
-        lng_dd = dms_to_dd(lng_deg, lng_min, lng_sec, lng_dir)
-        coords.append([lat_dd, lng_dd])
-        
-    if coords:
-        return coords
+    valid_start = b_m.group(1) if b_m else ""
+    valid_end = c_m.group(1) if c_m else ""
+    daily_sched = d_m.group(1).strip() if d_m else ""
 
-    # 2. Look for Decimal coordinates
-    decimal_pattern = re.compile(r'(-?\d+\.\d+)\s*,\s*(1\d{2}\.\d+)')
-    for match in decimal_pattern.finditer(text):
-        lat, lng = match.groups()
-        coords.append([float(lat), float(lng)])
-        
-    return coords
+    # 3. Altitude Limits F) and G)
+    f_m = re.search(r'F\)\s+([^\n\r]+?)\s+G\)\s+([^\n\r]+)', full_text)
+    lower_limit = "SFC"
+    upper_limit = "400FT AGL"
+    max_alt_ft = 400
 
-def clean_operator_name(op_name):
-    if "timah" in op_name.lower():
-        return "PT Timah Tbk"
-    if "agrinas" in op_name.lower():
-        return "PT Agrinas Palma Nusantara"
-    if "musi hutan" in op_name.lower():
-        return "PT Musi Hutan Persada"
-    if "perkebunan nusantara" in op_name.lower() or "ptpn 1" in op_name.lower() or "ptpn i" in op_name.lower():
-        return "PTPN I"
-    if "hutama karya" in op_name.lower():
-        return "PT Hutama Karya"
-        
-    op_name = re.sub(r'^(Division Head Exploration & Production|Deputy Coorporate Legal Division Head|SEVP Business Support|Direktur Utama|Yth\.\s+Direktur\s+Utama|Yth\.\s+)\s*', '', op_name, flags=re.IGNORECASE)
-    op_name = re.sub(r'\s+\(Persero\)$', '', op_name, flags=re.IGNORECASE)
-    return op_name.strip()
+    if f_m:
+        lower_limit = f_m.group(1).strip()
+        upper_limit = f_m.group(2).strip()
+        alt_num = re.search(r'(\d+)\s*(?:FT|M)', upper_limit, re.IGNORECASE)
+        if alt_num:
+            val = int(alt_num.group(1))
+            if 'm' in upper_limit.lower() and 'ft' not in upper_limit.lower():
+                max_alt_ft = int(val * 3.28084)
+            else:
+                max_alt_ft = val
 
-def ocr_single_image(file_path):
-    """Runs Windows native OCR on a PNG/JPG image file."""
-    try:
-        import asyncio
-        from PIL import Image
-        from winrt.windows.storage import StorageFile, FileAccessMode
-        from winrt.windows.graphics.imaging import BitmapDecoder
-        from winrt.windows.media.ocr import OcrEngine
-        from winrt.windows.globalization import Language
-    except ImportError:
-        return ""
+    # 4. Extract E) block
+    e_m = re.search(r'E\)\s+(.*?)(?=RMK:|F\)|Visualisasi|$)', full_text, re.DOTALL)
+    e_text = e_m.group(1) if e_m else full_text
 
-    async def run_ocr():
-        try:
-            lang = Language("id-ID")
-            engine = OcrEngine.try_create_from_language(lang)
-        except Exception:
-            engine = None
-        if not engine:
-            engine = OcrEngine.try_create_from_user_profile_languages()
-        if not engine:
-            engine = OcrEngine.try_create_from_language(Language("en-US"))
-        if not engine:
-            return ""
+    # 5. Extract Areas and Coordinates line-by-line
+    notam_coord_regex = re.compile(r'(\d{2})(\d{2})(\d{2})([SN])(\d{3})(\d{2})(\d{2})([EW])')
 
-        file = await StorageFile.get_file_from_path_async(file_path)
-        stream = await file.open_async(FileAccessMode.READ)
-        decoder = await BitmapDecoder.create_async(stream)
-        bitmap = await decoder.get_software_bitmap_async()
-        result = await engine.recognize_async(bitmap)
-        return result.text
+    areas = []
+    current_name = None
+    current_lines = []
 
-    try:
-        import asyncio
-        try:
-            loop = asyncio.get_running_loop()
-            is_running = True
-        except RuntimeError:
-            is_running = False
-            
-        if is_running:
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                return pool.submit(asyncio.run, run_ocr()).result()
+    for line in e_text.splitlines():
+        l_strip = line.strip()
+        if not l_strip:
+            continue
+        # Check if line looks like an area section title (e.g. 'BELITUNG AREA', 'AREA A4')
+        if re.search(r'\bAREA\b', l_strip, re.IGNORECASE) and not re.search(r'\d{6}[SN]', l_strip):
+            if current_name and current_lines:
+                coords = []
+                for deg_lat, min_lat, sec_lat, hem_lat, deg_lon, min_lon, sec_lon, hem_lon in notam_coord_regex.findall('\n'.join(current_lines)):
+                    lat = dms_str_to_dd(deg_lat, min_lat, sec_lat, hem_lat)
+                    lon = dms_str_to_dd(deg_lon, min_lon, sec_lon, hem_lon)
+                    coords.append([lat, lon])
+                if coords:
+                    areas.append({"name": current_name, "coordinates": coords})
+                current_lines = []
+            current_name = l_strip
         else:
-            return asyncio.run(run_ocr())
-    except Exception as e:
-        sys.stderr.write(f"OCR Exception: {str(e)}\n")
-        return ""
+            if current_name:
+                current_lines.append(l_strip)
 
-def ocr_scanned_pdf(file_path):
-    """Performs WinRT native OCR on scanned PDF pages."""
-    try:
-        import asyncio
-        import io
-        from PIL import Image
-        from winrt.windows.storage import StorageFile, FileAccessMode
-        from winrt.windows.graphics.imaging import BitmapDecoder
-        from winrt.windows.media.ocr import OcrEngine
-        from winrt.windows.globalization import Language
-    except ImportError:
-        return ""
+    if current_name and current_lines:
+        coords = []
+        for deg_lat, min_lat, sec_lat, hem_lat, deg_lon, min_lon, sec_lon, hem_lon in notam_coord_regex.findall('\n'.join(current_lines)):
+            lat = dms_str_to_dd(deg_lat, min_lat, sec_lat, hem_lat)
+            lon = dms_str_to_dd(deg_lon, min_lon, sec_lon, hem_lon)
+            coords.append([lat, lon])
+        if coords:
+            areas.append({"name": current_name, "coordinates": coords})
 
-    async def run_ocr():
-        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'ocr_temp_conv')
-        if not os.path.exists(temp_dir):
-            os.makedirs(temp_dir)
-            
-        try:
-            lang = Language("id-ID")
-            engine = OcrEngine.try_create_from_language(lang)
-        except Exception:
-            engine = None
-        if not engine:
-            engine = OcrEngine.try_create_from_user_profile_languages()
-        if not engine:
-            engine = OcrEngine.try_create_from_language(Language("en-US"))
-        if not engine:
-            return ""
-            
-        reader = PdfReader(file_path)
-        full_text = ""
-        
-        for idx, page in enumerate(reader.pages):
-            page_text = ""
-            for img_idx, img_obj in enumerate(page.images):
-                try:
-                    img = Image.open(io.BytesIO(img_obj.data))
-                    temp_img_path = os.path.join(temp_dir, f"conv_{idx}_{img_idx}.jpg")
-                    img.convert('RGB').save(temp_img_path, format='JPEG')
-                    
-                    file = await StorageFile.get_file_from_path_async(temp_img_path)
-                    stream = await file.open_async(FileAccessMode.READ)
-                    decoder = await BitmapDecoder.create_async(stream)
-                    bitmap = await decoder.get_software_bitmap_async()
-                    result = await engine.recognize_async(bitmap)
-                    page_text += result.text + "\n"
-                    
-                    if os.path.exists(temp_img_path):
-                        os.remove(temp_img_path)
-                except Exception as e:
-                    sys.stderr.write(f"Page image OCR failed: {str(e)}\n")
-            full_text += page_text + "\n"
-            
-        try:
-            if os.path.exists(temp_dir) and not os.listdir(temp_dir):
-                os.rmdir(temp_dir)
-        except Exception:
-            pass
-            
-        return full_text
+    # Fallback if no specific section headers were found
+    if not areas:
+        coords = []
+        for deg_lat, min_lat, sec_lat, hem_lat, deg_lon, min_lon, sec_lon, hem_lon in notam_coord_regex.findall(e_text):
+            lat = dms_str_to_dd(deg_lat, min_lat, sec_lat, hem_lat)
+            lon = dms_str_to_dd(deg_lon, min_lon, sec_lon, hem_lon)
+            coords.append([lat, lon])
+        if coords:
+            areas.append({"name": "OPERATIONAL AREA", "coordinates": coords})
 
-    try:
-        import asyncio
-        try:
-            loop = asyncio.get_running_loop()
-            is_running = True
-        except RuntimeError:
-            is_running = False
-            
-        if is_running:
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                return pool.submit(asyncio.run, run_ocr()).result()
-        else:
-            return asyncio.run(run_ocr())
-    except Exception as e:
-        sys.stderr.write(f"Async OCR failed: {str(e)}\n")
-        return ""
+    # Operator identification
+    op_guess = "Airspace Activity"
+    if "timah" in full_text.lower():
+        op_guess = "PT Timah Tbk"
+    elif "hutan persada" in full_text.lower():
+        op_guess = "PT Musi Hutan Persada"
+    elif "hutama karya" in full_text.lower():
+        op_guess = "PT Hutama Karya"
+    elif "ptpn" in full_text.lower():
+        op_guess = "PTPN IV PalmCo"
 
-def parse_document(file_path):
-    """Reads PDF or Image and extracts coordinates, ceilings and metadata."""
-    ext = os.path.splitext(file_path)[1].lower()
-    full_text = ""
-    
-    if ext in ['.png', '.jpg', '.jpeg', '.bmp', '.tiff']:
-        full_text = ocr_single_image(file_path)
-    elif ext == '.pdf':
-        reader = PdfReader(file_path)
-        for page in reader.pages:
-            text = page.extract_text()
-            if text:
-                full_text += text + "\n"
-        if len(full_text.strip()) < 100:
-            full_text = ocr_scanned_pdf(file_path)
-    else:
-        raise ValueError(f"Unsupported file format: {ext}")
+    return {
+        "is_notam": True,
+        "permit_id": notam_no,
+        "operator": op_guess,
+        "valid_start": valid_start,
+        "valid_end": valid_end,
+        "daily_schedule": daily_sched,
+        "lower_limit": lower_limit,
+        "upper_limit": upper_limit,
+        "max_altitude_ft": max_alt_ft,
+        "areas": areas
+    }
 
+def parse_regular_permit_text(full_text, file_path):
+    """
+    Parses standard Ministry/DNP permit letters.
+    """
     cleaned_text = re.sub(r'\s+', ' ', full_text)
     
     # 1. Extract Permit Number
-    num_match = re.search(r'Nomor\s*:\s*([^\s\n\r,]+)', full_text, re.IGNORECASE)
-    permit_id = num_match.group(1).strip() if num_match else "UNKNOWN_ID"
     actual_num_match = re.search(r'(\d{4}/APPROVAL-PUTA/DNP-202\d)', full_text, re.IGNORECASE)
     if actual_num_match:
         permit_id = actual_num_match.group(1).strip().upper()
+    else:
+        num_match = re.search(r'Nomor\s*:\s*([^\s\n\r,]+)', full_text, re.IGNORECASE)
+        permit_id = num_match.group(1).strip() if num_match else "UNKNOWN_ID"
         
     # 2. Extract Operator Name
     operator = "Unknown Operator"
@@ -234,11 +150,23 @@ def parse_document(file_path):
         if op_match_line:
             operator = op_match_line.group(1).strip()
             
-    operator = clean_operator_name(operator)
+    # Clean operator name
+    if "timah" in operator.lower():
+        operator = "PT Timah Tbk"
+    elif "agrinas" in operator.lower():
+        operator = "PT Agrinas Palma Nusantara"
+    elif "musi hutan" in operator.lower():
+        operator = "PT Musi Hutan Persada"
+    elif "perkebunan nusantara" in operator.lower() or "ptpn" in operator.lower():
+        operator = "PTPN IV PalmCo"
+    elif "hutama karya" in operator.lower():
+        operator = "PT Hutama Karya"
+    else:
+        operator = re.sub(r'^(Division Head|Direktur Utama|Yth\.\s+Direktur\s+Utama|Yth\.\s+)\s*', '', operator, flags=re.IGNORECASE).strip()
+
     if not operator or operator == "Unknown Operator":
-        # Guess from file name
         base = os.path.basename(file_path)
-        operator = clean_operator_name(base.split('.')[0])
+        operator = base.split('.')[0]
 
     # 3. Extract Max Altitude
     max_alt = 400
@@ -255,95 +183,185 @@ def parse_document(file_path):
         else:
             max_alt = val
 
-    # 4. Extract Coordinates
-    coords = extract_coordinates(full_text)
-    
+    # 4. Extract Coordinates (Regular DMS format or Decimal format)
+    coords = []
+    dms_pattern = re.compile(
+        r'(\d+)\s*[°o*]?\s*(\d+)\s*\'?\s*(\d+(?:\.\d+)?)\s*"?\s*(LS|LU|S|N)\s*(?:[-–—:]|\s+)\s*(\d+)\s*[°o*]?\s*(\d+)\s*\'?\s*(\d+(?:\.\d+)?)\s*"?\s*(BT|BB|E|W)',
+        re.IGNORECASE
+    )
+    for match in dms_pattern.finditer(full_text):
+        lat_deg, lat_min, lat_sec, lat_dir, lng_deg, lng_min, lng_sec, lng_dir = match.groups()
+        lat_dd = dms_str_to_dd(lat_deg, lat_min, lat_sec, lat_dir)
+        lng_dd = dms_str_to_dd(lng_deg, lng_min, lng_sec, lng_dir)
+        coords.append([lat_dd, lng_dd])
+
+    if not coords:
+        decimal_pattern = re.compile(r'(-?\d+\.\d+)\s*,\s*(1\d{2}\.\d+)')
+        for match in decimal_pattern.finditer(full_text):
+            lat, lng = match.groups()
+            coords.append([float(lat), float(lng)])
+
+    areas = []
+    if coords:
+        areas.append({
+            "name": "PERMIT FLIGHT AREA",
+            "coordinates": coords
+        })
+
     return {
+        "is_notam": False,
         "permit_id": permit_id,
         "operator": operator,
         "max_altitude_ft": max_alt,
-        "coordinates": coords or []
+        "lower_limit": "SFC",
+        "upper_limit": f"{max_alt}FT AGL",
+        "areas": areas
     }
 
-def generate_kml_circle(center, radius_m, limit_alt_m):
-    """Generates coordinate path for fallback circle."""
-    lat, lng = center
-    points = []
-    number_of_points = 36
-    earth_radius = 6378137
-    
-    lat_rad = lat * Math.PI / 180 if 'Math' in globals() else lat * 3.14159265 / 180
-    # Let's use python math module
-    import math
-    lat_rad = math.radians(lat)
-    lng_rad = math.radians(lng)
-    
-    for i in range(number_of_points + 1):
-        angle = math.radians(i * 360 / number_of_points)
-        radial = radius_m / earth_radius
-        
-        point_lat_rad = math.asin(
-            math.sin(lat_rad) * math.cos(radial) +
-            math.cos(lat_rad) * math.sin(radial) * math.cos(angle)
-        )
-        
-        point_lng_rad = lng_rad + math.atan2(
-            math.sin(angle) * math.sin(radial) * math.cos(lat_rad),
-            math.cos(radial) - math.sin(lat_rad) * math.sin(point_lat_rad)
-        )
-        
-        point_lat = math.degrees(point_lat_rad)
-        point_lng = math.degrees(point_lng_rad)
-        points.append(f"{point_lng},{point_lat},{limit_alt_m}")
-        
-    return "\n".join(points)
+def generate_kml_3d(data):
+    """
+    Generates rich 3D Google Earth KML with extruded polygon walls.
+    """
+    permit_id = data["permit_id"]
+    operator = data["operator"]
+    limit_alt_ft = data["max_altitude_ft"]
+    limit_alt_m = round(limit_alt_ft * 0.3048, 1)
+    areas = data.get("areas", [])
 
-def generate_kml(permit_id, operator, limit_alt_ft, coords):
-    limit_alt_m = limit_alt_ft * 0.3048
-    boundary_coordinates_str = ""
-    
-    if coords and len(coords) > 0:
-        boundary_coordinates_str = "\n".join(f"{c[1]},{c[0]},{limit_alt_m}" for c in coords) + \
-                                   f"\n{coords[0][1]},{coords[0][0]},{limit_alt_m}"
-    else:
-        # Fallback circle center - Palembang coords as default center if none found
-        boundary_coordinates_str = generate_kml_circle([-2.99, 104.76], 6000, limit_alt_m)
+    placemarks_kml = ""
+
+    # Palette styles for multiple areas (Red, Amber, Cyan)
+    styles_kml = """
+    <Style id="putaRedWall">
+      <LineStyle>
+        <color>ff0000ff</color>
+        <width>3.0</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>600000ff</color> <!-- Semi-transparent Red Wall -->
+      </PolyStyle>
+    </Style>
+    <Style id="putaAmberWall">
+      <LineStyle>
+        <color>ff00aaff</color>
+        <width>3.0</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>6000aaff</color> <!-- Semi-transparent Amber Wall -->
+      </PolyStyle>
+    </Style>
+    <Style id="putaCyanWall">
+      <LineStyle>
+        <color>ffffff00</color>
+        <width>3.0</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>60ffff00</color> <!-- Semi-transparent Cyan Wall -->
+      </PolyStyle>
+    </Style>
+    """
+
+    style_ids = ["#putaRedWall", "#putaAmberWall", "#putaCyanWall"]
+
+    for idx, area in enumerate(areas):
+        area_name = area.get("name", f"Area {idx+1}")
+        coords = area.get("coordinates", [])
+        if not coords:
+            continue
+
+        style_url = style_ids[idx % len(style_ids)]
+        
+        # Format: lon,lat,alt_m
+        pts_str_list = [f"{c[1]},{c[0]},{limit_alt_m}" for c in coords]
+        # Ensure closed ring
+        if pts_str_list[0] != pts_str_list[-1]:
+            pts_str_list.append(pts_str_list[0])
+            
+        boundary_coords_str = "\n            ".join(pts_str_list)
+
+        placemarks_kml += f"""
+      <Placemark>
+        <name>{area_name} ({limit_alt_ft} ft / {limit_alt_m} m)</name>
+        <description><![CDATA[
+          <h3>{operator}</h3>
+          <p><b>Permit / NOTAM:</b> {permit_id}</p>
+          <p><b>Airspace Ceiling:</b> {limit_alt_ft} FT ({data.get('upper_limit', '')})</p>
+          <p><b>Lower Limit:</b> {data.get('lower_limit', 'SFC')}</p>
+          <p><b>Total Boundary Vertices:</b> {len(coords)} points</p>
+        ]]></description>
+        <styleUrl>{style_url}</styleUrl>
+        <Polygon>
+          <extrude>1</extrude>
+          <altitudeMode>relativeToGround</altitudeMode>
+          <outerBoundaryIs>
+            <LinearRing>
+              <coordinates>
+            {boundary_coords_str}
+              </coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+      </Placemark>"""
+
+    if not placemarks_kml:
+        pts = []
+        center_lat, center_lon = -2.99, 104.76
+        for i in range(37):
+            angle = math.radians(i * 10)
+            radial = 6000 / 6378137.0
+            p_lat = math.asin(math.sin(math.radians(center_lat))*math.cos(radial) + math.cos(math.radians(center_lat))*math.sin(radial)*math.cos(angle))
+            p_lon = math.radians(center_lon) + math.atan2(math.sin(angle)*math.sin(radial)*math.cos(math.radians(center_lat)), math.cos(radial)-math.sin(math.radians(center_lat))*math.sin(p_lat))
+            pts.append(f"{math.degrees(p_lon)},{math.degrees(p_lat)},{limit_alt_m}")
+        fallback_str = "\n            ".join(pts)
+        placemarks_kml = f"""
+      <Placemark>
+        <name>Approximate Reference Airspace ({limit_alt_ft} ft)</name>
+        <description>Notice: Exact vertex points were not found in document text.</description>
+        <styleUrl>#putaAmberWall</styleUrl>
+        <Polygon>
+          <extrude>1</extrude>
+          <altitudeMode>relativeToGround</altitudeMode>
+          <outerBoundaryIs>
+            <LinearRing>
+              <coordinates>
+            {fallback_str}
+              </coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+      </Placemark>"""
 
     kml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>PUTA Airspace Limit - {permit_id}</name>
-    <description>Extracted 3D Safety Boundary for Google Earth - Operator: {operator}</description>
-    
-    <Style id="redPolygon">
-      <LineStyle>
-        <color>ff0000ff</color> <!-- Red border -->
-        <width>2.5</width>
-      </LineStyle>
-      <PolyStyle>
-        <color>400000ff</color> <!-- Semi-transparent Red Wall -->
-      </PolyStyle>
-    </Style>
-    
-    <Placemark>
-      <name>Permit Airspace Volume: {limit_alt_ft}ft AGL</name>
-      <description>Extracted Operating ceiling boundary for {operator}</description>
-      <styleUrl>#redPolygon</styleUrl>
-      <Polygon>
-        <extrude>1</extrude>
-        <altitudeMode>relativeToGround</altitudeMode>
-        <outerBoundaryIs>
-          <LinearRing>
-            <coordinates>
-{boundary_coordinates_str}
-            </coordinates>
-          </LinearRing>
-        </outerBoundaryIs>
-      </Polygon>
-    </Placemark>
+    <name>PUTA Airspace Volume - {permit_id}</name>
+    <description><![CDATA[
+      <b>3D Segregated Airspace Corridor for Google Earth Pro</b><br/>
+      Operator: {operator}<br/>
+      Authority: Kantor Otoritas Bandar Udara Wilayah VI Padang / Perum LPPNPI
+    ]]></description>
+    {styles_kml}
+    <Folder>
+      <name>{permit_id} Airspace Boundaries</name>
+      {placemarks_kml}
+    </Folder>
   </Document>
 </kml>"""
     return kml
+
+def parse_file(file_path):
+    doc = fitz.open(file_path)
+    full_text = ""
+    for page in doc:
+        full_text += page.get_text() + "\n"
+
+    # Check if this document is an ICAO NOTAM
+    if "NOTAM" in full_text and ("Q)" in full_text or "WIIF" in full_text or "WAAF" in full_text):
+        parsed = parse_notam_text(full_text)
+    else:
+        parsed = parse_regular_permit_text(full_text, file_path)
+
+    return parsed
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -356,28 +374,31 @@ if __name__ == '__main__':
         sys.exit(1)
         
     try:
-        parsed_data = parse_document(file_path)
-        
-        kml_string = generate_kml(
-            parsed_data["permit_id"],
-            parsed_data["operator"],
-            parsed_data["max_altitude_ft"],
-            parsed_data["coordinates"]
-        )
-        
+        parsed_data = parse_file(file_path)
+        kml_string = generate_kml_3d(parsed_data)
+
+        total_coords = sum(len(a.get("coordinates", [])) for a in parsed_data.get("areas", []))
+        all_flattened_coords = []
+        for a in parsed_data.get("areas", []):
+            all_flattened_coords.extend(a.get("coordinates", []))
+
         result = {
             "success": True,
+            "is_notam": parsed_data.get("is_notam", False),
             "permit_id": parsed_data["permit_id"],
             "operator": parsed_data["operator"],
             "max_altitude_ft": parsed_data["max_altitude_ft"],
-            "coords_count": len(parsed_data["coordinates"]),
+            "lower_limit": parsed_data.get("lower_limit", "SFC"),
+            "upper_limit": parsed_data.get("upper_limit", f"{parsed_data['max_altitude_ft']}FT AGL"),
+            "coords_count": total_coords,
+            "areas": parsed_data.get("areas", []),
+            "coordinates": all_flattened_coords,
             "kml_content": kml_string
         }
         print(json.dumps(result))
         
     except Exception as e:
         error_msg = str(e)
-        # Grab traceback stack
         tb = traceback.format_exc()
         sys.stderr.write(tb)
         print(json.dumps({"success": False, "error": error_msg}))

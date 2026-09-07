@@ -32,3 +32,16 @@ data/dji_keychains/
 Log/
 Contoh Laporan/
 *.pptx
+
+# Temporary scratch and debugging scripts
+scratch/
+debug_*.py
+inspect_*.py
+print_*.py
+test_full_parse.py
+*_extracted_text.txt
+all_slides_clean.txt
+full_details.txt
+slide_breakdown.txt
+gemini-code-*.md
+Evaluasi Persetujuan PUTA KOBU VI th 2026_up1*.pdf
