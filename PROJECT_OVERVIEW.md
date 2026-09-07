@@ -18,9 +18,11 @@ Under Indonesian aviation frameworks (e.g., PM 37 Tahun 2020), drone operations 
 ## 2. Key Features & Capabilities
 
 ### 🗺️ Geospatial Geofence Mapping
-* Plots coordinate-based polygons directly from flight permits onto an interactive Leaflet map.
+* Plots coordinate-based single and MultiPolygons directly from flight permits onto an interactive Leaflet map.
+* **Airspace Focus & Isolation Mode**: Isolate active flight permits by hiding or subtly dimming adjacent overlapping airspaces to prevent visual confusion during inspection.
+* **Custom Airspace Styling Engine**: Personalize and distinguish operational airspaces using 7 high-contrast aviation presets or custom hex colors with automatic persistence and sidebar synchronization.
 * Displays maximum altitude ceilings (standard cap of 400 ft / 120 m AGL) with color-coded safety indicators.
-* Integrates airfield KML buffers (e.g., Depati Amir Airport zones) to visualize intersections between flight requests and restricted airport airspace.
+* Integrates airfield KML buffers (e.g., Depati Amir Airport zones) to visualize intersections between flight requests and restricted airport airspace (KKOP 5km/25km zones).
 
 ### 📝 Smart Permit Parser & Standardizer
 * **Automated PDF Parsing**: Utilizes a Python-based coordinator tool to parse permit documents and map coordinate layouts.

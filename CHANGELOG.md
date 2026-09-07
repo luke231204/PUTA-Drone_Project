@@ -4,6 +4,44 @@ Dokumen ini mencatat seluruh riwayat perubahan fungsional (*features*), peningka
 
 ---
 
+## [2.4.0] - 2026-09-07
+
+### 🚀 Fitur Baru & Peningkatan UX Geospasial (Airspace Focus & Styling Engine)
+1. **Airspace Focus & Isolation Mode (Isolasi Poligon Aktif)**:
+   - Menghilangkan kebingungan visual operator akibat tumpang-tindih batas poligon izin lain di sekitar area operasi (misalnya konsesi perkebunan luas di Sumatera Selatan seperti PT Musi Hutan Persada dan PTPN I).
+   - **Tombol Isolasi di Inspector Panel**: Tombol interaktif `🎯 Isolate This Airspace (Hide Others)` / `Focus Active: Other Polygons Hidden` pada panel detail sebelah kanan.
+   - **Tombol Isolasi di Bottom Glass Bar**: Tombol kontrol `Focus Active Only` / `Focus Active: ON` pada bilah kaca mengambang di bawah peta utama.
+   - **Mekanisme Isolasi**: Saat diaktifkan, seluruh poligon izin lain di peta otomatis disembunyikan total, menyisakan hanya batas udara izin aktif.
+   - **Smart Dimming Hierarchy**: Saat Focus Mode tidak aktif, izin yang dipilih tetap ditonjolkan dengan garis tebal (3.5px) dan kontras penuh, sedangkan poligon izin lain di sekitarnya otomatis diredupkan (*subtle ghost dimming*: garis tipis 1px, opasitas 4%) sehingga tidak mengganggu fokus visual operator.
+
+2. **Custom Airspace Color Picker & Theme (Kustomisasi Warna Poligon)**:
+   - Menyediakan palet warna aviasi dengan 7 preset berkontras tinggi:
+     - 🟢 **Emerald Green** (`#10b981`)
+     - 🔵 **Sky Blue** (`#0284c7`)
+     - 🟣 **Electric Indigo** (`#6366f1`)
+     - 🟪 **Deep Purple** (`#9333ea`)
+     - 🟠 **Amber Gold** (`#f59e0b`)
+     - 🔴 **Crimson Red** (`#ef4444`)
+     - 🟡 **Neon Lime** (`#84cc16`)
+   - **Native Hex Color Input (`+`)**: Memungkinkan pemilihan warna kustom bebas sesuai preferensi operator atau kontras citra satelit.
+   - **Reset to Default**: Tombol kembali ke warna status perizinan standar (*Active = Hijau, Pending = Kuning, Expired = Abu-abu*).
+   - **Penyimpanan Persisten & Integrasi Sidebar**: Warna kustom langsung diterapkan secara *real-time* ke layer peta Leaflet, disimpan di `localStorage` (`puta_custom_permit_colors`), dan ditampilkan sebagai aksen garis warna di sisi kiri kartu izin pada sidebar.
+
+3. **Multi-Block Polygon & Geometry Engine Support**:
+   - Mendukung perizinan dengan banyak blok wilayah terpisah (*Leaflet MultiPolygon*):
+     - **PT Musi Hutan Persada** (`AU.307/7/17/DNP-2024`): 6 blok konsesi persegi (24 titik koordinat) di Lahat, Muara Enim, Muba, Muratara, PALI, dan OKU.
+     - **PTPN I** (`AU.307/9/21/DNP-2024`): 8 blok kebun wilayah Sumatera Selatan (32 titik koordinat).
+     - **PT Hutama Karya** (`AU.307/13/2/DNP-2024`): Koridor Jalan Tol Kayu Agung - Palembang - Betung.
+     - **PT Timah Tbk**: Wilayah Izin Usaha Pertambangan (WIUP) Pulau Bangka (23 titik) dan Belitung (22 titik).
+   - Peningkatan fungsi pendukung: `countCoordinatesVertices` untuk menghitung total verteks multi-cincin, `isPointInPolygon` rekursif untuk verifikasi geofence, serta `isPermitNearAirport` untuk deteksi kedekatan KKOP bandara.
+
+4. **Pembersihan & Optimalisasi File Lokal**:
+   - Melakukan audit perbandingan isi berkas unduhan Google Drive dengan direktori perizinan aktif.
+   - Menghapus direktori sisa ekstraksi sementara `6. KOBU VI - PADANG-20260907T132509Z-1-001` setelah memastikan seluruh 53 berkas PDF telah tersalin dan dibakukan namanya ke dalam direktori resmi `6. KOBU VI - PADANG/` (`/2024/`, `/2025/`, dan `/2026/`).
+   - Memperbarui [.gitignore](file:///c:/Users/Luke/Downloads/Project%20Latsar%20PUTA/.gitignore) agar berkas *scratch*, dump ekstraksi teks, dan skrip *debug* lokal tidak mengotori repositori Git.
+
+---
+
 ## [2.3.0] - 2026-09-07
 
 ### 🚀 Fitur & Peningkatan Database (Permit Database Expansion & Cloud Ingestion)
