@@ -61,3 +61,31 @@ Run the cleanup script to compare remote storage files against your local `permi
 python cleanup_storage.py
 ```
 *(This script lists remote files and deletes any file not referenced in `permits.json`, instantly reclaiming space).*
+
+---
+
+## 4. Software Versioning & Release Lifecycle Standardization (SemVer)
+
+To prevent confusion among evaluators, mentors, and inspectors, PUTA-Monitor adheres to a standardized **Semantic Versioning (SemVer 2.0.0)** lifecycle adapted for internal government innovation and civil service accreditation:
+
+### Format:
+$$\mathbf{vMAJOR.MINOR.PATCH\ [-TAG]}$$
+
+* **MAJOR (`v1.x.x` $\rightarrow$ `v2.x.x`)**:
+  - Incremented **ONLY** upon full production migration, complete architectural overhaul, or when a previous version is officially decommissioned.
+  - *Current Status:* Since PUTA-Monitor is an innovative pilot project for OTBAN Wilayah VI, the system is within the **`v1.x.x`** generation.
+* **MINOR (`v1.4.x` $\rightarrow$ `v1.5.0`)**:
+  - Incremented whenever **new functional features or capabilities** are added (e.g., adding DJI Wasm Engine, 4D Flight Replay HUD, Multi-Block Geometry, or Spatial Conflict Matrix).
+* **PATCH (`v1.5.0` $\rightarrow$ `v1.5.1`)**:
+  - Incremented for **bug fixes, UI alignment, data corrections**, or small optimizations that do not add new major features.
+* **RELEASE TAG**:
+  - **`-beta` / `Pilot Release`**: Used during the internal evaluation, field testing with senior inspectors, and Latsar examination stage (current stage).
+  - **`Stable Release`**: Used when the system is officially signed off and deployed as the mandatory daily standard operating software across all evaluator desks in OTBAN Wilayah VI.
+
+### Unified Version Matrix Across the Project:
+Whenever the version changes, update the following files simultaneously:
+1. `package.json` $\rightarrow$ `"version": "1.5.0"`
+2. `index.html` $\rightarrow$ Top bar tag, Header badge, and Developer Info modal (`v1.5.0 (Pilot Release)`).
+3. `CHANGELOG.md` $\rightarrow$ Create a corresponding entry `## [1.5.0] - YYYY-MM-DD`.
+4. `JAWABAN_LAPORAN_AKTUALISASI_LATSAR.md` $\rightarrow$ Reflect active version in executive summary.
+

@@ -2,19 +2,21 @@ const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } = require('ele
 const path = require('path');
 const fs = require('fs');
 
-// ── Cache Fix ────────────────────────────────────────────────────────────────
-// Prevent "Unable to move the cache: Access is denied" errors caused by
-// multiple Electron instances competing for the same Chromium cache folder.
-// We point userData to a dedicated folder inside the project, and disable
-// the GPU shader disk cache entirely.
-app.setPath('userData', path.join(__dirname, 'data', '.electron-userdata'));
+// ── Chromium Cache & GPU Lock Fix ─────────────────────────────────────────────
+// Disable GPU shader cache to eliminate Windows (0x5) "Access is denied"
+// race conditions caused when Chromium instances initialize disk caches.
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+app.commandLine.appendSwitch('disable-http-cache');
 // ─────────────────────────────────────────────────────────────────────────────
 
 function createWindow() {
+  const iconPath = path.join(__dirname, 'Logo', 'logo drone new.png');
+
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     title: "PUTA-Monitor (Airport Authority Region VI)",
+    icon: iconPath,
     backgroundColor: '#0f172a', // sleek tailwind slate-900 background
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -158,7 +160,8 @@ ipcMain.handle('load-permits', async () => {
     try {
       const res = await fetch(url, {
         method: 'GET',
-        headers: getSupabaseHeaders(true)
+        headers: getSupabaseHeaders(true),
+        signal: AbortSignal.timeout(3000) // Fast 3s timeout to prevent UI lag on network delay
       });
       if (res.ok) {
         const data = await res.json();
@@ -317,55 +320,47 @@ ipcMain.handle('auth-get-session', async () => {
   }
   const saved = loadSession();
   if (saved && saved.access_token) {
-    console.log("[IPC] auth-get-session: saved session found on disk. Refreshing profile...");
-    loadEnv();
-    const supabaseUrl = process.env.SUPABASE_URL;
-    if (supabaseUrl) {
-      try {
+    // If the saved session already contains a valid profile, return it INSTANTLY (0ms delay)
+    // so the app feels snappy and doesn't block UI waiting for network timeouts.
+    if (saved.profile) {
+      console.log(`[IPC] auth-get-session: instant restore from local cache for ${saved.user?.email || 'user'}`);
+      activeSession = saved;
+      
+      // Background non-blocking profile sync (fire and forget)
+      loadEnv();
+      const supabaseUrl = process.env.SUPABASE_URL;
+      if (supabaseUrl && saved.user?.id) {
         const profileUrl = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/profiles?id=eq.${saved.user.id}`;
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
-        const profRes = await fetch(profileUrl, {
+        fetch(profileUrl, {
           method: 'GET',
-          headers: {
-            'apikey': serviceKey,
-            'Authorization': `Bearer ${serviceKey}`
-          }
-        });
-        if (profRes.ok) {
-          const profData = await profRes.json();
-          if (profData && profData.length > 0) {
-            saved.profile = profData[0];
-            if (saved.user.email === 'lukmanyudand@gmail.com') {
-              saved.profile.role = 'dev';
-              saved.profile.approved = true;
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` },
+          signal: AbortSignal.timeout(2000)
+        }).then(res => res.ok ? res.json() : null)
+          .then(profData => {
+            if (profData && profData.length > 0) {
+              saved.profile = profData[0];
+              if (saved.user.email === 'lukmanyudand@gmail.com') {
+                saved.profile.role = 'dev';
+                saved.profile.approved = true;
+              }
+              activeSession = saved;
+              saveSession(activeSession);
+              console.log("[IPC] Background profile sync completed.");
             }
-            activeSession = saved;
-            saveSession(activeSession);
-            console.log(`[IPC] auth-get-session: Profile refreshed from DB: role=${activeSession.profile.role}, approved=${activeSession.profile.approved}`);
-            return { success: true, session: activeSession };
-          }
-        }
-      } catch (err) {
-        console.warn("[IPC] Failed to refresh session profile from DB:", err);
+          }).catch(() => {});
       }
-
-      // Fallback: If DB query fails, RLS blocks, or returns empty, use locally cached session/metadata fallback
-      console.log("[IPC] auth-get-session: Profile not found in DB or query failed. Using fallback profile.");
-      if (!saved.profile) {
-        const metaRole = saved.user.user_metadata ? saved.user.user_metadata.role : 'regular';
-        const assignedRole = (saved.user.email === 'admin@puta.com' || saved.user.email === 'lukmanyudand@gmail.com' || saved.user.email.includes('admin') || saved.user.email.includes('dev')) ? 'dev' : metaRole;
-        saved.profile = { id: saved.user.id, email: saved.user.email, role: assignedRole, approved: true };
-      } else {
-        // Ensure approved is true so they don't get stuck on the approval page
-        saved.profile.approved = true;
-        if (saved.user.email === 'lukmanyudand@gmail.com') {
-          saved.profile.role = 'dev';
-        }
-      }
-      activeSession = saved;
-      saveSession(activeSession);
       return { success: true, session: activeSession };
     }
+
+    // Fallback only if saved session somehow has no profile yet
+    console.log("[IPC] auth-get-session: generating fallback profile for saved session...");
+    const metaRole = saved.user?.user_metadata ? saved.user.user_metadata.role : 'regular';
+    const assignedRole = (saved.user?.email === 'admin@puta.com' || saved.user?.email === 'lukmanyudand@gmail.com' || saved.user?.email?.includes('admin') || saved.user?.email?.includes('dev')) ? 'dev' : metaRole;
+    saved.profile = { id: saved.user?.id, email: saved.user?.email, role: assignedRole, approved: true };
+    activeSession = saved;
+    saveSession(activeSession);
+    return { success: true, session: activeSession };
   }
   console.log("[IPC] auth-get-session: no active or saved session found");
   return { success: false };

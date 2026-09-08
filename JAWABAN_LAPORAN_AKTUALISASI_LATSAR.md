@@ -28,12 +28,23 @@ Sebelum masuk ke rincian per bab, terdapat beberapa **asumsi dalam pertanyaan aw
      - **Replay Bar Interaktif:** Play/Pause, timeline slider, pengatur kecepatan ($1\times, 2\times, 5\times, 10\times$), dan live telemetry AGL & Speed.
      - **Virtual RC Joystick HUD:** Mensimulasikan gerakan tuas fisik remote pilot di lapangan (Throttle/Yaw & Pitch/Roll) yang dinormalisasi dari sinyal 11-bit PWM ($364 \dots 1684$).
 
+4. **High-Fidelity Full Precision Telemetry (2.935 Titik Aerodinamis Murni):**
+   * Menyelesaikan masalah trajektori patah-patah (*aliasing/choppy vector*) akibat downsampling berlebih.
+   * Visualisasi rute penerbangan di peta utama Leaflet maupun tab *Flight Route Map* Universal Studio menggunakan **2.935 koordinat GPS 3D riil**, mempertahankan kurva putaran mulus saat drone bermanuver.
+   * **Integritas Ekstraksi Ekspor (KML/CSV/GPX):** Proses visualisasi dipisahkan secara independen dari engine ekspor file, sehingga hasil ekstraksi KML (Google Earth 3D dengan extrude), CSV telemetri lengkap, dan GPX tetap memiliki **kualitas dan resolusi asli 100% (*full-fidelity*)**.
+
+5. **Real-Time Spatial Conflict Matrix & Inter-Operator Airspace Deconfliction:**
+   * **Dynamic 2D Geofence Segmentation:** Menggunakan algoritma *Ray-Casting Point-in-Polygon*, lintasan drone secara otomatis dipartisi menjadi segmen **Cyan `#06b6d4`** (di dalam batas izin) dan segmen tebal **Merah `#ef4444`** (keluar dari poligon izin/KKOP) lengkap dengan pin penanda *Geofence Breach Event*.
+   * **Multi-Operator Airspace Overlap:** Membedakan secara cerdas antara **Direct Overlap** (irisan dua poligon resmi NOTAM yang saling memotong) dengan **Potential Conflict** (irisan radius perkiraan ~6km karena salah satu izin belum menerbitkan poligon NOTAM definitif).
+   * **Cumulative Fleet Analytics:** Akumulasi otomatis total jam terbang riil, total jarak jelajah (km) via *Haversine formula*, dan total titik GPS dari seluruh sortie penerbangan.
+
 ---
 
 ## SECTION 1: ARCHITECTURAL & CODE UPDATES (GAGASAN & INOVASI)
 
 ### 1. Core Stack & Versi Dependensi Riil
 * **Desktop Runtime:** `Electron` v42.4.1 (Node.js runtime v20+, Chromium base) dengan arsitektur multi-process aman (`contextIsolation: true`, `nodeIntegration: false`, `preload.js`).
+* **Sistem Versi Aplikasi:** Mengikuti standar industri **SemVer (Semantic Versioning 2.0.0)** pada status **`v1.5.0 (Pilot Release)`** (tercantum seragam di `package.json`, bilah navigasi, dan modal info pengembang).
 * **Frontend UI Framework:** Native HTML5, Vanilla CSS3 (Sistem warna Mac-style Sage & Forest Theme), ES6+ JavaScript Modular tanpa build-step rumit sehingga sangat portabel.
 * **Geospatial GIS Engine:** `Leaflet.js` v1.9.4 dengan dual-tile layer:
   - OpenStreetMap Standard (`tile.openstreetmap.org`).
@@ -76,6 +87,25 @@ Sebelum masuk ke rincian per bab, terdapat beberapa **asumsi dalam pertanyaan aw
      $$d = 2R \cdot \text{atan2}(\sqrt{a}, \sqrt{1-a})$$
      Jarak antara lintasan drone dengan titik referensi bandara OTBAN Wilayah VI dihitung otomatis untuk menentukan apakah penerbangan memasuki zona buffer 5 km (KKOP) atau zona pendekatan landasan (*Runway Approach Corridor*).
 
+### 4. High-Fidelity Multi-Segment Geofence & Deconfliction Architecture (`renderer.js`)
+* **GIS Ray-Casting Route Segmentation (`segmentRouteByGeofence`)**:
+  - Menyelesaikan paradoks visualisasi 2D vs 3D: jika ketinggian diproyeksikan langsung pada garis rute 2D, lintasan drone yang bolak-balik di atas jalur koordinat yang sama akan saling bertumpuk dan menimbulkan kekacauan visual (*visual clutter*).
+  - PUTA-Monitor membagi tanggung jawab tampilan secara ergonomis:
+    1. **Peta 2D Leaflet**: Dikhususkan mutlak untuk **pelanggaran batas lateral geofence izin**. Algoritma melakukan *Point-in-Polygon ray-casting* per titik koordinat. Jalur yang berada di dalam izin di-render garis elegan Cyan (`#06b6d4`, ketebalan 2.5px), sedangkan saat melompat keluar batas izin otomatis dipartisi menjadi segmen merah menyala (`#ef4444`, ketebalan 4.5px, opasitas 0.95) dengan penanda *Warning Event Pin*.
+    2. **Universal Studio 4D**: Menangani audit vertikal (*ceiling breach* >400 ft AGL) melalui grafik profil ketinggian *crosshair* tersinkronisasi dan indikator status *Ceiling Compliance Badge*.
+* **Cumulative Multi-Sortie Telemetry Engine (`calculateTrackDistanceKm` & `computeSortieAuditSummary`)**:
+  - Menghitung akumulasi riil seluruh sortie operasi drone:
+    - **Total Jarak Jelajah (km)**: Dihitung menggunakan rumus geodesi *Haversine formula* antar-titik GPS berurutan.
+    - **Total Jam Terbang Efektif**: Diakumulasi dari durasi riil setiap sortie ($T_{\text{end}} - T_{\text{start}}$).
+    - **Total Titik GPS**: Menghitung total data titik spasial murni (2.935 titik per sortie penerbangan).
+  - Ditampilkan dalam kartu *Cumulative Fleet Telemetry* bertema *Dark-Glass Cyberpunk* di panel inspektor.
+* **Dual-Fidelity Airspace Deconfliction Engine (`checkAirspaceConflict`)**:
+  - Mengaudit potensi konflik ruang udara antar-operator secara multi-dimensi (irisan temporal tanggal aktif dan irisan spasial poligon).
+  - **Diferensiasi Presisi Tinggi**:
+    - **Direct Overlap (Irisan Poligon NOTAM Definitif)**: Diberikan label merah tegas jika kedua operator memiliki poligon NOTAM koordinat resmi yang saling beririsan.
+    - **Potential Overlap (Estimasi Default Circle)**: Diberikan label amber dengan catatan khusus jika salah satu operator (misalnya PT Inovasi Mandiri Pratama `0353/APPROVAL-PUTA/DNP-2026`) belum menerbitkan batas poligon NOTAM resmi dan posisinya masih berupa lingkaran radius perkiraan default ~6km dari ibukota/kabupaten.
+  - Dilengkapi tombol interaktif `View Airspace on Map` yang langsung mengarahkan kamera peta (*flyToBounds*) dan menyorot poligon ruang udara yang bertikai.
+
 ---
 
 ## SECTION 2: KENDALA RIIL & SOLUSI REKAYASA TEKNIS (SUBBAB III.B)
@@ -89,6 +119,9 @@ Sebelum masuk ke rincian per bab, terdapat beberapa **asumsi dalam pertanyaan aw
 | 5 | **Tombol Replay Play Tidak Merespon** | Lapisan kanvas peta Leaflet memiliki z-index internal 1000 yang menelan event klik mouse pada bilah kontrol. | Menaikkan z-index bilah replay ke `z-[2000]` dengan kelas CSS `pointer-events-auto` dan memastikan parameter data binding mengarah ke `ulgLastResult.preview_points`. |
 | 6 | **Tombol Play Memantul (*Double Click Bounce*)** | Terdapat event listener ganda (`onclick` di HTML dan `addEventListener` di JS) sehingga satu klik memicu *Play $\rightarrow$ langsung Pause*. | Menghapus listener ganda, menyisakan satu handler resmi, serta memasang `pointer-events-none` pada tag SVG ikon tombol. |
 | 7 | **HUD Joystick Menampilkan Angka Aneh `102400%`** | Sinyal RC DJI berformat integer 11-bit ($364 \dots 1684$ dengan netral $1024$), bukan persentase desimal $-1.0 \dots +1.0$. | Menerapkan normalisasi 11-bit: $\text{Throttle} = \frac{\text{raw} - 364}{1320} \times 100\%$ dan $\text{Yaw/Pitch/Roll} = \frac{\text{raw} - 1024}{660}$ sehingga tampilan kembali normal $0\% - 100\%$. |
+| 8 | **Trajektori Universal Studio Terlihat Patah-Patah (*Choppy Vector*)** | `sample_sorties.json` menyimpan `studioData.map_points` yang ter-downsample hanya 250 titik, timpang dibandingkan visualisasi peta utama yang memiliki 2.935 titik. | Melakukan sinkronisasi penuh di mana data studio di-update ke 2.935 titik presisi tinggi, dan `openSortieInStudio` otomatis menggunakan `sortie.map_points` penuh jika `studioData` belum lengkap. |
+| 9 | **Ambivalensi Visual Ketinggian 3D pada Tampilan Peta 2D** | Pewarnaan rute berbasis ketinggian pada peta 2D menyebabkan lintasan drone yang bolak-balik pada koordinat yang sama menjadi bertumpuk (*unreadable overlapping visual*). | Memisahkan peran visual: Peta 2D murni untuk partisi geofence lateral (Cyan = aman, Merah = keluar izin), sedangkan audit pelanggaran ketinggian 400 ft didelegasikan ke grafik profil elevasi dan crosshair di Universal Studio. |
+| 10 | **Alarm Tumpang-Tindih Palsu (*False Alarm Definitive Overlap*)** | Sistem sebelumnya menganggap irisan lingkaran default lokasi (~6km) sebagai konflik ruang udara definitif, memicu kebingungan inspektur saat menganalisis operator yang belum menerbitkan NOTAM. | Mengembangkan klasifikasi cerdas pada mesin deconfliction: memisahkan **Direct Overlap** (irisan poligon NOTAM sah) dengan **Potential Overlap** (peringatan dini karena masih berupa estimasi radius ~6km). |
 
 ---
 
@@ -269,3 +302,58 @@ function updateRCHud(p) {
   rightStick.style.transform = `translate(${(aileron * maxTravelPx).toFixed(1)}px, ${(-elevator * maxTravelPx).toFixed(1)}px)`;
 }
 ```
+
+### 5. Multi-Flight Sortie Management per Permit (`renderer.js`)
+Fitur ini mengatasi keterbatasan di lapangan di mana satu izin operasional menerbangkan drone berulang kali (multi-sortie):
+- **Standarisasi Penamaan Sortie Otomatis**:
+  Format: `{YYYY-MM-DD}_{HH.MM}_{OPERATOR}_Sortie-{NN}` (contoh: `2026-03-24_09.15_PT_Timah_Tbk_Sortie-01`).
+- **Multi-Log Format Support**: Menerima file biner PX4 (`.ulg`), DJI FlightRecord (`.txt`, `.dat`), dan file telemetri spasial (`.csv`, `.kml`).
+- **Optimasi Ukuran File**: Otomatis mengekstrak telemetri ringkas (~250 titik navigasi GPS dan ringkasan metrik) sehingga puluhan sortie tersimpan secara instan di penyimpanan lokal tanpa membebani memori browser.
+- **Dual Visualisasi**:
+  - `View on Map`: Menyorot trajektori terbang sortie tunggal dengan titik lepas landas (hijau) dan mendarat (merah) serta statistik ketinggian.
+  - `Show All Tracks on Map`: Merender seluruh sortie armada secara bersamaan dengan palet warna kontras (Cyan, Amber, Violet, Rose, Emerald).
+- **Integrasi Universal Studio**: Tombol `Universal Studio` pada setiap sortie langsung membuka Studio Telemetri 4D lengkap dengan grafik ketinggian AGL/AMSL, batas 400ft, kecepatan, dan playback interaktif virtual RC joystick.
+
+### 6. Real-Time Spatial Conflict Matrix & Deconfliction Engine (`renderer.js`)
+Menyediakan audit kepatuhan komprehensif dua tahap:
+1. **Pre-Flight Airspace Advisory & Deconfliction**:
+   - Menghitung jarak terhadap Bandara KKOP di wilayah OTBAN Wilayah VI.
+   - Mengklasifikasikan status ke dalam 5km Runway NFZ (Kritis), 25km TMA Controlled Airspace (Advisori), atau Safe Separation (>25km).
+   - Mendeteksi konflik spasial & temporal terhadap izin operator lain: membedakan **Direct Overlap** (irisan poligon resmi NOTAM) vs **Potential Overlap** (target belum memiliki NOTAM resmi, estimasi default radius ~6km).
+2. **Post-Flight True Telemetry Breach Audit (`segmentRouteByGeofence`)**:
+   - Memverifikasi 2.935 koordinat GPS riil dari seluruh sortie terhadap poligon batas izin (`isPointInPolygon`).
+   - Memecah rute menjadi segmen Cyan (Aman) dan Segmen Merah Menyala (Melanggar Batas Izin).
+
+```javascript
+// Cuplikan Algoritma Partisi Segmen Geofence Lateral
+function segmentRouteByGeofence(points, polygon) {
+  if (!points || points.length < 2) return [];
+  if (!polygon || polygon.length < 3) {
+    return [{ isBreach: false, points: points.map(p => [p.lat, p.lon]) }];
+  }
+
+  const segments = [];
+  let currentSegment = [ [points[0].lat, points[0].lon] ];
+  let currentStatus = !isPointInPolygon([points[0].lat, points[0].lon], polygon); // true = breach
+
+  for (let i = 1; i < points.length; i++) {
+    const pt = [points[i].lat, points[i].lon];
+    const isBreach = !isPointInPolygon(pt, polygon);
+
+    if (isBreach === currentStatus) {
+      currentSegment.push(pt);
+    } else {
+      // Bridge transition point agar visual garis tidak terputus
+      currentSegment.push(pt);
+      segments.push({ isBreach: currentStatus, points: currentSegment });
+      currentSegment = [pt];
+      currentStatus = isBreach;
+    }
+  }
+  if (currentSegment.length > 1) {
+    segments.push({ isBreach: currentStatus, points: currentSegment });
+  }
+  return segments;
+}
+```
+

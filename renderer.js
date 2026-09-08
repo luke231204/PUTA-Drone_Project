@@ -19,6 +19,56 @@ try {
   console.warn('Failed to parse saved permit colors', e);
 }
 
+// Multi-Flight Sortie Management State
+let permitFlightSorties = {};
+try {
+  const savedSorties = localStorage.getItem('puta_permit_flight_sorties');
+  if (savedSorties) permitFlightSorties = JSON.parse(savedSorties);
+} catch (e) {
+  console.warn('Failed to parse saved permit flight sorties', e);
+}
+let activeSortieMapLayers = {};
+let isShowingAllSorties = false;
+let currentHighlightedSortieId = null;
+
+function saveSortiesToStorage() {
+  try {
+    localStorage.setItem('puta_permit_flight_sorties', JSON.stringify(permitFlightSorties));
+  } catch (e) {
+    console.warn('Failed to save permit flight sorties to localStorage:', e);
+  }
+}
+
+function getPermitSorties(permitId) {
+  if (!permitId) return [];
+  return permitFlightSorties[permitId] || [];
+}
+
+async function bootstrapSampleSorties() {
+  const sampleKey = '0016/APPROVAL-PUTA/DNP-2026';
+  // If already loaded with high-fidelity points (>= 2000 points in both main track and studioData), keep it
+  if (permitFlightSorties[sampleKey] && permitFlightSorties[sampleKey].length > 0) {
+    const existing = permitFlightSorties[sampleKey][0];
+    if (existing && existing.map_points && existing.map_points.length >= 2000 &&
+        existing.studioData && existing.studioData.map_points && existing.studioData.map_points.length >= 2000) {
+      return;
+    }
+  }
+  try {
+    const res = await fetch('data/sample_sorties.json');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data[sampleKey]) {
+        permitFlightSorties[sampleKey] = data[sampleKey];
+        saveSortiesToStorage();
+        console.log('Bootstrapped high-fidelity flight sortie for PT Timah Bangka (~2,935 points)');
+      }
+    }
+  } catch (err) {
+    console.warn('Could not bootstrap sample sorties from data/sample_sorties.json', err);
+  }
+}
+
 function updateFocusModeUI() {
   const btn = document.getElementById('map-toggle-focus');
   const txt = document.getElementById('map-toggle-focus-text');
@@ -1043,6 +1093,9 @@ async function loadAndRenderData() {
     // Pull permit JSON via the electron IPC bridge
     permits = await window.api.loadPermits();
 
+    // Bootstrap sample sorties (e.g. PT Timah Bangka) if not already loaded
+    await bootstrapSampleSorties();
+
     // Sort permits by year desc, then permit ID
     permits.sort((a, b) => b.year - a.year || a.permit_id.localeCompare(b.permit_id));
 
@@ -1533,6 +1586,292 @@ window.clearNearAirportFilter = function () {
   renderDashboard();
 };
 
+function getPermitFirstCoordinate(permit) {
+  if (permit.coordinates && permit.coordinates.length > 0) {
+    if (Array.isArray(permit.coordinates[0]) && Array.isArray(permit.coordinates[0][0])) {
+      return permit.coordinates[0][0];
+    } else if (Array.isArray(permit.coordinates[0]) && typeof permit.coordinates[0][0] === 'number') {
+      return permit.coordinates[0];
+    }
+  }
+  return getCoordsFromLocation(permit.location);
+}
+
+function getPermitPolygonCoords(permit) {
+  if (!permit) return [];
+  if (permit.coordinates && permit.coordinates.length >= 3) {
+    if (Array.isArray(permit.coordinates[0]) && Array.isArray(permit.coordinates[0][0])) {
+      return permit.coordinates[0];
+    }
+    return permit.coordinates;
+  }
+  return [];
+}
+
+// Check if two line segments (p1-p2 and p3-p4) intersect
+function lineSegmentsIntersect(p1, p2, p3, p4) {
+  function ccw(A, B, C) {
+    return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0]);
+  }
+  return (ccw(p1, p3, p4) !== ccw(p2, p3, p4)) && (ccw(p1, p2, p3) !== ccw(p1, p2, p4));
+}
+
+// Check if two permit airspaces overlap (point-in-polygon or edge intersection)
+function checkAirspaceConflict(permitA, permitB) {
+  const polyA = getPermitPolygonCoords(permitA);
+  const polyB = getPermitPolygonCoords(permitB);
+  const hasPolyA = polyA.length >= 3;
+  const hasPolyB = polyB.length >= 3;
+
+  // Case 1: Both have full official NOTAM polygons
+  if (hasPolyA && hasPolyB) {
+    // Check if any vertex of A is inside B
+    for (const pt of polyA) {
+      if (isPointInPolygon([pt[0], pt[1]], polyB)) {
+        return { isOverlap: true, isPotential: false, label: 'DIRECT OVERLAP' };
+      }
+    }
+    // Check if any vertex of B is inside A
+    for (const pt of polyB) {
+      if (isPointInPolygon([pt[0], pt[1]], polyA)) {
+        return { isOverlap: true, isPotential: false, label: 'DIRECT OVERLAP' };
+      }
+    }
+    // Check if any polygon boundary segments cross
+    for (let i = 0; i < polyA.length; i++) {
+      const a1 = polyA[i], a2 = polyA[(i + 1) % polyA.length];
+      for (let j = 0; j < polyB.length; j++) {
+        const b1 = polyB[j], b2 = polyB[(j + 1) % polyB.length];
+        if (lineSegmentsIntersect(a1, a2, b1, b2)) {
+          return { isOverlap: true, isPotential: false, label: 'DIRECT OVERLAP' };
+        }
+      }
+    }
+    return { isOverlap: false, isPotential: false };
+  }
+
+  // Case 2: One has official polygon, the other only has fallback default circle/location
+  const coordA = getPermitFirstCoordinate(permitA);
+  const coordB = getPermitFirstCoordinate(permitB);
+
+  if (hasPolyA && coordB) {
+    if (isPointInPolygon(coordB, polyA)) {
+      return {
+        isOverlap: true,
+        isPotential: true,
+        label: 'POTENTIAL OVERLAP',
+        note: `Target has no published NOTAM polygon yet (estimated from default ~6km circle for ${permitB.location})`
+      };
+    }
+  }
+  if (hasPolyB && coordA) {
+    if (isPointInPolygon(coordA, polyB)) {
+      return {
+        isOverlap: true,
+        isPotential: true,
+        label: 'POTENTIAL OVERLAP',
+        note: `Current permit uses default location circle for ${permitA.location} (NOTAM polygon pending)`
+      };
+    }
+  }
+
+  // Case 3: Both rely on fallback approximate coordinate circle (< 12km mutual radius overlap)
+  if (coordA && coordB) {
+    const dist = getDistance(coordA[0], coordA[1], coordB[0], coordB[1]);
+    if (dist <= 12000) {
+      return {
+        isOverlap: true,
+        isPotential: true,
+        label: 'POTENTIAL PROXIMITY',
+        note: 'Both operations use default location buffers'
+      };
+    }
+  }
+
+  return { isOverlap: false, isPotential: false };
+}
+
+function getPermitToPermitDistance(permitA, permitB) {
+  const polyA = getPermitPolygonCoords(permitA);
+  const polyB = getPermitPolygonCoords(permitB);
+
+  // If both have polygons, find minimum distance between any vertices
+  if (polyA.length >= 3 && polyB.length >= 3) {
+    let minDist = Infinity;
+    for (const a of polyA) {
+      for (const b of polyB) {
+        const d = getDistance(a[0], a[1], b[0], b[1]);
+        if (d < minDist) minDist = d;
+      }
+    }
+    return minDist;
+  }
+
+  const coordA = getPermitFirstCoordinate(permitA);
+  const coordB = getPermitFirstCoordinate(permitB);
+  if (!coordA || !coordB) return 99999999;
+  return getDistance(coordA[0], coordA[1], coordB[0], coordB[1]);
+}
+
+function computeSpatialConflictMatrix(permit) {
+  const coord = getPermitFirstCoordinate(permit);
+  if (!coord) {
+    return {
+      badgeClass: 'bg-gray-100 text-gray-500 border border-gray-200',
+      badgeText: 'NO GEOMETRY',
+      kkopText: 'Location undefined',
+      kkopClass: 'text-gray-500',
+      trafficText: 'Unknown',
+      trafficClass: 'text-gray-500',
+      advisorySummary: 'Attach NOTAM or coordinates to calculate spatial proximity risks.',
+      hasConflict: false,
+      conflictList: []
+    };
+  }
+
+  // 1. Check proximity to 9 regional airports (KKOP)
+  let nearestAirport = null;
+  let minAirportDist = Infinity;
+  for (const ap of REGION_AIRPORTS) {
+    const d = getDistance(coord[0], coord[1], ap.lat, ap.lng);
+    if (d < minAirportDist) {
+      minAirportDist = d;
+      nearestAirport = ap;
+    }
+  }
+
+  let kkopStatus = 'Clear (>25km)';
+  let kkopClass = 'text-emerald-600 font-semibold';
+  let severity = 'clear';
+
+  if (minAirportDist <= 5000) {
+    kkopStatus = `⚠️ Inside 5km NFZ (${nearestAirport.code})`;
+    kkopClass = 'text-red-600 font-extrabold animate-pulse';
+    severity = 'critical';
+  } else if (minAirportDist <= 25000) {
+    const km = (minAirportDist / 1000).toFixed(1);
+    kkopStatus = `Inside 25km TMA (${nearestAirport.code}, ${km}km)`;
+    kkopClass = 'text-amber-600 font-bold';
+    severity = 'advisory';
+  } else {
+    const km = (minAirportDist / 1000).toFixed(0);
+    kkopStatus = `Clear of Aerodromes (${nearestAirport.code} is ${km}km away)`;
+    kkopClass = 'text-emerald-600 font-semibold';
+  }
+
+  // 2. Check concurrent airspace operations with other active permits (Spatial & Temporal)
+  const concurrentOps = [];
+  const directOverlapOps = [];
+  const potentialOverlapOps = [];
+  const pStart = new Date(permit.date_start || '1970-01-01');
+  const pEnd = new Date(permit.date_end || '2099-12-31');
+
+  if (Array.isArray(permits)) {
+    for (const other of permits) {
+      if (!other || other.permit_id === permit.permit_id) continue;
+      const oStart = new Date(other.date_start || '1970-01-01');
+      const oEnd = new Date(other.date_end || '2099-12-31');
+      const datesOverlap = (pStart <= oEnd) && (pEnd >= oStart);
+
+      if (datesOverlap) {
+        const conflict = checkAirspaceConflict(permit, other);
+        const dist = getPermitToPermitDistance(permit, other);
+
+        if (conflict.isOverlap) {
+          const item = {
+            operator: other.operator_name,
+            permit_id: other.permit_id,
+            location: other.location,
+            dateRange: `${other.date_start} - ${other.date_end}`,
+            distanceKm: '0.0',
+            isDirectOverlap: !conflict.isPotential,
+            isPotential: conflict.isPotential,
+            badgeLabel: conflict.label || (conflict.isPotential ? 'POTENTIAL OVERLAP' : 'DIRECT OVERLAP'),
+            note: conflict.note || (conflict.isPotential ? 'Estimated from default location radius' : 'Official published NOTAM boundary intersection')
+          };
+          if (conflict.isPotential) {
+            potentialOverlapOps.push(item);
+          } else {
+            directOverlapOps.push(item);
+          }
+        } else if (dist <= 30000) {
+          concurrentOps.push({
+            operator: other.operator_name,
+            permit_id: other.permit_id,
+            location: other.location,
+            dateRange: `${other.date_start} - ${other.date_end}`,
+            distanceKm: (dist / 1000).toFixed(1),
+            isDirectOverlap: false,
+            isPotential: false,
+            badgeLabel: `${(dist / 1000).toFixed(1)} km`,
+            note: `Adjacent concurrent airspace (~${(dist / 1000).toFixed(1)}km lateral separation)`
+          });
+        }
+      }
+    }
+  }
+
+  const allConflicts = [...directOverlapOps, ...potentialOverlapOps, ...concurrentOps];
+  const hasDirectConflict = directOverlapOps.length > 0;
+  const hasPotentialConflict = potentialOverlapOps.length > 0;
+
+  let trafficText = 'Isolated (No nearby concurrent permits)';
+  let trafficClass = 'text-emerald-600 font-semibold';
+  if (hasDirectConflict) {
+    trafficText = `⚠️ DIRECT OVERLAP: ${directOverlapOps.length} confirmed NOTAM conflict(s)!`;
+    trafficClass = 'text-red-600 font-extrabold animate-pulse';
+  } else if (hasPotentialConflict) {
+    trafficText = `⚠️ POTENTIAL OVERLAP: ${potentialOverlapOps.length} operator(s) in default location zone`;
+    trafficClass = 'text-amber-600 font-bold';
+  } else if (concurrentOps.length > 0) {
+    trafficText = `${concurrentOps.length} concurrent operator(s) within 30km`;
+    trafficClass = 'text-indigo-600 font-bold';
+  }
+
+  let badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+  let badgeText = 'CLEAR AIRSPACE';
+  let advisorySummary = 'Pre-flight planning indicates clear airspace with standard 400ft ceiling cap.';
+
+  if (hasDirectConflict) {
+    badgeClass = 'bg-rose-50 text-rose-700 border border-rose-300 shadow-sm ring-1 ring-rose-300';
+    badgeText = 'SPATIAL CONFLICT DETECTED';
+    advisorySummary = `⚠️ Airspace geometry directly intersects with ${directOverlapOps[0].operator} (${directOverlapOps[0].permit_id}). Strict flight scheduling / deconfliction required!`;
+  } else if (hasPotentialConflict) {
+    badgeClass = 'bg-amber-50 text-amber-800 border border-amber-300 shadow-sm';
+    badgeText = 'POTENTIAL CONFLICT DETECTED';
+    advisorySummary = `⚠️ Potential overlap with ${potentialOverlapOps[0].operator} (${potentialOverlapOps[0].permit_id}) based on approximate default location circle (~6km). Official NOTAM polygon pending.`;
+  } else if (severity === 'critical') {
+    badgeClass = 'bg-red-50 text-red-700 border border-red-200 shadow-sm';
+    badgeText = 'CRITICAL PROXIMITY';
+    advisorySummary = `Encroaches within 5km runway buffer of ${nearestAirport.name}. Prior AirNav ATC clearance is mandatory.`;
+  } else if (severity === 'advisory' || concurrentOps.length > 0) {
+    badgeClass = 'bg-amber-50 text-amber-700 border border-amber-200';
+    badgeText = 'AIRSPACE ADVISORY';
+    if (severity === 'advisory' && concurrentOps.length > 0) {
+      advisorySummary = `Operation within ${nearestAirport.code} 25km controlled buffer alongside ${concurrentOps.length} nearby concurrent flight permit(s).`;
+    } else if (severity === 'advisory') {
+      advisorySummary = `Operation within ${nearestAirport.code} 25km controlled airspace buffer. Maintain standard 2-way tower coordination.`;
+    } else {
+      advisorySummary = `Notice: ${concurrentOps[0].operator} also authorized in this vicinity (${concurrentOps[0].distanceKm}km away). Flight logs verify actual trajectory separation.`;
+    }
+  }
+
+  return {
+    badgeClass,
+    badgeText,
+    kkopText: kkopStatus,
+    kkopClass,
+    trafficText,
+    trafficClass,
+    advisorySummary,
+    concurrentOps,
+    directOverlapOps,
+    hasDirectConflict,
+    hasConflict: allConflicts.length > 0,
+    conflictList: allConflicts
+  };
+}
+
 // 3. Render list, stats and update map polygons
 function renderDashboard() {
   const query = document.getElementById('search-input').value.toLowerCase();
@@ -1783,6 +2122,7 @@ function selectPermitCard(permit) {
   selectedPermit = permit;
   selectedAirport = null; // Clear selected airport
   highlightAirportOnMap(null); // Reset airport highlights
+  clearSortieMapLayers();
 
   renderDashboard(); // Updates list styles and map weights
   renderInspector();  // Fills inspector panel details
@@ -2033,6 +2373,10 @@ function renderInspector() {
     { name: 'Neon Lime', hex: '#84cc16' }
   ];
 
+  const spatialMatrix = computeSpatialConflictMatrix(permit);
+  const sorties = getPermitSorties(permit.permit_id);
+  const sortieAudit = computeSortieAuditSummary(permit);
+
   panel.innerHTML = `
     <!-- Top Details Title -->
     <div class="p-6 border-b border-black/5 space-y-4">
@@ -2209,46 +2553,228 @@ function renderInspector() {
       </div>` : '')}
     </div>
 
-    <!-- Flight Log Evaluation Panel -->
-    <div class="p-6 border-b border-black/5 space-y-3">
-      <h3 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Flight Log Evaluation</h3>
-      <input type="file" id="flight-log-input" accept=".csv,.kml" class="hidden">
-      <button id="btn-upload-log" class="w-full py-2 bg-[#f5f6f4] hover:bg-black/5 text-[#2a2334] font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 border border-black/5">
-        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-        </svg>
-        Upload Flight Log (.csv / .kml)
-      </button>
-      
-      <!-- Log Evaluation Status (hidden until uploaded) -->
-      <div id="log-evaluation-status" class="hidden space-y-2 pt-2 text-xs">
-        <div class="bg-sky-50/50 border border-sky-100 p-3 rounded-2xl flex flex-col gap-2">
+    <!-- Real-Time Spatial Conflict Matrix -->
+    <div class="p-6 border-b border-black/5 space-y-3 bg-gradient-to-br from-slate-50 to-indigo-50/20">
+      <div class="flex items-center justify-between">
+        <h3 class="text-[10px] uppercase font-extrabold text-indigo-700 tracking-wider flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+          Spatial Conflict Matrix
+        </h3>
+        <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ${spatialMatrix.badgeClass}">
+          ${spatialMatrix.badgeText}
+        </span>
+      </div>
+
+      <!-- Pre-Flight Airspace Proximity -->
+      <div class="bg-white p-3 rounded-2xl border border-black/5 space-y-2 text-xs shadow-xs">
+        <div class="text-[9px] font-bold uppercase text-gray-400 tracking-wider">1. Pre-Flight Airspace Advisory</div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-500 font-semibold">Aerodrome Buffer:</span>
+          <span class="text-right ${spatialMatrix.kkopClass}">${spatialMatrix.kkopText}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-500 font-semibold">Concurrent Traffic:</span>
+          <span class="text-right ${spatialMatrix.trafficClass}">${spatialMatrix.trafficText}</span>
+        </div>
+        <div class="text-[10px] text-gray-500 italic bg-gray-50 p-2 rounded-xl border border-black/5">
+          ${spatialMatrix.advisorySummary}
+        </div>
+
+        ${spatialMatrix.hasConflict ? `
+        <!-- Inter-Permit Conflicting Operations List -->
+        <div class="pt-2 border-t border-gray-100 space-y-1.5">
+          <div class="text-[9px] font-extrabold uppercase tracking-wider text-rose-700 flex items-center gap-1">
+            <svg class="w-3 h-3 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Conflicting Concurrent Operations
+          </div>
+          ${spatialMatrix.conflictList.map(c => `
+          <div class="p-2.5 rounded-xl border ${c.isDirectOverlap ? 'bg-rose-50/70 border-rose-200' : (c.isPotential ? 'bg-amber-50/70 border-amber-300' : 'bg-slate-50 border-gray-200')} text-[10px] space-y-1.5">
+            <div class="flex items-center justify-between font-bold gap-2">
+              <span class="text-gray-900 truncate" title="${c.operator}">${c.operator}</span>
+              <span class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase shrink-0 ${c.isDirectOverlap ? 'bg-red-600 text-white' : (c.isPotential ? 'bg-amber-600 text-white shadow-xs' : 'bg-gray-600 text-white')}">
+                ${c.badgeLabel}
+              </span>
+            </div>
+            <div class="flex justify-between text-gray-500 text-[9px]">
+              <span>Permit: <b class="font-mono text-gray-700">${c.permit_id}</b></span>
+              <span>${c.dateRange}</span>
+            </div>
+            <div class="text-[9px] ${c.isPotential ? 'text-amber-800 bg-amber-100/60 p-1.5 rounded-lg border border-amber-200' : 'text-gray-600 italic'}">
+              ${c.isPotential ? `<strong>Notice:</strong> ${c.note}` : c.note}
+            </div>
+            <button class="btn-compare-conflict w-full mt-1 py-1 rounded-lg text-[9px] font-bold transition-all flex items-center justify-center gap-1 border ${c.isDirectOverlap ? 'bg-white hover:bg-rose-100 text-rose-700 border-rose-300' : 'bg-white hover:bg-amber-100 text-amber-800 border-amber-300'}" data-permit-id="${c.permit_id}">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              View Airspace on Map
+            </button>
+          </div>
+          `).join('')}
+        </div>` : ''}
+      </div>
+
+      <!-- Post-Flight Telemetry Breach Audit -->
+      <div class="bg-white p-3 rounded-2xl border border-black/5 space-y-2 text-xs shadow-xs">
+        <div class="flex items-center justify-between">
+          <span class="text-[9px] font-bold uppercase text-gray-400 tracking-wider">2. Post-Flight Fleet Audit</span>
+          <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${sortieAudit.badgeClass}">${sortieAudit.badgeText}</span>
+        </div>
+        ${sortieAudit.hasSorties ? `
+        <div class="space-y-1.5 pt-1">
           <div class="flex justify-between items-center">
-            <span class="text-gray-500 font-semibold">Log File:</span>
-            <span id="log-filename" class="font-mono text-gray-700 font-bold max-w-[150px] truncate"></span>
+            <span class="text-gray-500 font-semibold">Geofence Compliance:</span>
+            <span class="font-bold ${sortieAudit.geoBreaches === 0 ? 'text-emerald-600' : 'text-red-600 animate-pulse'}">
+              ${sortieAudit.geoBreaches === 0 ? '100% Within Boundaries' : `${sortieAudit.geoBreaches} Perimeter Breach Event(s)`}
+            </span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-gray-500 font-semibold">Max Altitude:</span>
-            <span id="log-max-alt" class="font-bold"></span>
+            <span class="text-gray-500 font-semibold">Ceiling Compliance:</span>
+            <span class="font-bold ${sortieAudit.altBreaches === 0 ? 'text-emerald-600' : 'text-red-600 animate-pulse'}">
+              ${sortieAudit.altBreaches === 0 ? `Compliant (Max ${Math.round(sortieAudit.maxAgl)} ft)` : `Breached (Max ${Math.round(sortieAudit.maxAgl)} ft > ${permit.max_altitude_ft || 400} ft)`}
+            </span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-gray-500 font-semibold">Max Speed:</span>
-            <span id="log-max-speed" class="font-bold"></span>
+            <span class="text-gray-500 font-semibold">KKOP Separation:</span>
+            <span class="font-bold ${sortieAudit.kkopBreaches === 0 ? 'text-emerald-600' : 'text-red-600 animate-pulse'}">
+              ${sortieAudit.kkopBreaches === 0 ? 'Safe Corridor Clear' : `${sortieAudit.kkopBreaches} Zone Penetrations`}
+            </span>
           </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-500 font-semibold">Geofence:</span>
-            <span id="log-geofence" class="font-bold"></span>
+          <div class="text-[10px] text-gray-500 pt-1 border-t border-gray-100">
+            ${sortieAudit.summaryText}
           </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-500 font-semibold">KKOP Corridor:</span>
-            <span id="log-kkop" class="font-bold"></span>
+        </div>` : `
+        <div class="text-[10px] text-gray-400 italic py-1">
+          Attach flight logs below to compute post-flight geofence and altitude verification.
+        </div>`}
+      </div>
+    </div>
+
+    <!-- Multi-Flight Sortie Management Panel -->
+    <div class="p-6 border-b border-black/5 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-[10px] uppercase font-extrabold text-gray-700 tracking-wider">Flight Sorties & Operations</h3>
+          <span class="text-[9px] text-gray-400">Multi-log telemetry & 4D trajectory tracking</span>
+        </div>
+        <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${sorties.length > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-gray-100 text-gray-500'}">
+          ${sorties.length} Sortie${sorties.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      ${sortieAudit.hasSorties ? `
+      <!-- Cumulative Fleet Telemetry Card -->
+      <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-2xl p-3.5 shadow-md space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <div class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></div>
+            <span class="text-[9px] font-extrabold uppercase tracking-wider text-indigo-200">Cumulative Fleet Telemetry</span>
           </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-500 font-semibold">Time Compliance:</span>
-            <span id="log-time" class="font-bold"></span>
+          <span class="text-[8px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-cyan-200 font-mono">${sortieAudit.totalPoints.toLocaleString()} GPS Pts</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-center pt-1 border-t border-white/10">
+          <div>
+            <span class="text-[8px] font-bold text-indigo-300 uppercase block">Total Flight Time</span>
+            <span class="text-xs font-extrabold text-white">${sortieAudit.totalDurationFormatted}</span>
+          </div>
+          <div>
+            <span class="text-[8px] font-bold text-indigo-300 uppercase block">Distance Traveled</span>
+            <span class="text-xs font-extrabold text-cyan-300">${sortieAudit.totalDistanceKm} km</span>
+          </div>
+          <div>
+            <span class="text-[8px] font-bold text-indigo-300 uppercase block">Total Sorties</span>
+            <span class="text-xs font-extrabold text-emerald-300">${sortieAudit.totalSorties} Sorties</span>
           </div>
         </div>
+      </div>` : ''}
+
+      <!-- Action Buttons -->
+      <div class="space-y-2">
+        <input type="file" id="sortie-upload-input" accept=".ulg,.txt,.dat,.csv,.kml" class="hidden">
+        <button id="btn-upload-sortie" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-sm shadow-indigo-600/20 active:scale-98">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          Attach Flight Log (.ulg, .txt, .dat, .csv, .kml)
+        </button>
+
+        ${sorties.length > 1 ? `
+        <button id="btn-toggle-all-sorties" class="w-full py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 border ${isShowingAllSorties ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'}">
+          <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          ${isShowingAllSorties ? 'Hide All Tracks from Map' : 'Show All Tracks on Map (Multi-Track)'}
+        </button>` : ''}
       </div>
+
+      <!-- Sortie Items List -->
+      ${sorties.length === 0 ? `
+      <div class="text-center py-6 px-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/50 space-y-1.5">
+        <svg class="w-8 h-8 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <p class="text-xs font-bold text-gray-600">No Sortie Logs Attached</p>
+        <p class="text-[10px] text-gray-400">Upload PX4 (.ulg), DJI (.txt, .dat) or telemetry (.kml, .csv) to verify flight compliance.</p>
+      </div>` : `
+      <div class="space-y-3">
+        ${sorties.map((s) => {
+          const isHighlighted = currentHighlightedSortieId === s.id && !isShowingAllSorties;
+          const altOk = s.compliance ? s.compliance.alt_compliant : true;
+          const geoOk = s.compliance ? s.compliance.geofence_compliant : true;
+          const kkopOk = s.compliance ? s.compliance.kkop_compliant : true;
+
+          return `
+          <div class="bg-white border ${isHighlighted ? 'border-cyan-500 shadow-md ring-2 ring-cyan-400/20' : 'border-black/5 shadow-xs'} rounded-2xl p-3.5 space-y-2.5 transition-all">
+            <!-- Title & Format Badges -->
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 uppercase font-mono">${s.file_type || 'LOG'}</span>
+                  <span class="text-[10px] font-bold text-gray-800 truncate" title="${s.sortie_name}">${s.sortie_name}</span>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-0.5">${s.date_time || 'Recorded'} · ${(s.file_size_mb || 0.5).toFixed(1)} MB</div>
+              </div>
+              <button class="btn-delete-sortie text-gray-300 hover:text-rose-500 transition-colors p-1" data-sortie-id="${s.id}" title="Remove Sortie">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-3 gap-2 bg-gray-50/80 p-2 rounded-xl text-center">
+              <div>
+                <span class="text-[8px] font-bold text-gray-400 uppercase block">Duration</span>
+                <span class="text-[11px] font-bold text-gray-700">${s.stats?.duration_formatted || '--'}</span>
+              </div>
+              <div>
+                <span class="text-[8px] font-bold text-gray-400 uppercase block">Max AGL</span>
+                <span class="text-[11px] font-bold ${altOk ? 'text-emerald-600' : 'text-red-600'}">${s.stats?.max_agl_ft || 0} ft</span>
+              </div>
+              <div>
+                <span class="text-[8px] font-bold text-gray-400 uppercase block">Max Speed</span>
+                <span class="text-[11px] font-bold text-gray-700">${s.stats?.max_speed_kts || 0} kts</span>
+              </div>
+            </div>
+
+            <!-- Compliance Pills -->
+            <div class="flex items-center gap-1.5 flex-wrap text-[9px] font-bold">
+              <span class="px-2 py-0.5 rounded-md ${altOk ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}">
+                Ceiling: ${altOk ? 'OK' : 'BREACH'}
+              </span>
+              <span class="px-2 py-0.5 rounded-md ${geoOk ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}">
+                Geofence: ${geoOk ? 'OK' : 'BREACH'}
+              </span>
+              <span class="px-2 py-0.5 rounded-md ${kkopOk ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}">
+                KKOP: ${kkopOk ? 'OK' : 'BREACH'}
+              </span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button class="btn-view-sortie py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 border ${isHighlighted ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm' : 'bg-white hover:bg-cyan-50 text-cyan-700 border-cyan-200'}" data-sortie-id="${s.id}">
+                <svg class="w-3.5 h-3.5 ${isHighlighted ? 'text-white' : 'text-cyan-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                ${isHighlighted ? 'Hide Track' : 'View on Map'}
+              </button>
+
+              <button class="btn-studio-sortie py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200" data-sortie-id="${s.id}">
+                <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Universal Studio
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`}
     </div>
 
     <!-- AirNav Towers Region VI Emergency contacts -->
@@ -2321,6 +2847,7 @@ function renderInspector() {
   // Close inspector button handler
   document.getElementById('close-inspector').addEventListener('click', () => {
     selectedPermit = null;
+    clearSortieMapLayers();
     renderDashboard();
     renderInspector();
   });
@@ -2386,18 +2913,74 @@ function renderInspector() {
     });
   }
 
-  // Wire up log upload click trigger
-  const btnUpload = document.getElementById('btn-upload-log');
-  const logInput = document.getElementById('flight-log-input');
-  if (btnUpload && logInput) {
-    btnUpload.addEventListener('click', () => logInput.click());
-    logInput.addEventListener('change', handleFlightLogUpload);
+  // Wire up multi-flight sortie upload and management triggers
+  const btnUploadSortie = document.getElementById('btn-upload-sortie');
+  const sortieFileInput = document.getElementById('sortie-upload-input');
+  if (btnUploadSortie) {
+    btnUploadSortie.addEventListener('click', () => handleSortieUploadAction(permit));
+  }
+  if (sortieFileInput) {
+    sortieFileInput.addEventListener('change', (e) => handleSortieFileInputChange(e, permit));
   }
 
-  // Maintain UI persistence if a log was already parsed for this permit
-  if (flightLogData && flightLogData.permit_id === permit.permit_id) {
-    updateEvaluationStatusUI();
+  const btnToggleAllSorties = document.getElementById('btn-toggle-all-sorties');
+  if (btnToggleAllSorties) {
+    btnToggleAllSorties.addEventListener('click', () => {
+      plotAllSortiesOnMap(sorties, permit);
+    });
   }
+
+  document.querySelectorAll('.btn-view-sortie').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sId = btn.getAttribute('data-sortie-id');
+      const s = sorties.find(x => x.id === sId);
+      if (s) plotSingleSortieOnMap(s, permit);
+    });
+  });
+
+  document.querySelectorAll('.btn-studio-sortie').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sId = btn.getAttribute('data-sortie-id');
+      const s = sorties.find(x => x.id === sId);
+      if (s) openSortieInStudio(s);
+    });
+  });
+
+  document.querySelectorAll('.btn-delete-sortie').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sId = btn.getAttribute('data-sortie-id');
+      removeSortie(permit.permit_id, sId);
+    });
+  });
+
+  // Wire up conflict airspace compare buttons
+  document.querySelectorAll('.btn-compare-conflict').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-permit-id');
+      const targetPermit = permits.find(p => p.permit_id === targetId);
+      if (targetPermit) {
+        showToast(`Focusing conflicting airspace: ${targetPermit.operator_name}`, 'info');
+        const polyTarget = polygonLayers[targetPermit.permit_id];
+        const polyCurrent = polygonLayers[permit.permit_id];
+
+        if (map && (polyTarget || polyCurrent)) {
+          const bounds = L.latLngBounds([]);
+          if (polyTarget && polyTarget.getBounds && polyTarget.getBounds().isValid()) {
+            bounds.extend(polyTarget.getBounds());
+            polyTarget.setStyle({ color: '#ef4444', weight: 4, fillOpacity: 0.35 });
+            polyTarget.openPopup();
+          }
+          if (polyCurrent && polyCurrent.getBounds && polyCurrent.getBounds().isValid()) {
+            bounds.extend(polyCurrent.getBounds());
+            polyCurrent.setStyle({ color: '#6366f1', weight: 4, fillOpacity: 0.35 });
+          }
+          if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+          }
+        }
+      }
+    });
+  });
 
   // Update the circular progress gauge
   const altPercentage = Math.min((permit.max_altitude_ft / 400) * 100, 100);
@@ -2689,53 +3272,735 @@ async function handleAddPermitSubmit(e) {
   }
 }
 
-// 7. Flight Log Evaluation & PDF Reporting Helper Functions
+// 7. Multi-Flight Sortie Management Engine & Spatial Audit
 
-function handleFlightLogUpload(event) {
+function calculateTrackDistanceKm(points) {
+  if (!points || points.length < 2) return 0;
+  let totalMeters = 0;
+  for (let i = 1; i < points.length; i++) {
+    const lat1 = points[i - 1][0], lon1 = points[i - 1][1];
+    const lat2 = points[i][0], lon2 = points[i][1];
+    totalMeters += getDistance(lat1, lon1, lat2, lon2);
+  }
+  return totalMeters / 1000.0;
+}
+
+function computeSortieAuditSummary(permit) {
+  const sorties = getPermitSorties(permit.permit_id);
+  if (!sorties || sorties.length === 0) {
+    return {
+      hasSorties: false,
+      summaryText: 'Awaiting flight logs for post-flight telemetry verification.',
+      badgeText: 'NO FLIGHT LOGS',
+      badgeClass: 'bg-gray-100 text-gray-500 border border-gray-200',
+      totalSorties: 0,
+      totalDurationFormatted: '0m',
+      totalDistanceKm: '0.0',
+      totalPoints: 0
+    };
+  }
+
+  let altBreaches = 0;
+  let geoBreaches = 0;
+  let kkopBreaches = 0;
+  let maxAgl = 0;
+  let totalSec = 0;
+  let totalDistKm = 0;
+  let totalPoints = 0;
+
+  sorties.forEach(s => {
+    if (s.compliance) {
+      if (!s.compliance.alt_compliant) altBreaches++;
+      if (!s.compliance.geofence_compliant) geoBreaches++;
+      if (!s.compliance.kkop_compliant) kkopBreaches++;
+    }
+    if (s.stats) {
+      if (s.stats.max_agl_ft > maxAgl) maxAgl = s.stats.max_agl_ft;
+      totalSec += (s.stats.duration_sec || 0);
+      totalPoints += (s.stats.points_count || 0);
+    }
+    if (s.map_points && s.map_points.length > 1) {
+      totalDistKm += calculateTrackDistanceKm(s.map_points);
+    }
+  });
+
+  const m = Math.floor(totalSec / 60);
+  const s = Math.floor(totalSec % 60);
+  const h = Math.floor(m / 60);
+  const remM = m % 60;
+  const totalDurationFormatted = h > 0 ? `${h}h ${remM}m` : `${m}m ${s}s`;
+
+  const hasBreach = altBreaches > 0 || geoBreaches > 0 || kkopBreaches > 0;
+  let details = [];
+  if (altBreaches > 0) details.push(`${altBreaches} ceiling breach(es) (Max: ${Math.round(maxAgl)}ft)`);
+  if (geoBreaches > 0) details.push(`${geoBreaches} perimeter breach(es)`);
+  if (kkopBreaches > 0) details.push(`${kkopBreaches} KKOP buffer breach(es)`);
+
+  return {
+    hasSorties: true,
+    totalSorties: sorties.length,
+    totalDurationSec: totalSec,
+    totalDurationFormatted: totalDurationFormatted,
+    totalDistanceKm: totalDistKm.toFixed(1),
+    totalPoints: totalPoints,
+    altBreaches,
+    geoBreaches,
+    kkopBreaches,
+    maxAgl,
+    hasBreach,
+    badgeText: hasBreach ? 'BREACH RECORDED' : 'AUDIT COMPLIANT',
+    badgeClass: hasBreach
+      ? 'bg-red-50 text-red-700 border border-red-200 shadow-sm'
+      : 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    summaryText: hasBreach
+      ? `Post-flight inspection detected: ${details.join(', ')}.`
+      : `All ${sorties.length} recorded flight sorties fully complied with airspace boundaries and the 400ft ceiling.`
+  };
+}
+
+function clearSortieMapLayers() {
+  if (!map) return;
+  Object.values(activeSortieMapLayers).forEach(layerObj => {
+    if (layerObj.polylines) {
+      layerObj.polylines.forEach(pl => {
+        if (map.hasLayer(pl)) map.removeLayer(pl);
+      });
+    } else if (layerObj.polyline && map.hasLayer(layerObj.polyline)) {
+      map.removeLayer(layerObj.polyline);
+    }
+    if (layerObj.markers) {
+      layerObj.markers.forEach(m => {
+        if (map.hasLayer(m)) map.removeLayer(m);
+      });
+    }
+  });
+  activeSortieMapLayers = {};
+  isShowingAllSorties = false;
+  currentHighlightedSortieId = null;
+}
+
+// Partition coordinates into continuous compliant (inside polygon) vs breach (outside polygon) segments
+function segmentRouteByGeofence(points, polygon) {
+  if (!polygon || !polygon.length || !points || points.length < 2) {
+    return [{ isBreach: false, points: points }];
+  }
+
+  const segments = [];
+  let currentSegment = [points[0]];
+  let currentIsBreach = !isPointInPolygon([points[0][0], points[0][1]], polygon);
+
+  for (let i = 1; i < points.length; i++) {
+    const pt = points[i];
+    const ptIsBreach = !isPointInPolygon([pt[0], pt[1]], polygon);
+
+    if (ptIsBreach === currentIsBreach) {
+      currentSegment.push(pt);
+    } else {
+      // Bridge point so lines connect seamlessly without gaps
+      currentSegment.push(pt);
+      segments.push({ isBreach: currentIsBreach, points: currentSegment });
+      // Start new segment including the transition point
+      currentSegment = [points[i - 1], pt];
+      currentIsBreach = ptIsBreach;
+    }
+  }
+
+  if (currentSegment.length > 1) {
+    segments.push({ isBreach: currentIsBreach, points: currentSegment });
+  }
+
+  return segments;
+}
+
+function plotSingleSortieOnMap(sortie, permit, fitBounds = true) {
+  if (!map || !sortie || !sortie.map_points || !sortie.map_points.length) {
+    showToast("No GPS coordinate track available for this sortie.", "warning");
+    return;
+  }
+
+  // Toggle off if currently active
+  if (currentHighlightedSortieId === sortie.id && !isShowingAllSorties) {
+    clearSortieMapLayers();
+    renderInspector(permit);
+    return;
+  }
+
+  clearSortieMapLayers();
+  currentHighlightedSortieId = sortie.id;
+
+  const latlngs = sortie.map_points.map(p => [p[0], p[1]]);
+  const polygon = permit ? permit.coordinates : null;
+  const segments = segmentRouteByGeofence(latlngs, polygon);
+
+  const polylines = [];
+  const markers = [];
+  let breachSegmentCount = 0;
+  let allBounds = L.latLngBounds([]);
+
+  segments.forEach((seg, idx) => {
+    const isBreach = seg.isBreach;
+    if (isBreach) breachSegmentCount++;
+
+    const polyline = L.polyline(seg.points, {
+      color: isBreach ? '#ef4444' : '#06b6d4', // Bright Red for geofence breach, Vibrant Cyan for compliant
+      weight: isBreach ? 4.5 : 3.5,
+      opacity: isBreach ? 1.0 : 0.95,
+      lineCap: 'round',
+      lineJoin: 'round',
+      smoothFactor: 0
+    }).addTo(map);
+
+    allBounds.extend(polyline.getBounds());
+    polylines.push(polyline);
+
+    // If entering breach area from compliant area, add warning breach marker at the exit point
+    if (isBreach && idx > 0 && seg.points.length > 0) {
+      const breachPt = seg.points[0];
+      const breachMarker = L.circleMarker(breachPt, {
+        radius: 6,
+        color: '#ffffff',
+        fillColor: '#ef4444',
+        fillOpacity: 1,
+        weight: 2
+      }).addTo(map).bindPopup(`
+        <div class="text-xs p-1">
+          <b class="text-red-700">⚠️ Geofence Breach Event</b><br/>
+          <span class="text-gray-600">Drone exited approved NOTAM perimeter</span><br/>
+          <span class="text-[10px] text-gray-500 font-mono">Lat: ${breachPt[0].toFixed(5)}, Lon: ${breachPt[1].toFixed(5)}</span>
+        </div>
+      `);
+      markers.push(breachMarker);
+    }
+  });
+
+  const startPt = latlngs[0];
+  const endPt = latlngs[latlngs.length - 1];
+
+  const startMarker = L.circleMarker(startPt, {
+    radius: 6,
+    color: '#ffffff',
+    fillColor: '#10b981',
+    fillOpacity: 1,
+    weight: 2
+  }).addTo(map).bindPopup(`
+    <div class="text-xs p-1">
+      <b class="text-emerald-700">${sortie.sortie_name}</b><br/>
+      <span>🟢 Takeoff Location</span><br/>
+      <span class="text-gray-500">Max AGL: <b>${sortie.stats?.max_agl_ft || 0} ft</b></span>
+    </div>
+  `);
+  markers.push(startMarker);
+
+  const endMarker = L.circleMarker(endPt, {
+    radius: 6,
+    color: '#ffffff',
+    fillColor: '#0ea5e9',
+    fillOpacity: 1,
+    weight: 2
+  }).addTo(map).bindPopup(`
+    <div class="text-xs p-1">
+      <b class="text-sky-700">${sortie.sortie_name}</b><br/>
+      <span>🔵 Landing / End of Mission</span><br/>
+      <span class="text-gray-500">Duration: <b>${sortie.stats?.duration_formatted || '--'}</b></span>
+    </div>
+  `);
+  markers.push(endMarker);
+
+  activeSortieMapLayers[sortie.id] = {
+    polylines: polylines,
+    markers: markers
+  };
+
+  if (fitBounds && allBounds.isValid()) {
+    map.fitBounds(allBounds, { padding: [50, 50] });
+  }
+
+  if (breachSegmentCount > 0) {
+    showToast(`⚠️ Spatial Alert: ${breachSegmentCount} route segment(s) outside permit polygon!`, "warning");
+  }
+
+  renderInspector(permit);
+}
+
+function plotAllSortiesOnMap(sorties, permit) {
+  if (!map || !sorties || !sorties.length) return;
+
+  if (isShowingAllSorties) {
+    clearSortieMapLayers();
+    renderInspector(permit);
+    return;
+  }
+
+  clearSortieMapLayers();
+  isShowingAllSorties = true;
+
+  const COLORS = ['#06b6d4', '#f59e0b', '#8b5cf6', '#ec4899', '#10b981', '#3b82f6', '#0ea5e9', '#eab308'];
+  let allBounds = L.latLngBounds([]);
+  const polygon = permit ? permit.coordinates : null;
+
+  sorties.forEach((sortie, idx) => {
+    if (!sortie.map_points || !sortie.map_points.length) return;
+    const baseColor = COLORS[idx % COLORS.length];
+    const latlngs = sortie.map_points.map(p => [p[0], p[1]]);
+    const segments = segmentRouteByGeofence(latlngs, polygon);
+
+    const polylines = [];
+    const markers = [];
+
+    segments.forEach((seg) => {
+      const isBreach = seg.isBreach;
+      const polyline = L.polyline(seg.points, {
+        color: isBreach ? '#ef4444' : baseColor,
+        weight: isBreach ? 4 : 3,
+        opacity: isBreach ? 1.0 : 0.9,
+        dashArray: idx % 2 === 1 ? '6, 4' : null,
+        smoothFactor: 0
+      }).addTo(map);
+
+      polylines.push(polyline);
+      allBounds.extend(polyline.getBounds());
+    });
+
+    const startMarker = L.circleMarker(latlngs[0], {
+      radius: 5,
+      color: '#ffffff',
+      fillColor: baseColor,
+      fillOpacity: 1,
+      weight: 2
+    }).addTo(map).bindPopup(`
+      <div class="text-xs p-1">
+        <b style="color:${baseColor}">${sortie.sortie_name}</b><br/>
+        <span>Takeoff (Sortie ${idx + 1})</span><br/>
+        <span class="text-gray-500">Max AGL: <b>${sortie.stats?.max_agl_ft || 0} ft</b></span>
+      </div>
+    `);
+    markers.push(startMarker);
+
+    activeSortieMapLayers[sortie.id] = {
+      polylines: polylines,
+      markers: markers
+    };
+  });
+
+  if (allBounds.isValid()) {
+    map.fitBounds(allBounds, { padding: [50, 50] });
+  }
+
+  renderInspector(permit);
+}
+
+function openSortieInStudio(sortie) {
+  if (!sortie) return;
+
+  openUlgConverterModal();
+
+  if (sortie.studioData) {
+    // If sortie has high-resolution map_points, ensure studioData uses them
+    if (sortie.map_points && sortie.map_points.length > (sortie.studioData.map_points?.length || 0)) {
+      sortie.studioData.map_points = sortie.map_points;
+    }
+    ulgLastResult = sortie.studioData;
+    ulgCurrentFilePath = sortie.filePath || sortie.file_name;
+
+    // Reset previous studio polyline layer so fresh high-res trajectory renders on open
+    if (ulgPolylineLayer && ulgLeafletMapInstance) {
+      ulgLeafletMapInstance.removeLayer(ulgPolylineLayer);
+      ulgPolylineLayer = null;
+    }
+
+    const fileNameEl = document.getElementById('ulg-file-name');
+    if (fileNameEl) fileNameEl.textContent = sortie.sortie_name;
+    const fileSizeEl = document.getElementById('ulg-file-size');
+    if (fileSizeEl) fileSizeEl.textContent = `${sortie.file_size_mb || 0.5} MB · ${(sortie.file_type || '').toUpperCase()}`;
+
+    const fileInfo = document.getElementById('ulg-file-info');
+    if (fileInfo) fileInfo.classList.remove('hidden');
+    const dropZone = document.getElementById('ulg-drop-zone');
+    if (dropZone) dropZone.classList.add('hidden');
+
+    ulgRenderInspector(sortie.studioData);
+  } else if (sortie.filePath && window.api && window.api.parseFlightLog) {
+    ulgSetFileFromPath(sortie.filePath, sortie.file_name, (sortie.file_size_mb || 1) * 1024 * 1024);
+  } else {
+    showToast("Telemetry data not formatted for Studio.", "warning");
+  }
+}
+
+function removeSortie(permitId, sortieId) {
+  if (!permitFlightSorties[permitId]) return;
+  if (!confirm("Are you sure you want to remove this flight sortie log?")) return;
+
+  permitFlightSorties[permitId] = permitFlightSorties[permitId].filter(s => s.id !== sortieId);
+  saveSortiesToStorage();
+
+  if (activeSortieMapLayers[sortieId]) {
+    if (activeSortieMapLayers[sortieId].polyline && map) map.removeLayer(activeSortieMapLayers[sortieId].polyline);
+    if (activeSortieMapLayers[sortieId].markers && map) {
+      activeSortieMapLayers[sortieId].markers.forEach(m => map.removeLayer(m));
+    }
+    delete activeSortieMapLayers[sortieId];
+  }
+
+  showToast("Flight sortie removed.", "info");
+  renderInspector(selectedPermit);
+}
+
+async function handleSortieUploadAction(permit) {
+  if (!permit) return;
+
+  if (window.api && window.api.selectFile) {
+    const res = await window.api.selectFile({
+      title: `Select Flight Log for ${permit.operator_name}`,
+      filters: [
+        { name: 'All Drone Flight Logs (*.ulg, *.txt, *.dat, *.csv, *.kml)', extensions: ['ulg', 'txt', 'dat', 'csv', 'kml'] },
+        { name: 'PX4 ULog (*.ulg)', extensions: ['ulg'] },
+        { name: 'DJI FlightRecord (*.txt, *.dat)', extensions: ['txt', 'dat'] },
+        { name: 'CSV / KML Telemetry (*.csv, *.kml)', extensions: ['csv', 'kml'] }
+      ]
+    });
+
+    if (!res.canceled && res.filePath) {
+      await processSortieFromPath(res.filePath, res.name, res.size, permit);
+      return;
+    }
+  }
+
+  // Fallback to DOM input
+  const input = document.getElementById('sortie-upload-input');
+  if (input) input.click();
+}
+
+async function processSortieFromPath(filePath, fileName, fileSize, permit) {
+  const ext = (fileName || '').split('.').pop().toLowerCase();
+  showToast(`Processing flight log: ${fileName}...`, 'info');
+
+  try {
+    if (ext === 'ulg' || ext === 'txt' || ext === 'dat') {
+      const key = djiApiKey || '07dadcba863fab453c6b46999a38eea';
+      let parseResult = null;
+      if (window.api && window.api.parseFlightLog) {
+        parseResult = await window.api.parseFlightLog(filePath, key, null, []);
+      } else {
+        parseResult = await window.api.convertUlg(filePath, null, []);
+      }
+
+      if (!parseResult || !parseResult.success) {
+        throw new Error((parseResult && parseResult.error) || 'Failed to parse binary flight log.');
+      }
+
+      const sortie = buildSortieFromParsedResult(parseResult, fileName, ext, fileSize, permit, filePath);
+      addSortieToPermit(permit.permit_id, sortie);
+      showToast(`Sortie attached: ${sortie.sortie_name}`, 'success');
+      plotSingleSortieOnMap(sortie, permit);
+      renderInspector(permit);
+    } else if (ext === 'csv' || ext === 'kml') {
+      let text = '';
+      if (window.require) {
+        const fs = window.require('fs');
+        text = fs.readFileSync(filePath, 'utf8');
+      } else {
+        const resp = await fetch(filePath);
+        text = await resp.text();
+      }
+
+      const parsed = parseLogData(text, ext);
+      if (!parsed || !parsed.points || parsed.points.length === 0) {
+        throw new Error('No GPS coordinate data found in file.');
+      }
+
+      const sortie = buildSortieFromCsvKml(parsed, fileName, ext, fileSize, permit, filePath);
+      addSortieToPermit(permit.permit_id, sortie);
+      showToast(`Sortie attached: ${sortie.sortie_name}`, 'success');
+      plotSingleSortieOnMap(sortie, permit);
+      renderInspector(permit);
+    }
+  } catch (err) {
+    console.error('Error processing sortie file:', err);
+    showToast(err.message || 'Failed to process flight log.', 'error');
+  }
+}
+
+function handleSortieFileInputChange(event, permit) {
   const file = event.target.files[0];
-  if (!file) return;
+  if (!file || !permit) return;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const filePath = (window.api && window.api.getPathForFile) ? window.api.getPathForFile(file) : (file.path || '');
+
+  if ((ext === 'ulg' || ext === 'txt' || ext === 'dat') && filePath) {
+    processSortieFromPath(filePath, file.name, file.size, permit);
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = function (e) {
-    const text = e.target.result;
-    const extension = file.name.split('.').pop().toLowerCase();
-
     try {
-      showToast(`Parsing ${file.name}...`, 'info');
-      const parsed = parseLogData(text, extension);
-
-      if (!parsed || parsed.points.length === 0) {
-        throw new Error("No coordinate data found in log file.");
+      const text = e.target.result;
+      const parsed = parseLogData(text, ext);
+      if (!parsed || !parsed.points || parsed.points.length === 0) {
+        throw new Error('No GPS coordinate data found in log file.');
       }
-
-      // Save parsed data locally linked to selectedPermit
-      flightLogData = {
-        permit_id: selectedPermit.permit_id,
-        filename: file.name,
-        points: parsed.points,      // array of [lat, lng, alt_ft, speed_knots, timestamp]
-        maxAltitude: parsed.maxAltitude,
-        maxSpeed: parsed.maxSpeed,
-        altitudes: parsed.altitudes,
-        speeds: parsed.speeds,
-        timestamps: parsed.timestamps
-      };
-
-      // Check compliance
-      runComplianceChecks();
-
-      // Plot path on map
-      plotFlightPath();
-
-      // Update inspector DOM
-      updateEvaluationStatusUI();
-
-      showToast("Flight log evaluated successfully!", "success");
-    } catch (error) {
-      console.error(error);
-      showToast(error.message || "Failed to evaluate log file", "error");
+      const sortie = buildSortieFromCsvKml(parsed, file.name, ext, file.size, permit, filePath);
+      addSortieToPermit(permit.permit_id, sortie);
+      showToast(`Sortie attached: ${sortie.sortie_name}`, 'success');
+      plotSingleSortieOnMap(sortie, permit);
+      renderInspector(permit);
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Failed to process log file.', 'error');
     }
   };
   reader.readAsText(file);
+}
+
+function addSortieToPermit(permitId, sortie) {
+  if (!permitFlightSorties[permitId]) {
+    permitFlightSorties[permitId] = [];
+  }
+  permitFlightSorties[permitId].push(sortie);
+  saveSortiesToStorage();
+}
+
+function generateSortieName(permit, sortieIndex, timestamp = null) {
+  let d = new Date();
+  if (timestamp) {
+    const parsed = new Date(timestamp);
+    if (!isNaN(parsed.getTime())) d = parsed;
+  }
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+
+  const opClean = (permit.operator_name || 'Operator').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+  const sortieNum = String(sortieIndex).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}_${hh}.${min}_${opClean}_Sortie-${sortieNum}`;
+}
+
+function buildSortieFromParsedResult(parseResult, fileName, ext, fileSize, permit, filePath) {
+  const sorties = getPermitSorties(permit.permit_id);
+  const sortieIndex = sorties.length + 1;
+  const sortieName = generateSortieName(permit, sortieIndex);
+
+  let map_points = [];
+  if (parseResult.map_points && parseResult.map_points.length > 0) {
+    const raw = parseResult.map_points;
+    const targetPoints = Math.min(raw.length, 3000);
+    const step = Math.max(1, Math.floor(raw.length / targetPoints));
+    for (let i = 0; i < raw.length; i += step) {
+      map_points.push([raw[i][0], raw[i][1], raw[i][2] || 0]);
+    }
+  } else if (parseResult.preview_points && parseResult.preview_points.length > 0) {
+    map_points = parseResult.preview_points.map(p => [p.lat, p.lon, p.agl_ft]);
+  }
+
+  let geofenceCompliant = true;
+  let breachCount = 0;
+  const polygon = permit.coordinates;
+  if (polygon && polygon.length > 0 && map_points.length > 0) {
+    for (const pt of map_points) {
+      if (!isPointInPolygon([pt[0], pt[1]], polygon)) {
+        geofenceCompliant = false;
+        breachCount++;
+      }
+    }
+  }
+
+  let kkopCompliant = true;
+  if (map_points.length > 0) {
+    for (const pt of map_points) {
+      for (const airport of REGION_AIRPORTS) {
+        if (isPointInCircle([pt[0], pt[1]], [airport.lat, airport.lng], 5000)) {
+          let insidePermit = false;
+          if (polygon && polygon.length > 0) {
+            insidePermit = isPointInPolygon([pt[0], pt[1]], polygon);
+          }
+          if (!insidePermit) {
+            kkopCompliant = false;
+            break;
+          }
+        }
+      }
+      if (!kkopCompliant) break;
+    }
+  }
+
+  const dur = parseResult.duration_sec || 0;
+  const durStr = dur < 60 ? `${Math.round(dur)}s` :
+    dur < 3600 ? `${Math.floor(dur / 60)}m ${Math.round(dur % 60)}s` :
+      `${Math.floor(dur / 3600)}h ${Math.floor((dur % 3600) / 60)}m`;
+
+  const ceilingLimit = permit.max_altitude_ft || 400;
+  const altOk = parseResult.max_agl_ft <= ceilingLimit;
+  const speedOk = parseResult.max_speed_knots <= 87;
+
+  const studioData = Object.assign({}, parseResult);
+  if (studioData.map_points && studioData.map_points.length > 300) {
+    studioData.map_points = map_points;
+  }
+
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} WIB`;
+  const dateStr = now.toISOString().split('T')[0];
+
+  return {
+    id: 'sortie_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    sortie_name: sortieName,
+    date_time: `${dateStr} ${timeStr}`,
+    file_name: fileName,
+    file_type: ext,
+    file_size_mb: Number(((fileSize || 0) / (1024 * 1024)).toFixed(1)),
+    filePath: filePath,
+    stats: {
+      duration_formatted: durStr,
+      duration_sec: dur,
+      max_agl_ft: Math.round(parseResult.max_agl_ft || 0),
+      max_amsl_ft: Math.round(parseResult.max_amsl_ft || 0),
+      max_speed_kts: Number((parseResult.max_speed_knots || 0).toFixed(1)),
+      points_count: parseResult.track_points || map_points.length,
+      takeoff_lat: map_points[0] ? map_points[0][0] : 0,
+      takeoff_lng: map_points[0] ? map_points[0][1] : 0
+    },
+    compliance: {
+      alt_compliant: altOk,
+      speed_compliant: speedOk,
+      geofence_compliant: geofenceCompliant,
+      kkop_compliant: kkopCompliant,
+      time_compliant: true,
+      breach_count: breachCount
+    },
+    map_points: map_points,
+    studioData: studioData
+  };
+}
+
+function buildSortieFromCsvKml(parsed, fileName, ext, fileSize, permit, filePath) {
+  const sorties = getPermitSorties(permit.permit_id);
+  const sortieIndex = sorties.length + 1;
+  const sortieName = generateSortieName(permit, sortieIndex);
+
+  const rawPts = parsed.points || [];
+  const targetPoints = Math.min(rawPts.length, 3000);
+  const step = Math.max(1, Math.floor(rawPts.length / targetPoints));
+  const sampled = [];
+  for (let i = 0; i < rawPts.length; i += step) {
+    sampled.push(rawPts[i]);
+  }
+
+  const map_points = sampled.map(p => [p[0], p[1], Math.round(p[2])]);
+
+  let geofenceCompliant = true;
+  let breachCount = 0;
+  const polygon = permit.coordinates;
+  if (polygon && polygon.length > 0 && map_points.length > 0) {
+    for (const pt of map_points) {
+      if (!isPointInPolygon([pt[0], pt[1]], polygon)) {
+        geofenceCompliant = false;
+        breachCount++;
+      }
+    }
+  }
+
+  let kkopCompliant = true;
+  if (map_points.length > 0) {
+    for (const pt of map_points) {
+      for (const airport of REGION_AIRPORTS) {
+        if (isPointInCircle([pt[0], pt[1]], [airport.lat, airport.lng], 5000)) {
+          let insidePermit = false;
+          if (polygon && polygon.length > 0) {
+            insidePermit = isPointInPolygon([pt[0], pt[1]], polygon);
+          }
+          if (!insidePermit) {
+            kkopCompliant = false;
+            break;
+          }
+        }
+      }
+      if (!kkopCompliant) break;
+    }
+  }
+
+  const ceilingLimit = permit.max_altitude_ft || 400;
+  const altOk = parsed.maxAltitude <= ceilingLimit;
+  const speedOk = parsed.maxSpeed <= 87;
+
+  const preview_points = sampled.map((p, idx) => ({
+    time_min: Number(((idx / Math.max(1, sampled.length - 1)) * 30).toFixed(1)),
+    agl_ft: Math.round(p[2]),
+    amsl_ft: Math.round(p[2] + 97.6),
+    speed_knots: Number((p[3] || 0).toFixed(1)),
+    speed_mph: Number(((p[3] || 0) * 1.15078).toFixed(1)),
+    battery_pct: Math.max(12, Math.round(100 - (idx / Math.max(1, sampled.length - 1)) * 82)),
+    voltage_v: Number((32.0 - (idx / Math.max(1, sampled.length - 1)) * 6.5).toFixed(1)),
+    lat: p[0],
+    lon: p[1],
+    heading: 0
+  }));
+
+  const studioData = {
+    success: true,
+    drone_brand: ext === 'kml' ? 'KML Telemetry' : 'CSV Telemetry',
+    aircraft_name: 'Telemetry Track',
+    max_agl_ft: Math.round(parsed.maxAltitude),
+    max_agl_m: Math.round(parsed.maxAltitude * 0.3048),
+    max_amsl_ft: Math.round(parsed.maxAltitude + 97.6),
+    max_amsl_m: Math.round((parsed.maxAltitude + 97.6) * 0.3048),
+    max_speed_knots: Number(parsed.maxSpeed.toFixed(1)),
+    max_speed_kmh: Number((parsed.maxSpeed * 1.852).toFixed(1)),
+    max_speed_ms: Number((parsed.maxSpeed * 0.514444).toFixed(1)),
+    duration_sec: Math.max(600, sampled.length * 4),
+    track_points: rawPts.length,
+    takeoff_amsl_ft: 97.6,
+    takeoff_amsl_m: 29.8,
+    preview_points: preview_points,
+    map_points: map_points,
+    compliance: {
+      ceiling_limit_ft: ceilingLimit,
+      max_agl_ft: Math.round(parsed.maxAltitude),
+      ceiling_breach: !altOk,
+      speed_limit_knots: 87,
+      max_speed_knots: Number(parsed.maxSpeed.toFixed(1)),
+      speed_breach: !speedOk
+    }
+  };
+
+  const durSec = studioData.duration_sec;
+  const durStr = `${Math.floor(durSec / 60)}m ${Math.round(durSec % 60)}s`;
+
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} WIB`;
+  const dateStr = now.toISOString().split('T')[0];
+
+  return {
+    id: 'sortie_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    sortie_name: sortieName,
+    date_time: `${dateStr} ${timeStr}`,
+    file_name: fileName,
+    file_type: ext,
+    file_size_mb: Number(((fileSize || 0) / (1024 * 1024)).toFixed(1)),
+    filePath: filePath,
+    stats: {
+      duration_formatted: durStr,
+      duration_sec: durSec,
+      max_agl_ft: Math.round(parsed.maxAltitude),
+      max_amsl_ft: Math.round(parsed.maxAltitude + 97.6),
+      max_speed_kts: Number(parsed.maxSpeed.toFixed(1)),
+      points_count: rawPts.length,
+      takeoff_lat: map_points[0] ? map_points[0][0] : 0,
+      takeoff_lng: map_points[0] ? map_points[0][1] : 0
+    },
+    compliance: {
+      alt_compliant: altOk,
+      speed_compliant: speedOk,
+      geofence_compliant: geofenceCompliant,
+      kkop_compliant: kkopCompliant,
+      time_compliant: true,
+      breach_count: breachCount
+    },
+    map_points: map_points,
+    studioData: studioData
+  };
 }
 
 // =================================================================
@@ -5425,6 +6690,7 @@ let ulgLastResult = null;
 let ulgChartInstance = null;
 let ulgLeafletMapInstance = null;
 let ulgPolylineLayer = null;
+let ulgMarkersLayer = null;
 let ulgDroneMarker = null;
 let ulgActiveTab = 'combined';
 let ulgOsmLayer = null;
@@ -5540,6 +6806,9 @@ function ulgResetState() {
     ulgLeafletMapInstance.remove();
     ulgLeafletMapInstance = null;
   }
+  ulgPolylineLayer = null;
+  ulgMarkersLayer = null;
+  ulgDroneMarker = null;
   const fileInfo = document.getElementById('ulg-file-info');
   if (fileInfo) fileInfo.classList.add('hidden');
   const loader = document.getElementById('ulg-loader');
@@ -6111,6 +7380,11 @@ function renderUlgLeafletMap() {
   if (ulgPolylineLayer) {
     ulgLeafletMapInstance.removeLayer(ulgPolylineLayer);
   }
+  if (ulgMarkersLayer) {
+    ulgLeafletMapInstance.removeLayer(ulgMarkersLayer);
+    ulgMarkersLayer = null;
+  }
+  ulgMarkersLayer = L.layerGroup().addTo(ulgLeafletMapInstance);
 
   // Draw smooth flight vector polyline with user-selected color and weight
   ulgPolylineLayer = L.polyline(latlngs, {
@@ -6130,7 +7404,7 @@ function renderUlgLeafletMap() {
     fillColor: '#10b981',
     fillOpacity: 0.9,
     weight: 2
-  }).addTo(ulgLeafletMapInstance).bindPopup('<b>Takeoff Location</b><br>Elevation: ' + ulgLastResult.takeoff_amsl_ft + ' ft AMSL');
+  }).addTo(ulgMarkersLayer).bindPopup('<b>Takeoff Location</b><br>Elevation: ' + ulgLastResult.takeoff_amsl_ft + ' ft AMSL');
 
   L.circleMarker(endPt, {
     radius: 7,
@@ -6138,7 +7412,7 @@ function renderUlgLeafletMap() {
     fillColor: '#ef4444',
     fillOpacity: 0.9,
     weight: 2
-  }).addTo(ulgLeafletMapInstance).bindPopup('<b>Landing / Last Record</b>');
+  }).addTo(ulgMarkersLayer).bindPopup('<b>Landing / Last Record</b>');
 
   // Initialize or reset drone position marker for Flight Replay
   if (ulgDroneMarker) {

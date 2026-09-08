@@ -4,7 +4,27 @@ Dokumen ini mencatat seluruh riwayat perubahan fungsional (*features*), peningka
 
 ---
 
-## [2.4.0] - 2026-09-07
+## [1.5.0] - 2026-09-08
+
+### 🚀 Fitur Baru, High-Fidelity Telemetri & Multi-Operator Deconfliction
+1. **Full Precision Trajectory Synchronization (2.935 Titik Aerodinamis Murni)**:
+   - Menyelesaikan *vector aliasing* pada Universal Studio dengan mensinkronisasi `studioData.map_points` ke resolusi penuh (2.935 titik) sama dengan peta utama.
+   - Tetap menjamin 100% *full-fidelity* integritas ekstraksi file (KML 3D Google Earth, CSV telemetri, GPX) tanpa downsampling.
+
+2. **Real-Time Spatial Conflict Matrix & Lateral Geofence Segmentation (`segmentRouteByGeofence`)**:
+   - Mempartisi jalur terbang di Leaflet 2D menjadi segmen **Cyan `#06b6d4`** (di dalam izin) dan segmen tebal **Merah `#ef4444`** (di luar izin) lengkap dengan event pin penanda pelanggaran (*Breach Event Pin*).
+   - Menghilangkan kekacauan visual 2D dengan mendedikasikan peta 2D untuk batas lateral poligon, sedangkan audit vertikal (>400 ft AGL) ditampilkan pada profil elevasi dan crosshair di Universal Studio.
+
+3. **Cumulative Multi-Sortie Fleet Analytics (`computeSortieAuditSummary`)**:
+   - Kartu telemetri akumulatif armada (*dark-gradient cyberpunk card*) di inspector panel yang menghitung total jam terbang, total jarak jelajah (km) via *Haversine formula*, dan total titik GPS dari seluruh sortie.
+
+4. **Dual-Fidelity Inter-Operator Deconfliction Engine (`checkAirspaceConflict`)**:
+   - Membedakan secara cerdas antara **Direct Overlap** (irisan dua poligon resmi NOTAM) dengan **Potential Overlap** (irisan radius estimasi ~6km karena izin target belum memiliki poligon NOTAM definitif).
+   - Ditunjang tombol interaktif `View Airspace on Map` (`btn-compare-conflict`) untuk langsung menyorot dan memusatkan poligon yang saling beririsan di peta.
+
+---
+
+## [1.4.0] - 2026-09-07
 
 ### 🚀 Fitur Baru & Peningkatan UX Geospasial (Airspace Focus & Styling Engine)
 1. **Airspace Focus & Isolation Mode (Isolasi Poligon Aktif)**:
@@ -42,7 +62,7 @@ Dokumen ini mencatat seluruh riwayat perubahan fungsional (*features*), peningka
 
 ---
 
-## [2.3.0] - 2026-09-07
+## [1.3.0] - 2026-09-07
 
 ### 🚀 Fitur & Peningkatan Database (Permit Database Expansion & Cloud Ingestion)
 1. **Pembaruan & Audit Database Izin Operasi (53 Dokumen Lengkap)**:
@@ -76,7 +96,7 @@ Dokumen ini mencatat seluruh riwayat perubahan fungsional (*features*), peningka
 
 ---
 
-## [2.2.0] - 2026-09-07
+## [1.2.0] - 2026-09-07
 
 ### 🚀 Fitur Baru (Features Added)
 1. **Zero-Token Local NOTAM & Permit Parser Engine**:
@@ -106,7 +126,7 @@ Dokumen ini mencatat seluruh riwayat perubahan fungsional (*features*), peningka
 
 ---
 
-## [2.1.0] - 2026-09-04
+## [1.1.0] - 2026-09-04
 
 ### 🚀 Fitur Baru (Features Added)
 1. **Universal Flight Inspector Studio**:
@@ -145,7 +165,7 @@ Dokumen ini mencatat seluruh riwayat perubahan fungsional (*features*), peningka
 
 ---
 
-## [2.0.0] - 2026-09-02
+## [1.0.0] - 2026-09-02
 
 ### 🚀 Fitur Utama
 1. **Analisis Kepatuhan Regulasi CASR Part 107 / PM 37**:
