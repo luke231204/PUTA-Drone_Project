@@ -7261,20 +7261,63 @@ function switchUlgStudioTab(tab) {
   const chartWrap = document.getElementById('ulg-chart-wrapper');
   const mapWrap = document.getElementById('ulg-map-wrapper');
   const mapToolbar = document.getElementById('ulg-map-toolbar');
-  const ceilingToggleLabel = document.getElementById('ulg-toggle-ceiling-line')?.parentElement;
+  const limitControls = document.getElementById('ulg-limit-controls');
+  const limitLabel = document.getElementById('ulg-limit-label');
+  const limitUnit = document.getElementById('ulg-limit-unit');
+  const limitInput = document.getElementById('ulg-custom-limit-val');
 
   if (tab === 'map') {
     if (chartWrap) chartWrap.classList.add('hidden');
     if (mapWrap) mapWrap.classList.remove('hidden');
     if (mapToolbar) mapToolbar.classList.remove('hidden');
-    if (ceilingToggleLabel) ceilingToggleLabel.classList.add('hidden');
+    if (limitControls) limitControls.classList.add('hidden');
     renderUlgLeafletMap();
   } else {
     pauseFlightReplay();
     if (mapWrap) mapWrap.classList.add('hidden');
     if (chartWrap) chartWrap.classList.remove('hidden');
     if (mapToolbar) mapToolbar.classList.add('hidden');
-    if (ceilingToggleLabel) ceilingToggleLabel.classList.remove('hidden');
+    if (limitControls) limitControls.classList.remove('hidden');
+
+    // Contextual sensible defaults and unit labels per tab
+    if (tab === 'agl') {
+      if (limitLabel) limitLabel.textContent = 'Ceiling Limit:';
+      if (limitUnit) limitUnit.textContent = 'ft AGL';
+      if (limitInput && limitInput.dataset.tab !== tab) {
+        limitInput.value = (selectedPermit && selectedPermit.max_altitude_ft) ? selectedPermit.max_altitude_ft : 400;
+        limitInput.dataset.tab = tab;
+      }
+    } else if (tab === 'amsl') {
+      if (limitLabel) limitLabel.textContent = 'AMSL Limit:';
+      if (limitUnit) limitUnit.textContent = 'ft AMSL';
+      if (limitInput && limitInput.dataset.tab !== tab) {
+        const agl = (selectedPermit && selectedPermit.max_altitude_ft) ? selectedPermit.max_altitude_ft : 400;
+        limitInput.value = Math.round(agl + 100);
+        limitInput.dataset.tab = tab;
+      }
+    } else if (tab === 'speed') {
+      if (limitLabel) limitLabel.textContent = 'Speed Cap:';
+      if (limitUnit) limitUnit.textContent = 'kts';
+      if (limitInput && limitInput.dataset.tab !== tab) {
+        limitInput.value = 87;
+        limitInput.dataset.tab = tab;
+      }
+    } else if (tab === 'battery') {
+      if (limitLabel) limitLabel.textContent = 'Low Battery:';
+      if (limitUnit) limitUnit.textContent = '%';
+      if (limitInput && limitInput.dataset.tab !== tab) {
+        limitInput.value = 25;
+        limitInput.dataset.tab = tab;
+      }
+    } else { // combined
+      if (limitLabel) limitLabel.textContent = 'Ceiling Line:';
+      if (limitUnit) limitUnit.textContent = 'ft AGL';
+      if (limitInput && limitInput.dataset.tab !== tab) {
+        limitInput.value = (selectedPermit && selectedPermit.max_altitude_ft) ? selectedPermit.max_altitude_ft : 400;
+        limitInput.dataset.tab = tab;
+      }
+    }
+
     renderUlgChart();
   }
 }
@@ -7299,7 +7342,10 @@ function renderUlgChart() {
     ulgChartInstance = null;
   }
 
-  const showCeiling = document.getElementById('ulg-toggle-ceiling-line')?.checked ?? true;
+  const showLimit = document.getElementById('ulg-toggle-ceiling-line')?.checked ?? true;
+  const customLimitInput = document.getElementById('ulg-custom-limit-val');
+  const customLimitVal = customLimitInput ? parseFloat(customLimitInput.value) : 400;
+
   let datasets = [];
   let yAxes = {};
 
@@ -7336,13 +7382,13 @@ function renderUlgChart() {
       }
     ];
 
-    if (showCeiling) {
+    if (showLimit && !isNaN(customLimitVal)) {
       datasets.push({
-        label: '400 ft Regulatory Ceiling (AGL)',
-        data: pts.map(() => 400),
+        label: `Ceiling Limit (${customLimitVal} ft AGL)`,
+        data: pts.map(() => customLimitVal),
         borderColor: '#ef4444',
         borderDash: [6, 4],
-        borderWidth: 1.5,
+        borderWidth: 2,
         pointRadius: 0,
         yAxisID: 'yAlt'
       });
@@ -7375,10 +7421,10 @@ function renderUlgChart() {
         pointRadius: 0
       }
     ];
-    if (showCeiling) {
+    if (showLimit && !isNaN(customLimitVal)) {
       datasets.push({
-        label: 'Mandatory 400 ft Ceiling Cap',
-        data: pts.map(() => 400),
+        label: `Authorized Ceiling Limit (${customLimitVal} ft AGL)`,
+        data: pts.map(() => customLimitVal),
         borderColor: '#ef4444',
         borderDash: [6, 4],
         borderWidth: 2,
@@ -7398,6 +7444,16 @@ function renderUlgChart() {
         pointRadius: 0
       }
     ];
+    if (showLimit && !isNaN(customLimitVal)) {
+      datasets.push({
+        label: `Custom AMSL Altitude Limit (${customLimitVal} ft AMSL)`,
+        data: pts.map(() => customLimitVal),
+        borderColor: '#ef4444',
+        borderDash: [6, 4],
+        borderWidth: 2,
+        pointRadius: 0
+      });
+    }
   } else if (ulgActiveTab === 'speed') {
     datasets = [
       {
@@ -7417,6 +7473,16 @@ function renderUlgChart() {
         pointRadius: 0
       }
     ];
+    if (showLimit && !isNaN(customLimitVal)) {
+      datasets.push({
+        label: `Speed Limit Cap (${customLimitVal} kts)`,
+        data: pts.map(() => customLimitVal),
+        borderColor: '#ef4444',
+        borderDash: [6, 4],
+        borderWidth: 2,
+        pointRadius: 0
+      });
+    }
   } else if (ulgActiveTab === 'battery') {
     datasets = [
       {
@@ -7438,6 +7504,17 @@ function renderUlgChart() {
         yAxisID: 'yVolt'
       }
     ];
+    if (showLimit && !isNaN(customLimitVal)) {
+      datasets.push({
+        label: `Battery Reserve Threshold (${customLimitVal}%)`,
+        data: pts.map(() => customLimitVal),
+        borderColor: '#ef4444',
+        borderDash: [6, 4],
+        borderWidth: 2,
+        pointRadius: 0,
+        yAxisID: 'yPct'
+      });
+    }
     yAxes = {
       yPct: {
         type: 'linear',
@@ -8015,6 +8092,63 @@ function updateRadialProgress(permit, sortieAudit) {
     descLabel.innerHTML = `Authorized corridor up to <strong>${alt} ft AGL</strong>. Attach telemetry flight logs below to audit real-time polygon boundary adherence.`;
   }
 }
+
+
+// High-Definition Studio Chart Image Export (PNG / JPG)
+async function exportUlgChartImage(format = 'png') {
+  const chartCanvas = document.getElementById('ulg-chart-canvas');
+  if (!chartCanvas || !ulgChartInstance) {
+    showToast('No active chart to export.', 'warning');
+    return;
+  }
+
+  try {
+    showToast('Rendering Ultra-HD Chart Image...', 'info');
+
+    // Create high-res offscreen canvas (3x scale) for print & report fidelity
+    const scale = 3;
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = chartCanvas.width * scale;
+    offCanvas.height = chartCanvas.height * scale;
+    const offCtx = offCanvas.getContext('2d');
+
+    // Solid clean white background
+    offCtx.fillStyle = '#ffffff';
+    offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+
+    // Render title watermark header on HD export
+    offCtx.fillStyle = '#1e293b';
+    offCtx.font = 'bold ' + (14 * scale) + 'px Outfit, sans-serif';
+    const titleText = (selectedPermit ? selectedPermit.operator_name : 'PUTA') + ' - ' + ulgActiveTab.toUpperCase() + ' Telemetry Profile';
+    offCtx.fillText(titleText, 24 * scale, 28 * scale);
+
+    offCtx.fillStyle = '#64748b';
+    offCtx.font = '500 ' + (9 * scale) + 'px Outfit, sans-serif';
+    const subText = 'Permit: ' + (selectedPermit ? selectedPermit.permit_id : 'N/A') + ' | Exported on ' + new Date().toLocaleString('en-GB') + ' | OTBAN VI PUTA Monitoring';
+    offCtx.fillText(subText, 24 * scale, 42 * scale);
+
+    // Draw Chart.js canvas content scaled
+    offCtx.drawImage(chartCanvas, 0, 48 * scale, offCanvas.width, offCanvas.height - (48 * scale));
+
+    const mime = format === 'jpg' || format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const ext = format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png';
+    const dataUrl = offCanvas.toDataURL(mime, 0.95);
+
+    const link = document.createElement('a');
+    link.download = `PUTA_Chart_${ulgActiveTab.toUpperCase()}_HD_${Date.now()}.${ext}`;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast(`High-Definition ${ext.toUpperCase()} exported successfully!`, 'success');
+  } catch (err) {
+    console.error('HD Chart Export failed:', err);
+    showToast('Failed to export chart image.', 'error');
+  }
+}
+window.exportUlgChartImage = exportUlgChartImage;
+
 
 // Explicit window bindings for HTML onclick handlers
 window.toggleFlightReplay = toggleFlightReplay;

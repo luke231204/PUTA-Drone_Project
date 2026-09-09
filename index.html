@@ -982,12 +982,30 @@
                 <button id="ulg-tab-map" onclick="switchUlgStudioTab('map')" class="px-3.5 py-1.5 rounded-xl text-gray-500 hover:bg-black/5 transition-all">Flight Route Map</button>
               </div>
 
-              <!-- Ceilings & Settings Toggle -->
-              <div class="flex items-center gap-3 select-none text-[11px] font-bold text-gray-500">
-                <label class="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" id="ulg-toggle-ceiling-line" checked onchange="handleUlgChartRedraw()" class="w-3.5 h-3.5 text-rose-600 rounded accent-rose-500">
-                  <span>Show 400ft Cap (AGL)</span>
-                </label>
+              <!-- Ceilings & Custom Limit Settings & HD Export -->
+              <div class="flex flex-wrap items-center gap-3 select-none text-[11px] font-bold text-gray-500">
+                <!-- Custom Limit Value Line -->
+                <div id="ulg-limit-controls" class="flex items-center gap-2 bg-slate-50 dark:bg-zinc-800/60 px-2.5 py-1 rounded-xl border border-black/5 dark:border-white/10">
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" id="ulg-toggle-ceiling-line" checked onchange="handleUlgChartRedraw()" class="w-3.5 h-3.5 text-rose-600 rounded accent-rose-500">
+                    <span id="ulg-limit-label">Limit Line:</span>
+                  </label>
+                  <div class="flex items-center gap-1">
+                    <input type="number" id="ulg-custom-limit-val" value="400" min="0" max="50000" step="50" oninput="handleUlgChartRedraw()" class="w-16 px-1.5 py-0.5 text-xs font-mono font-bold bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-lg text-gray-800 dark:text-zinc-100 focus:outline-none focus:border-rose-500 text-center">
+                    <span id="ulg-limit-unit" class="text-[10px] text-gray-400 font-mono">ft</span>
+                  </div>
+                </div>
+
+                <!-- Export HD Picture Button -->
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="exportUlgChartImage('png')" class="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-[11px] font-extrabold rounded-xl transition-all shadow-xs" title="Export Ultra-HD Crisp PNG (3x Resolution)">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Export PNG (HD)</span>
+                  </button>
+                  <button type="button" onclick="exportUlgChartImage('jpg')" class="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 active:scale-95 text-gray-700 dark:text-zinc-200 text-[11px] font-bold rounded-xl transition-all border border-black/5 dark:border-white/10" title="Export High-Quality JPG">
+                    <span>JPG</span>
+                  </button>
+                </div>
 
                 <!-- Map Settings Toolbar (Layer, Color Picker & Weight) -->
                 <div id="ulg-map-toolbar" class="hidden flex items-center gap-2.5">
