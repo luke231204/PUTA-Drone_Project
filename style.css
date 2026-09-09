@@ -788,3 +788,29 @@ body.dark .leaflet-tile-pane .dark-map-tiles {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
 }
 
+
+/* ==========================================================================
+   Tactile Soft-Touch Click Micro-Interactions (Apple & Native feel)
+   ========================================================================== */
+button, 
+.btn-apple, 
+[role="button"], 
+.cursor-pointer, 
+input[type="button"], 
+input[type="submit"] {
+  transition: transform 0.16s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.16s ease, background-color 0.16s ease;
+}
+
+button:active, 
+.btn-apple:active, 
+[role="button"]:active, 
+input[type="button"]:active, 
+input[type="submit"]:active {
+  transform: scale(0.96) translateY(0.5px);
+}
+
+/* Specific soft-press response for permit list cards */
+#permits-list-container > div:active {
+  transform: scale(0.985);
+  transition: transform 0.12s cubic-bezier(0.25, 1, 0.5, 1);
+}

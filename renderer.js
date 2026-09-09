@@ -241,11 +241,12 @@ let adsbSearchQuery = '';
 let isAdsbModalOpen = false;
 let isAdsbOnMainMap = false;
 let adsbFlightDetailsCache = {}; // Cache: icao24 -> { aircraft: ..., route: ..., loading: boolean, error: boolean }
+let currentAdsbProvider = localStorage.getItem('puta_adsb_provider') || 'adsb_lol'; // 'adsb_lol' | 'opensky'
 
-
-// OpenSky Network REST API — Sumatra bounding box
+// ADS-B Data Providers (Sumatra & West Indonesia Airspace)
 const OPENSKY_URL = 'https://opensky-network.org/api/states/all?lamin=-6.0&lomin=95.0&lamax=6.0&lomax=109.0';
-const ADSB_REFRESH_INTERVAL = 12000; // 12 seconds (respects OpenSky anonymous rate limit)
+const ADSBLOL_URL = 'https://api.adsb.lol/v2/point/-0.5/102.0/400';
+const ADSB_REFRESH_INTERVAL = 12000; // 12 seconds
 
 
 // Web browser fallback mock for local testing outside Electron main process
@@ -1111,20 +1112,21 @@ async function loadAndRenderData() {
   }
 }
 
-// State engine: Calculates if permit is ACTIVE, PENDING or EXPIRED based on local time window
+// State engine: Calculates if permit is ACTIVE, PENDING, OFF_HOURS or EXPIRED based on calendar dates and daily time window
 function getPermitStatus(permit) {
   const now = new Date();
 
   // Format local date today as YYYY-MM-DD in the local timezone (not UTC)
   const todayStr = now.toLocaleDateString('en-CA'); // returns YYYY-MM-DD in local time
 
+  // 1. Calendar Date Boundary
   if (todayStr < permit.date_start) return 'PENDING';
   if (todayStr > permit.date_end) return 'EXPIRED';
 
-  // Clean time strings (remove GMT / timezone additions)
+  // 2. Daily Flight Hours Boundary (Within active calendar date window)
   const cleanTime = (t) => t.split(' ')[0].replace('.', ':');
-  const tStart = cleanTime(permit.time_start);
-  const tEnd = cleanTime(permit.time_end);
+  const tStart = cleanTime(permit.time_start || '00:00');
+  const tEnd = cleanTime(permit.time_end || '23:59');
 
   const [startH, startM] = tStart.split(':').map(Number);
   const [endH, endM] = tEnd.split(':').map(Number);
@@ -1135,9 +1137,25 @@ function getPermitStatus(permit) {
   const endTime = new Date(now);
   endTime.setHours(endH, endM, 0, 0);
 
+  // If before morning flight window today
   if (now < startTime) return 'PENDING';
-  if (now > endTime) return 'EXPIRED';
-  return 'ACTIVE';
+  // If during authorized flight window today
+  if (now <= endTime) return 'ACTIVE';
+
+  // If past today's daily window:
+  // If today is the very last day of the permit, then it is truly EXPIRED.
+  // Otherwise, the permit is still valid for tomorrow's schedule!
+  if (todayStr >= permit.date_end) {
+    return 'EXPIRED';
+  }
+  return 'OFF_HOURS';
+}
+
+// Category mapping helper for 3-state UI filters ('ACTIVE' | 'PENDING' | 'EXPIRED')
+function getPermitCategory(permit) {
+  const status = getPermitStatus(permit);
+  if (status === 'OFF_HOURS') return 'ACTIVE'; // Count as active valid permit in filters & stats
+  return status;
 }
 
 // Setup filters and searches
@@ -1891,17 +1909,18 @@ function renderDashboard() {
 
   permits.forEach(permit => {
     const status = getPermitStatus(permit);
+    const category = getPermitCategory(permit);
 
-    // Update Global Statistics
-    if (status === 'ACTIVE') activeCount++;
-    else if (status === 'PENDING') pendingCount++;
-    else if (status === 'EXPIRED') expiredCount++;
+    // Update Global Statistics (Valid permits during daily off-hours are counted as Active)
+    if (category === 'ACTIVE') activeCount++;
+    else if (category === 'PENDING') pendingCount++;
+    else if (category === 'EXPIRED') expiredCount++;
 
     // Apply Year Filter
     if (currentYearFilter !== 'All' && permit.year !== currentYearFilter) return;
 
-    // Apply Status Filter
-    if (currentStatusFilter !== 'All' && status !== currentStatusFilter) return;
+    // Apply Status Filter (Matches ACTIVE for both flying now and off-hours valid permits)
+    if (currentStatusFilter !== 'All' && category !== currentStatusFilter) return;
 
     // Apply Proximity Filter if active
     if (currentNearAirportFilter) {
@@ -2002,11 +2021,16 @@ function renderDashboard() {
     let statusBadgeColor = 'bg-gray-100 text-gray-600 border-gray-200';
     let statusDot = 'bg-gray-400';
     let pulseClass = '';
+    let displayStatus = status;
 
     if (status === 'ACTIVE') {
       statusBadgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
       statusDot = 'bg-emerald-500';
       pulseClass = 'w-1.5 h-1.5 rounded-full pulse-active bg-emerald-500';
+    } else if (status === 'OFF_HOURS') {
+      statusBadgeColor = 'bg-sky-50 text-sky-700 border-sky-200';
+      statusDot = 'bg-sky-500';
+      displayStatus = 'OFF-HOURS';
     } else if (status === 'PENDING') {
       statusBadgeColor = 'bg-amber-50 text-amber-700 border-amber-200';
       statusDot = 'bg-amber-500';
@@ -2035,7 +2059,7 @@ function renderDashboard() {
         <span class="text-[10px] font-mono text-gray-400 tracking-tight select-all">${permit.permit_id}</span>
         <span class="border px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-widest flex items-center gap-1 ${statusBadgeColor}">
           <span class="${pulseClass || 'w-1.5 h-1.5 rounded-full ' + statusDot}"></span>
-          ${status}
+          ${displayStatus}
         </span>
       </div>
       <h3 class="text-sm font-bold text-gray-800 mt-2 truncate">${permit.operator_name}</h3>
@@ -2353,16 +2377,22 @@ function renderInspector() {
 
   let statusBadgeColor = 'bg-gray-100 border-gray-200 text-gray-600';
   let gaugeColor = 'bg-gray-400';
+  let displayInspectorStatus = status;
 
   if (status === 'ACTIVE') {
     statusBadgeColor = 'bg-emerald-50 border-emerald-200 text-emerald-700';
     gaugeColor = 'bg-emerald-500';
+  } else if (status === 'OFF_HOURS') {
+    statusBadgeColor = 'bg-sky-50 border-sky-200 text-sky-700';
+    gaugeColor = 'bg-sky-500';
+    displayInspectorStatus = 'DAILY OFF-HOURS (STANDBY)';
   } else if (status === 'PENDING') {
     statusBadgeColor = 'bg-amber-50 border-amber-200 text-amber-700';
     gaugeColor = 'bg-amber-500';
   }
 
-  const currentPermitColor = customPermitColors[permit.permit_id] || (status === 'ACTIVE' ? '#10b981' : (status === 'PENDING' ? '#f59e0b' : '#8e9aa6'));
+  const defaultPermitColor = (status === 'ACTIVE' || status === 'OFF_HOURS') ? '#10b981' : (status === 'PENDING' ? '#f59e0b' : '#8e9aa6');
+  const currentPermitColor = customPermitColors[permit.permit_id] || defaultPermitColor;
   const colorPresets = [
     { name: 'Emerald', hex: '#10b981' },
     { name: 'Sky Blue', hex: '#0284c7' },
@@ -2382,7 +2412,7 @@ function renderInspector() {
     <div class="p-6 border-b border-black/5 space-y-4">
       <div class="flex justify-between items-start">
         <span class="border px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest ${statusBadgeColor}">
-          ${status}
+          ${displayInspectorStatus}
         </span>
         <button id="close-inspector" class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -3022,6 +3052,13 @@ function startCountdown(permit, initialStatus) {
       diff = endTime - now;
       label = "REMAINING: ";
       timerElement.className = "text-2xl font-bold font-mono tracking-tight text-emerald-600";
+    } else if (status === 'OFF_HOURS') {
+      // Calculate countdown to tomorrow morning flight window start time
+      const tomorrowStart = new Date(startTime);
+      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+      diff = tomorrowStart - now;
+      label = "RESUMES IN: ";
+      timerElement.className = "text-2xl font-bold font-mono tracking-tight text-sky-600";
     } else if (status === 'PENDING') {
       // Check if starts later today
       if (now < startTime) {
@@ -5608,7 +5645,7 @@ window.showPortal = function () {
 function updatePortalStats() {
   let active = 0, pending = 0, expired = 0;
   permits.forEach(p => {
-    const s = getPermitStatus(p);
+    const s = getPermitCategory(p);
     if (s === 'ACTIVE') active++;
     else if (s === 'PENDING') pending++;
     else expired++;
@@ -6149,7 +6186,7 @@ window.stopLogoProcessing = function () {
 
 
 // ============================================================
-// ADS-B LIVE MONITOR — OpenSky Network Integration
+// ADS-B LIVE MONITOR — OpenSky & adsb.lol Integration
 // ============================================================
 
 // OpenSky state vector field indexes
@@ -6157,6 +6194,44 @@ const OPENSKY_FIELDS = {
   ICAO24: 0, CALLSIGN: 1, ORIGIN_COUNTRY: 2, TIME_POS: 3, LAST_CONTACT: 4,
   LON: 5, LAT: 6, BARO_ALT: 7, ON_GROUND: 8, VELOCITY: 9,
   HEADING: 10, VERTICAL_RATE: 11, GEO_ALT: 13, SQUAWK: 14
+};
+
+function updateAdsbProviderUi() {
+  const btnAdsbLol = document.getElementById('adsb-provider-adsblol');
+  const btnOpenSky = document.getElementById('adsb-provider-opensky');
+  const label = document.getElementById('adsb-source-label');
+  const sub = document.getElementById('adsb-source-sub');
+
+  if (currentAdsbProvider === 'adsb_lol') {
+    if (btnAdsbLol) {
+      btnAdsbLol.className = 'px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-white shadow-xs font-bold flex items-center gap-1.5';
+    }
+    if (btnOpenSky) {
+      btnOpenSky.className = 'px-2.5 py-1 rounded-lg transition-all text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-1.5';
+    }
+    if (label) label.textContent = 'Source: adsb.lol · Sumatra 400NM Airspace';
+    if (sub) sub.textContent = 'High Density Community Feed · Refresh 12s';
+  } else {
+    if (btnOpenSky) {
+      btnOpenSky.className = 'px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-white shadow-xs font-bold flex items-center gap-1.5';
+    }
+    if (btnAdsbLol) {
+      btnAdsbLol.className = 'px-2.5 py-1 rounded-lg transition-all text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-1.5';
+    }
+    if (label) label.textContent = 'Source: OpenSky Network · Sumatra Region';
+    if (sub) sub.textContent = 'Academic Research Feed · Refresh 12s';
+  }
+}
+
+window.setAdsbProvider = function (provider) {
+  if (provider !== 'adsb_lol' && provider !== 'opensky') return;
+  currentAdsbProvider = provider;
+  try {
+    localStorage.setItem('puta_adsb_provider', provider);
+  } catch (e) {}
+
+  updateAdsbProviderUi();
+  fetchAdsbData(true);
 };
 
 function openAdsbMonitor() {
@@ -6168,6 +6243,8 @@ function openAdsbMonitor() {
     modal.classList.remove('opacity-0');
     box.classList.remove('scale-95');
   }, 10);
+
+  updateAdsbProviderUi();
 
   // Initialize map if not already done
   if (!adsbMap) {
@@ -6236,39 +6313,126 @@ function initAdsbMap() {
   setTimeout(() => adsbMap.invalidateSize(), 150);
 }
 
+// Normalizer: Convert adsb.lol aircraft object to standard flight format
+function normalizeAdsbLolFlight(ac) {
+  const altFt = typeof ac.alt_baro === 'number' ? ac.alt_baro : (ac.alt_baro === 'ground' ? 0 : null);
+  const altM = typeof ac.alt_baro === 'number' ? Math.round(ac.alt_baro / 3.28084) : (ac.alt_baro === 'ground' ? 0 : null);
+  const speedKts = typeof ac.gs === 'number' ? Math.round(ac.gs) : null;
+  const velMs = typeof ac.gs === 'number' ? Math.round(ac.gs / 1.94384) : null;
+  const heading = ac.track !== undefined ? ac.track : (ac.true_heading || 0);
+
+  return {
+    icao: (ac.hex || '').toLowerCase(),
+    callsign: (ac.flight || '').trim() || (ac.hex || '???').toUpperCase(),
+    country: ac.r ? ('Reg: ' + ac.r) : 'Unknown',
+    lat: ac.lat,
+    lon: ac.lon,
+    altFt,
+    altM,
+    onGround: ac.alt_baro === 'ground' || ac.ground === 1,
+    speedKts,
+    velMs,
+    heading,
+    aircraftModel: ac.t || null,
+    registration: ac.r || null,
+    squawk: ac.squawk || null
+  };
+}
+
+// Normalizer: Convert OpenSky state array to standard flight format
+function normalizeOpenSkyFlight(s) {
+  const altM = s[OPENSKY_FIELDS.BARO_ALT];
+  const velMs = s[OPENSKY_FIELDS.VELOCITY];
+  const altFt = altM !== null ? Math.round(altM * 3.28084) : null;
+  const speedKts = velMs !== null ? Math.round(velMs * 1.94384) : null;
+
+  return {
+    icao: (s[OPENSKY_FIELDS.ICAO24] || '').toLowerCase(),
+    callsign: (s[OPENSKY_FIELDS.CALLSIGN] || '').trim() || (s[OPENSKY_FIELDS.ICAO24] || '???').toUpperCase(),
+    country: s[OPENSKY_FIELDS.ORIGIN_COUNTRY] || 'Unknown',
+    lat: s[OPENSKY_FIELDS.LAT],
+    lon: s[OPENSKY_FIELDS.LON],
+    altFt,
+    altM,
+    onGround: !!s[OPENSKY_FIELDS.ON_GROUND],
+    speedKts,
+    velMs,
+    heading: s[OPENSKY_FIELDS.HEADING] || 0,
+    aircraftModel: null,
+    registration: null,
+    squawk: s[OPENSKY_FIELDS.SQUAWK] || null
+  };
+}
+
 async function fetchAdsbData(isManual = false) {
   // Reset countdown display
   adsbCountdownSeconds = 12;
   updateAdsbCountdown();
 
   const errorOverlay = document.getElementById('adsb-error-overlay');
+  const errorTitle = document.getElementById('adsb-error-title');
+  const errorMsg = document.getElementById('adsb-error-msg');
   if (errorOverlay) errorOverlay.classList.add('hidden');
 
+  const providerName = currentAdsbProvider === 'adsb_lol' ? 'adsb.lol' : 'OpenSky Network';
+
   try {
-    const response = await fetch(OPENSKY_URL, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(10000) // 10s timeout
-    });
+    let normalized = [];
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (currentAdsbProvider === 'adsb_lol') {
+      const response = await fetch(ADSBLOL_URL, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(9000)
+      });
 
-    const data = await response.json();
-    const states = data.states || [];
+      if (!response.ok) {
+        throw new Error(`adsb.lol HTTP ${response.status}`);
+      }
 
-    // Filter out entries with no position
-    adsbFlightData = states.filter(s => s[OPENSKY_FIELDS.LAT] !== null && s[OPENSKY_FIELDS.LON] !== null);
+      const data = await response.json();
+      const aircraft = data.ac || [];
+      normalized = aircraft
+        .filter(ac => ac.lat !== undefined && ac.lat !== null && ac.lon !== undefined && ac.lon !== null)
+        .map(normalizeAdsbLolFlight);
+
+    } else {
+      const response = await fetch(OPENSKY_URL, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(9000)
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenSky HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const states = data.states || [];
+      normalized = states
+        .filter(s => s[OPENSKY_FIELDS.LAT] !== null && s[OPENSKY_FIELDS.LON] !== null)
+        .map(normalizeOpenSkyFlight);
+    }
+
+    adsbFlightData = normalized;
 
     renderAdsbFlightList(adsbFlightData);
     renderAdsbMapMarkers(adsbFlightData);
     updateAdsbHeaderCounts(adsbFlightData);
     checkAdsbKkopConflicts(adsbFlightData);
 
-    if (isManual) showToast(`ADS-B data refreshed — ${adsbFlightData.length} aircraft in Sumatra airspace`, 'success');
+    if (isManual) {
+      showToast(`Refreshed via ${providerName} — ${adsbFlightData.length} aircraft tracked in Sumatra airspace`, 'success');
+    }
 
   } catch (err) {
-    console.error('OpenSky fetch failed:', err);
-    if (errorOverlay) errorOverlay.classList.remove('hidden');
-    if (isManual) showToast('Failed to reach OpenSky Network. Check your connection.', 'error');
+    console.error(`ADS-B fetch failed for ${providerName}:`, err);
+    if (errorOverlay) {
+      if (errorTitle) errorTitle.textContent = `${providerName} Unreachable`;
+      if (errorMsg) errorMsg.textContent = `Unable to fetch live traffic. Try switching provider above or check your network.`;
+      errorOverlay.classList.remove('hidden');
+    }
+    if (isManual) {
+      showToast(`Failed to reach ${providerName}. Try switching provider.`, 'error');
+    }
   }
 }
 
@@ -6314,8 +6478,8 @@ function updateAdsbCountdown() {
 }
 
 function updateAdsbHeaderCounts(flights) {
-  const airborne = flights.filter(f => !f[OPENSKY_FIELDS.ON_GROUND]).length;
-  const ground = flights.filter(f => f[OPENSKY_FIELDS.ON_GROUND]).length;
+  const airborne = flights.filter(f => !f.onGround).length;
+  const ground = flights.filter(f => f.onGround).length;
 
   const elAir = document.getElementById('adsb-count-airborne');
   const elGnd = document.getElementById('adsb-count-ground');
@@ -6329,8 +6493,8 @@ function renderAdsbFlightList(flights) {
 
   const filtered = adsbSearchQuery
     ? flights.filter(f => {
-      const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').toLowerCase();
-      const icao = (f[OPENSKY_FIELDS.ICAO24] || '').toLowerCase();
+      const callsign = (f.callsign || '').toLowerCase();
+      const icao = (f.icao || '').toLowerCase();
       return callsign.includes(adsbSearchQuery) || icao.includes(adsbSearchQuery);
     })
     : flights;
@@ -6338,7 +6502,7 @@ function renderAdsbFlightList(flights) {
   if (filtered.length === 0) {
     listEl.innerHTML = `
       <div class="flex flex-col items-center justify-center h-32 text-gray-400 text-center gap-2">
-        <svg class="w-8 h-8 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <svg class="w-8 h-8 text-gray-200 dark:text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         <p class="text-xs font-semibold">No aircraft match your search.</p>
       </div>`;
     return;
@@ -6346,52 +6510,49 @@ function renderAdsbFlightList(flights) {
 
   // Sort: airborne first, then by altitude desc
   const sorted = [...filtered].sort((a, b) => {
-    if (a[OPENSKY_FIELDS.ON_GROUND] !== b[OPENSKY_FIELDS.ON_GROUND]) {
-      return a[OPENSKY_FIELDS.ON_GROUND] ? 1 : -1;
+    if (a.onGround !== b.onGround) {
+      return a.onGround ? 1 : -1;
     }
-    return (b[OPENSKY_FIELDS.BARO_ALT] || 0) - (a[OPENSKY_FIELDS.BARO_ALT] || 0);
+    return (b.altFt || 0) - (a.altFt || 0);
   });
 
   listEl.innerHTML = sorted.map(f => {
-    const icao = f[OPENSKY_FIELDS.ICAO24] || '???';
-    const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').trim() || icao.toUpperCase();
-    const country = f[OPENSKY_FIELDS.ORIGIN_COUNTRY] || 'Unknown';
-    const onGround = f[OPENSKY_FIELDS.ON_GROUND];
-    const altM = f[OPENSKY_FIELDS.BARO_ALT];
-    const altFt = altM !== null ? Math.round(altM * 3.28084) : null;
-    const velMs = f[OPENSKY_FIELDS.VELOCITY];
-    const speedKts = velMs !== null ? Math.round(velMs * 1.94384) : null;
-    const heading = f[OPENSKY_FIELDS.HEADING];
+    const icao = f.icao || '???';
+    const callsign = f.callsign || icao.toUpperCase();
+    const heading = f.heading || 0;
     const isConflict = checkSingleFlightKkop(f);
-    const isSelected = icao === adsbSelectedIcao;
+    const isSelected = icao.toLowerCase() === (adsbSelectedIcao || '').toLowerCase();
 
     const statusColor = isConflict
-      ? 'border-red-200 bg-red-50'
-      : onGround
-        ? 'border-black/[0.04] bg-white'
-        : 'border-sky-100 bg-white';
+      ? 'border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20'
+      : f.onGround
+        ? 'border-black/[0.06] dark:border-white/10 bg-white dark:bg-[#18181b]'
+        : 'border-sky-200 dark:border-sky-900/40 bg-white dark:bg-[#18181b]';
 
-    const iconColor = isConflict ? '#ef4444' : onGround ? '#9ca3af' : '#0ea5e9';
-    const selectedBorder = isSelected ? 'ring-2 ring-sky-400' : '';
+    const iconColor = isConflict ? '#ef4444' : f.onGround ? '#9ca3af' : '#0284c7';
+    const selectedBorder = isSelected ? 'ring-1 ring-sky-500 shadow-sm' : '';
 
     return `
-      <div class="adsb-flight-card p-2.5 rounded-xl border ${statusColor} ${selectedBorder} cursor-pointer hover:shadow-sm transition-all text-xs"
+      <div class="adsb-flight-card p-2.5 rounded-xl border ${statusColor} ${selectedBorder} cursor-pointer hover:shadow-xs transition-all text-xs"
            data-icao="${icao}" onclick="selectAdsbFlight('${icao}')"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1.5">
-            <span style="color:${iconColor};transform:rotate(${heading || 0}deg);display:inline-block;font-size:14px;line-height:1;">✈</span>
-            <span class="font-extrabold text-[#2a2334] tracking-tight">${callsign}</span>
-            ${isConflict ? '<span class="text-[8px] font-extrabold text-red-600 bg-red-100 px-1 py-0.5 rounded uppercase">KKOP</span>' : ''}
+            <span style="color:${iconColor};transform:rotate(${heading}deg);display:inline-flex;line-height:1;">
+              <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+            </span>
+            <span class="font-extrabold text-gray-900 dark:text-zinc-100 tracking-tight">${callsign}</span>
+            ${f.aircraftModel ? `<span class="text-[9px] font-bold text-gray-400 dark:text-zinc-500 px-1 bg-black/5 dark:bg-white/5 rounded">${f.aircraftModel}</span>` : ''}
+            ${isConflict ? '<span class="text-[8px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950 px-1 py-0.5 rounded uppercase">KKOP</span>' : ''}
           </div>
-          <span class="text-[9px] font-bold text-gray-400 uppercase">${onGround ? 'Ground' : 'Airborne'}</span>
+          <span class="text-[8px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">${f.onGround ? 'Ground' : 'Airborne'}</span>
         </div>
-        <div class="mt-1.5 flex items-center gap-3 text-[10px] text-gray-500 font-semibold">
-          <span>${altFt !== null ? altFt.toLocaleString() + ' ft' : 'Alt N/A'}</span>
-          <span>${speedKts !== null ? speedKts + ' kts' : ''}</span>
-          <span class="ml-auto text-[9px] text-gray-300 font-mono">${icao.toUpperCase()}</span>
+        <div class="mt-1.5 flex items-center gap-3 text-[10px] text-gray-600 dark:text-zinc-400 font-semibold font-mono-tabular">
+          <span>${f.altFt !== null ? f.altFt.toLocaleString() + ' ft' : 'Alt N/A'}</span>
+          <span>${f.speedKts !== null ? f.speedKts + ' kts' : ''}</span>
+          <span class="ml-auto text-[9px] text-gray-400 dark:text-zinc-500 font-mono">${icao.toUpperCase()}</span>
         </div>
-        <div class="mt-0.5 text-[9px] text-gray-300 font-semibold">${country}</div>
+        <div class="mt-0.5 text-[9px] text-gray-400 dark:text-zinc-500 font-medium">${f.country}</div>
       </div>`;
   }).join('');
 }
@@ -6441,16 +6602,16 @@ async function fetchFlightDetails(icao, callsign) {
       fetchPromises.push(Promise.resolve(null));
     }
 
-    const [aircraftResult, routeResult] = await Promise.all(fetchPromises);
+    const [aircraftData, routeData] = await Promise.all(fetchPromises);
 
     adsbFlightDetailsCache[cacheKey] = {
       loading: false,
-      aircraft: aircraftResult,
-      route: routeResult,
-      error: !aircraftResult && !routeResult
+      aircraft: aircraftData || null,
+      route: routeData || null,
+      error: !aircraftData && !routeData
     };
   } catch (err) {
-    console.error(`Error fetching flight details for ${icao}:`, err);
+    console.error(`Failed to fetch flight details for ${icao}:`, err);
     adsbFlightDetailsCache[cacheKey] = {
       loading: false,
       aircraft: null,
@@ -6463,12 +6624,10 @@ async function fetchFlightDetails(icao, callsign) {
 }
 
 function getFlightPopupHtml(icao, callsign, flight, cachedDetails) {
-  const onGround = flight ? flight[OPENSKY_FIELDS.ON_GROUND] : false;
-  const altM = flight ? flight[OPENSKY_FIELDS.BARO_ALT] : null;
-  const altFt = altM !== null ? Math.round(altM * 3.28084) : null;
-  const velMs = flight ? flight[OPENSKY_FIELDS.VELOCITY] : null;
-  const speedKts = velMs !== null ? Math.round(velMs * 1.94384) : null;
-  const heading = flight ? flight[OPENSKY_FIELDS.HEADING] : null;
+  const onGround = flight ? flight.onGround : false;
+  const altFt = flight ? flight.altFt : null;
+  const speedKts = flight ? flight.speedKts : null;
+  const heading = flight ? flight.heading : null;
   const isConflict = flight ? checkSingleFlightKkop(flight) : false;
 
   let detailsHtml = '';
@@ -6476,16 +6635,17 @@ function getFlightPopupHtml(icao, callsign, flight, cachedDetails) {
   if (cachedDetails) {
     if (cachedDetails.loading) {
       detailsHtml = `
-        <div class="pt-1.5 border-t border-black/5 flex items-center justify-center gap-1.5 text-[10px] text-gray-500 py-1">
-          <span class="animate-spin text-sky-500">⌛</span> Loading details...
+        <div class="pt-1.5 border-t border-black/5 dark:border-white/10 flex items-center justify-center gap-1.5 text-[10px] text-gray-500 py-1">
+          <svg class="w-3.5 h-3.5 animate-spin text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+          Loading details...
         </div>`;
     } else {
       const a = cachedDetails.aircraft;
       const r = cachedDetails.route;
 
-      const aircraftModel = (a && a.model) ? a.model : null;
+      const aircraftModel = (a && a.model) ? a.model : (flight && flight.aircraftModel ? flight.aircraftModel : null);
       const typeCode = (a && a.typecode) ? a.typecode : null;
-      const registration = (a && a.registration) ? a.registration : null;
+      const registration = (a && a.registration) ? a.registration : (flight && flight.registration ? flight.registration : null);
       const operator = (a && a.operator) ? a.operator : null;
 
       let routeStr = null;
@@ -6493,47 +6653,57 @@ function getFlightPopupHtml(icao, callsign, flight, cachedDetails) {
       if (r && r.from && r.to) {
         const fromCode = r.from.iata || r.from.icao || 'N/A';
         const toCode = r.to.iata || r.to.icao || 'N/A';
-        routeStr = `${fromCode} ✈ ${toCode}`;
+        routeStr = `${fromCode} &rarr; ${toCode}`;
         routeTitle = `title="${r.from.name || r.from.location || ''} to ${r.to.name || r.to.location || ''}"`;
       }
 
       detailsHtml = `
-        <div class="pt-1.5 border-t border-black/5 space-y-1 text-[10px]">
-          ${operator ? `<div class="flex justify-between gap-2"><span class="text-gray-400 font-medium">Operator</span><span class="font-bold text-gray-700 truncate max-w-[110px]" title="${operator}">${operator}</span></div>` : ''}
-          ${aircraftModel ? `<div class="flex justify-between gap-2"><span class="text-gray-400 font-medium">Aircraft</span><span class="font-bold text-gray-700 truncate max-w-[110px]" title="${aircraftModel}${typeCode ? ` (${typeCode})` : ''}">${aircraftModel}</span></div>` : ''}
-          ${registration ? `<div class="flex justify-between"><span class="text-gray-400 font-medium">Reg Code</span><span class="font-bold text-gray-700 font-mono">${registration}</span></div>` : ''}
-          ${routeStr ? `<div class="flex justify-between" ${routeTitle}><span class="text-gray-400 font-medium">Route</span><span class="font-bold text-sky-600">${routeStr}</span></div>` : ''}
+        <div class="pt-1.5 border-t border-black/5 dark:border-white/10 space-y-1 text-[10px]">
+          ${operator ? `<div class="flex justify-between gap-2"><span class="text-gray-400 font-medium">Operator</span><span class="font-bold text-gray-700 dark:text-zinc-200 truncate max-w-[110px]" title="${operator}">${operator}</span></div>` : ''}
+          ${aircraftModel ? `<div class="flex justify-between gap-2"><span class="text-gray-400 font-medium">Aircraft</span><span class="font-bold text-gray-700 dark:text-zinc-200 truncate max-w-[110px]" title="${aircraftModel}${typeCode ? ` (${typeCode})` : ''}">${aircraftModel}</span></div>` : ''}
+          ${registration ? `<div class="flex justify-between"><span class="text-gray-400 font-medium">Reg Code</span><span class="font-bold text-gray-700 dark:text-zinc-200 font-mono">${registration}</span></div>` : ''}
+          ${routeStr ? `<div class="flex justify-between" ${routeTitle}><span class="text-gray-400 font-medium">Route</span><span class="font-bold text-sky-600 dark:text-sky-400">${routeStr}</span></div>` : ''}
           ${(!operator && !aircraftModel && !registration && !routeStr) ? `<div class="text-[9px] text-gray-400 italic text-center py-0.5">No additional aircraft data found</div>` : ''}
         </div>`;
     }
   } else {
-    detailsHtml = `
-      <div class="pt-1.5 border-t border-black/5 text-[9px] text-gray-400 text-center italic py-0.5">
-        Click marker to load flight details
-      </div>`;
+    // If flight object already has model/reg from adsb.lol, show them immediately
+    if (flight && (flight.aircraftModel || flight.registration)) {
+      detailsHtml = `
+        <div class="pt-1.5 border-t border-black/5 dark:border-white/10 space-y-1 text-[10px]">
+          ${flight.aircraftModel ? `<div class="flex justify-between gap-2"><span class="text-gray-400 font-medium">Type</span><span class="font-bold text-gray-700 dark:text-zinc-200 font-mono">${flight.aircraftModel}</span></div>` : ''}
+          ${flight.registration ? `<div class="flex justify-between gap-2"><span class="text-gray-400 font-medium">Reg</span><span class="font-bold text-gray-700 dark:text-zinc-200 font-mono">${flight.registration}</span></div>` : ''}
+          <div class="text-[9px] text-gray-400 text-center italic py-0.5">Click to query route info</div>
+        </div>`;
+    } else {
+      detailsHtml = `
+        <div class="pt-1.5 border-t border-black/5 dark:border-white/10 text-[9px] text-gray-400 text-center italic py-0.5">
+          Click marker to load flight details
+        </div>`;
+    }
   }
 
   return `
     <div class="text-xs space-y-1" style="min-width:180px">
       <div class="flex justify-between items-center pb-0.5">
-        <span class="font-extrabold text-[#2a2334] text-sm tracking-tight">${callsign}</span>
+        <span class="font-extrabold text-[#2a2334] dark:text-zinc-100 text-sm tracking-tight">${callsign}</span>
         <span class="font-mono text-gray-400 text-[10px]">${icao.toUpperCase()}</span>
       </div>
-      <div class="flex justify-between pt-0.5 border-t border-black/5">
-        <span class="text-gray-500">Status</span>
-        <span class="font-bold ${onGround ? 'text-gray-500' : 'text-sky-600'}">${onGround ? 'On Ground' : 'Airborne'}</span>
+      <div class="flex justify-between pt-0.5 border-t border-black/5 dark:border-white/10">
+        <span class="text-gray-500 dark:text-zinc-400">Status</span>
+        <span class="font-bold ${onGround ? 'text-gray-500' : 'text-sky-600 dark:text-sky-400'}">${onGround ? 'On Ground' : 'Airborne'}</span>
       </div>
-      ${altFt !== null ? `<div class="flex justify-between"><span class="text-gray-500">Altitude</span><span class="font-bold">${altFt.toLocaleString()} ft</span></div>` : ''}
-      ${speedKts !== null ? `<div class="flex justify-between"><span class="text-gray-500">Speed</span><span class="font-bold">${speedKts} kts</span></div>` : ''}
-      ${heading ? `<div class="flex justify-between"><span class="text-gray-500">Heading</span><span class="font-bold">${Math.round(heading)}°</span></div>` : ''}
-      ${isConflict ? '<div class="mt-1 text-[10px] font-bold text-red-600 bg-red-50 rounded px-1.5 py-0.5">⚠ KKOP Proximity Alert</div>' : ''}
+      ${altFt !== null ? `<div class="flex justify-between"><span class="text-gray-500 dark:text-zinc-400">Altitude</span><span class="font-bold text-gray-800 dark:text-zinc-200">${altFt.toLocaleString()} ft</span></div>` : ''}
+      ${speedKts !== null ? `<div class="flex justify-between"><span class="text-gray-500 dark:text-zinc-400">Speed</span><span class="font-bold text-gray-800 dark:text-zinc-200">${speedKts} kts</span></div>` : ''}
+      ${heading ? `<div class="flex justify-between"><span class="text-gray-500 dark:text-zinc-400">Heading</span><span class="font-bold text-gray-800 dark:text-zinc-200">${Math.round(heading)}°</span></div>` : ''}
+      ${isConflict ? '<div class="mt-1 text-[10px] font-bold text-red-600 bg-red-50 dark:bg-red-950/40 rounded px-1.5 py-0.5 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> KKOP Proximity Alert</div>' : ''}
       ${detailsHtml}
     </div>`;
 }
 
 function renderAdsbMapMarkers(flights) {
   // Remove stale markers (ICAOs no longer in feed)
-  const currentIcaos = new Set(flights.map(f => f[OPENSKY_FIELDS.ICAO24]));
+  const currentIcaos = new Set(flights.map(f => f.icao));
   for (const [icao, marker] of Object.entries(adsbMarkers)) {
     if (!currentIcaos.has(icao)) {
       if (adsbMap && adsbMap.hasLayer(marker)) adsbMap.removeLayer(marker);
@@ -6543,19 +6713,19 @@ function renderAdsbMapMarkers(flights) {
   }
 
   flights.forEach(f => {
-    const icao = f[OPENSKY_FIELDS.ICAO24];
-    const lat = f[OPENSKY_FIELDS.LAT];
-    const lon = f[OPENSKY_FIELDS.LON];
-    const onGround = f[OPENSKY_FIELDS.ON_GROUND];
-    const heading = f[OPENSKY_FIELDS.HEADING] || 0;
-    const callsign = (f[OPENSKY_FIELDS.CALLSIGN] || '').trim() || icao.toUpperCase();
+    const icao = f.icao;
+    const lat = f.lat;
+    const lon = f.lon;
+    const onGround = f.onGround;
+    const heading = f.heading || 0;
+    const callsign = f.callsign || icao.toUpperCase();
     const isConflict = checkSingleFlightKkop(f);
 
     const color = isConflict ? '#ef4444' : onGround ? '#9ca3af' : '#0ea5e9';
     const size = onGround ? 16 : 20;
 
     const icon = L.divIcon({
-      html: `<div style="color:${color};font-size:${size}px;transform:rotate(${heading}deg);line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2));" title="${callsign}">✈</div>`,
+      html: `<div style="color:${color};width:${size}px;height:${size}px;transform:rotate(${heading}deg);line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.25));" title="${callsign}"><svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></div>`,
       className: 'adsb-plane-icon',
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2]
@@ -6591,7 +6761,7 @@ function renderAdsbMapMarkers(flights) {
       marker.on('popupopen', async () => {
         const cached = adsbFlightDetailsCache[cacheKey];
         if (!cached || cached.error) {
-          const currentFlight = adsbFlightData.find(fl => fl[OPENSKY_FIELDS.ICAO24] === icao) || f;
+          const currentFlight = adsbFlightData.find(fl => fl.icao === icao) || f;
 
           // Start the fetch (sets cache to loading state synchronously)
           const fetchPromise = fetchFlightDetails(icao, callsign);
@@ -6624,9 +6794,9 @@ function renderAdsbMapMarkers(flights) {
 }
 
 function checkSingleFlightKkop(flight) {
-  const lat = flight[OPENSKY_FIELDS.LAT];
-  const lon = flight[OPENSKY_FIELDS.LON];
-  if (lat === null || lon === null) return false;
+  const lat = flight.lat;
+  const lon = flight.lon;
+  if (lat === null || lon === null || lat === undefined || lon === undefined) return false;
 
   for (const airport of REGION_AIRPORTS) {
     const inside = isPointInCircle([lat, lon], [airport.lat, airport.lng], 5000);
@@ -6648,7 +6818,7 @@ function checkAdsbKkopConflicts(flights) {
   if (conflictCount > 0 && banner && bannerText) {
     const names = conflictingFlights
       .slice(0, 3)
-      .map(f => ((f[OPENSKY_FIELDS.CALLSIGN] || '').trim() || f[OPENSKY_FIELDS.ICAO24].toUpperCase()))
+      .map(f => f.callsign || f.icao.toUpperCase())
       .join(', ');
     bannerText.textContent = `${names}${conflictCount > 3 ? ` +${conflictCount - 3} more` : ''} within 5km KKOP zones.`;
     banner.classList.remove('hidden');
@@ -6661,18 +6831,18 @@ window.selectAdsbFlight = function (icao) {
   adsbSelectedIcao = icao;
 
   // Pan map to aircraft (dynamic based on which map shows the marker)
-  const flight = adsbFlightData.find(f => f[OPENSKY_FIELDS.ICAO24] === icao);
+  const flight = adsbFlightData.find(f => f.icao.toLowerCase() === (icao || '').toLowerCase());
   if (flight) {
-    const lat = flight[OPENSKY_FIELDS.LAT];
-    const lon = flight[OPENSKY_FIELDS.LON];
-    if (lat !== null && lon !== null) {
+    const lat = flight.lat;
+    const lon = flight.lon;
+    if (lat !== null && lon !== null && lat !== undefined && lon !== undefined) {
       if (isAdsbModalOpen && adsbMap) {
         adsbMap.setView([lat, lon], 10, { animate: true, duration: 0.8 });
-        if (adsbMarkers[icao]) adsbMarkers[icao].openPopup();
+        if (adsbMarkers[flight.icao]) adsbMarkers[flight.icao].openPopup();
       }
       if (isAdsbOnMainMap && map) {
         map.setView([lat, lon], 10, { animate: true, duration: 0.8 });
-        if (adsbMarkers[icao]) adsbMarkers[icao].openPopup();
+        if (adsbMarkers[flight.icao]) adsbMarkers[flight.icao].openPopup();
       }
     }
   }
@@ -6682,7 +6852,6 @@ window.selectAdsbFlight = function (icao) {
 };
 
 
-// ============================================================================
 // ULG FLIGHT LOG CONVERTER
 // ============================================================================
 let ulgCurrentFilePath = null;
