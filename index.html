@@ -131,7 +131,12 @@
           <img src="Logo/logo drone new.png" alt="PUTA Logo" class="w-full h-full object-cover">
         </div>
         <span class="text-sm font-bold text-[#2a2334] tracking-tight">PUTA-Monitor</span>
-        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">v1.6.0 (Stable)</span>
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">v1.6.0</span>
+        <!-- Interactive Check Update Button -->
+        <button id="btn-check-update" onclick="checkAppUpdates(true)" class="flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 border border-black/5 hover:border-emerald-200 px-2 py-0.5 rounded-full transition-all active:scale-95" title="Check GitHub for newer releases & changelogs">
+          <svg id="icon-update-spin" class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span id="text-check-update">Check Update</span>
+        </button>
       </div>
       <div class="text-[10px] font-bold text-[#b45309] uppercase tracking-widest hidden md:block">
         Kantor Otoritas Bandar Udara Wilayah VI Padang
@@ -1538,9 +1543,15 @@
                   <span class="text-gray-400 font-bold block text-[9px] uppercase">Organization</span>
                   <span class="text-gray-800 font-semibold">OTBAN Wilayah VI Padang</span>
                 </div>
-                <div class="border-b border-black/[0.04] pb-1.5">
-                  <span class="text-gray-400 font-bold block text-[9px] uppercase">Application Version</span>
-                  <span class="text-gray-800 font-semibold">v1.6.0 (Stable Release)</span>
+                <div class="border-b border-black/[0.04] pb-1.5 flex items-center justify-between">
+                  <div>
+                    <span class="text-gray-400 font-bold block text-[9px] uppercase">Application Version</span>
+                    <span class="text-gray-800 font-semibold">v1.6.0 (Stable Release)</span>
+                  </div>
+                  <button type="button" onclick="checkAppUpdates(true)" class="px-2.5 py-1 text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-all active:scale-95 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Check for Updates
+                  </button>
                 </div>
                 <div class="border-b border-black/[0.04] pb-1.5">
                   <span class="text-gray-400 font-bold block text-[9px] uppercase">Operation Base</span>
@@ -2001,6 +2012,55 @@
   </div>
 
   <!-- Main Dashboard App -->
+
+  
+  <!-- App Update & Changelog Modal Dialog -->
+  <div id="update-modal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 transition-all opacity-0">
+    <div class="bg-white dark:bg-[#18181b] rounded-3xl shadow-2xl border border-black/[0.06] dark:border-white/10 w-full max-w-lg overflow-hidden flex flex-col scale-95 transition-all">
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between bg-slate-50 dark:bg-zinc-900">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center border border-emerald-500/20">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          </div>
+          <div>
+            <h3 id="update-modal-title" class="text-sm font-extrabold text-gray-900 dark:text-zinc-100">Check for Updates</h3>
+            <p id="update-modal-subtitle" class="text-[10px] text-gray-400 font-medium">OTBAN Wilayah VI PUTA Airspace System</p>
+          </div>
+        </div>
+        <button onclick="closeUpdateModal()" class="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Body / Changelog -->
+      <div class="p-6 space-y-4 max-h-[50vh] overflow-y-auto">
+        <div id="update-status-badge-container" class="flex items-center justify-between">
+          <span class="text-xs font-bold text-gray-500">Current Installed: <strong class="text-gray-800 dark:text-zinc-100 font-mono">v1.6.0</strong></span>
+          <span id="update-latest-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">Checking...</span>
+        </div>
+
+        <div id="update-message-box" class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-xs text-gray-600 dark:text-zinc-300 leading-relaxed font-medium">
+          Connecting to GitHub Releases repository...
+        </div>
+
+        <div id="update-changelog-container" class="space-y-2 hidden">
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">What's New / Changelog</span>
+          <div id="update-changelog-body" class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-black/5 dark:border-white/10 text-xs text-gray-700 dark:text-zinc-200 font-mono whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <!-- Footer Action -->
+      <div class="px-6 py-4 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-end gap-2 bg-slate-50 dark:bg-zinc-900">
+        <button onclick="closeUpdateModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-black/5 dark:hover:bg-white/5 transition-all">Close</button>
+        <a id="update-download-link" href="https://github.com/luke231204/PUTA-Drone_Project/releases" target="_blank" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white transition-all shadow-xs flex items-center gap-1.5 hidden">
+          <span>Download Update</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Leaflet JS (restored for main dashboard) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

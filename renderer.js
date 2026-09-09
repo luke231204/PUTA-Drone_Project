@@ -8254,6 +8254,154 @@ async function exportUlgChartImage(format = 'png') {
 window.exportUlgChartImage = exportUlgChartImage;
 
 
+
+// ============================================================
+// IN-APP VERSION CHECKER & CHANGELOG VIEWER (GitHub API)
+// ============================================================
+const CURRENT_APP_VERSION = '1.6.0';
+const GITHUB_REPO = 'luke231204/PUTA-Drone_Project';
+
+function openUpdateModal() {
+  const modal = document.getElementById('update-modal');
+  if (!modal) return;
+  const box = modal.querySelector('div');
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.remove('opacity-0');
+    if (box) box.classList.remove('scale-95');
+  }, 10);
+}
+
+function closeUpdateModal() {
+  const modal = document.getElementById('update-modal');
+  if (!modal) return;
+  const box = modal.querySelector('div');
+  modal.classList.add('opacity-0');
+  if (box) box.classList.add('scale-95');
+  setTimeout(() => {
+    modal.classList.add('hidden');
+  }, 200);
+}
+
+// Compare semantic versions (returns > 0 if vA > vB, < 0 if vA < vB, 0 if equal)
+function compareSemVer(vA, vB) {
+  const cleanA = (vA || '').replace(/^v/i, '').split('-')[0].split('.').map(Number);
+  const cleanB = (vB || '').replace(/^v/i, '').split('-')[0].split('.').map(Number);
+  for (let i = 0; i < Math.max(cleanA.length, cleanB.length); i++) {
+    const numA = cleanA[i] || 0;
+    const numB = cleanB[i] || 0;
+    if (numA > numB) return 1;
+    if (numA < numB) return -1;
+  }
+  return 0;
+}
+
+async function checkAppUpdates(isManual = false) {
+  const spinIcon = document.getElementById('icon-update-spin');
+  const btnText = document.getElementById('text-check-update');
+  const modal = document.getElementById('update-modal');
+  const msgBox = document.getElementById('update-message-box');
+  const badgeEl = document.getElementById('update-latest-badge');
+  const changelogContainer = document.getElementById('update-changelog-container');
+  const changelogBody = document.getElementById('update-changelog-body');
+  const downloadLink = document.getElementById('update-download-link');
+
+  if (spinIcon) spinIcon.classList.add('animate-spin', 'text-emerald-600');
+  if (btnText) btnText.textContent = 'Checking...';
+
+  if (isManual) {
+    openUpdateModal();
+    if (msgBox) msgBox.innerHTML = 'Connecting to GitHub repository to check for newer releases...';
+    if (badgeEl) {
+      badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600';
+      badgeEl.textContent = 'Checking...';
+    }
+    if (changelogContainer) changelogContainer.classList.add('hidden');
+    if (downloadLink) downloadLink.classList.add('hidden');
+  }
+
+  try {
+    // 1. Query GitHub Releases API
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases`, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+
+    let latestRelease = null;
+    if (res.ok) {
+      const releases = await res.json();
+      if (Array.isArray(releases) && releases.length > 0) {
+        latestRelease = releases[0];
+      }
+    }
+
+    // 2. Fallback to tags if releases array is empty
+    let latestTag = null;
+    if (!latestRelease) {
+      const tagRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/tags`);
+      if (tagRes.ok) {
+        const tags = await tagRes.json();
+        if (Array.isArray(tags) && tags.length > 0) {
+          latestTag = tags[0].name;
+        }
+      }
+    }
+
+    const latestVersion = latestRelease ? latestRelease.tag_name : (latestTag || `v${CURRENT_APP_VERSION}`);
+    const isNewer = compareSemVer(latestVersion, CURRENT_APP_VERSION) > 0;
+
+    if (isNewer) {
+      // NEW UPDATE AVAILABLE
+      if (badgeEl) {
+        badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200';
+        badgeEl.textContent = `New: ${latestVersion}`;
+      }
+      if (msgBox) {
+        msgBox.innerHTML = `<span class="text-rose-600 font-bold">New Version Available!</span><br/>Version <strong>${latestVersion}</strong> is now available for download. Your current installation is <strong>v${CURRENT_APP_VERSION}</strong>.`;
+      }
+      if (latestRelease && latestRelease.body) {
+        if (changelogContainer) changelogContainer.classList.remove('hidden');
+        if (changelogBody) changelogBody.textContent = latestRelease.body;
+      }
+      if (downloadLink) {
+        downloadLink.classList.remove('hidden');
+        downloadLink.href = latestRelease ? latestRelease.html_url : `https://github.com/${GITHUB_REPO}/releases`;
+      }
+      showToast(`Update available: ${latestVersion}`, 'info');
+    } else {
+      // UP TO DATE
+      if (badgeEl) {
+        badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+        badgeEl.textContent = `Up to Date (v${CURRENT_APP_VERSION})`;
+      }
+      if (msgBox) {
+        msgBox.innerHTML = `<span class="text-emerald-600 font-bold">You are on the latest version!</span><br/>PUTA-Monitor <strong>v${CURRENT_APP_VERSION}</strong> is completely up-to-date with the official OTBAN Wilayah VI release channel.`;
+      }
+      if (changelogContainer) changelogContainer.classList.add('hidden');
+      if (downloadLink) downloadLink.classList.add('hidden');
+      if (isManual) {
+        showToast('PUTA-Monitor is up to date!', 'success');
+      }
+    }
+  } catch (err) {
+    console.warn('Check update error:', err);
+    if (msgBox) {
+      msgBox.innerHTML = `<span class="text-amber-600 font-bold">Network Offline / Unable to Connect</span><br/>Could not verify latest release from GitHub. Please check your internet connection.`;
+    }
+    if (badgeEl) {
+      badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700';
+      badgeEl.textContent = 'Offline';
+    }
+  } finally {
+    if (spinIcon) spinIcon.classList.remove('animate-spin', 'text-emerald-600');
+    if (btnText) btnText.textContent = 'Check Update';
+  }
+}
+
+window.checkAppUpdates = checkAppUpdates;
+window.openUpdateModal = openUpdateModal;
+window.closeUpdateModal = closeUpdateModal;
+
+
 // Explicit window bindings for HTML onclick handlers
 window.toggleFlightReplay = toggleFlightReplay;
 window.resetFlightReplay = resetFlightReplay;
