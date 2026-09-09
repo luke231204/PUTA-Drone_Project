@@ -2502,8 +2502,8 @@ function renderInspector() {
         <div class="flex-grow space-y-1">
           <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Vertical Ceiling Limit</div>
           <div class="text-lg font-extrabold text-gray-800 dark:text-white">${permit.max_altitude_ft} <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">ft (AGL)</span></div>
-          <div class="text-[10px] text-gray-500 dark:text-gray-400 leading-normal font-medium">
-            Representing <span id="radial-percent-desc" class="font-bold text-[var(--blue)]">0%</span> of standard 400ft Indonesian regulatory limit.
+          <div id="radial-desc-container" class="text-[10px] text-gray-500 dark:text-gray-400 leading-normal font-medium">
+            <span id="radial-percent-desc"></span>
           </div>
         </div>
       </div>
@@ -3013,9 +3013,8 @@ function renderInspector() {
   });
 
   // Update the circular progress gauge
-  const altPercentage = Math.min((permit.max_altitude_ft / 400) * 100, 100);
   setTimeout(() => {
-    updateRadialProgress(altPercentage);
+    updateRadialProgress(permit.max_altitude_ft);
   }, 50);
 
   // Countdown timer clock cycle loop
@@ -7947,21 +7946,40 @@ function ulgOpenExportFolder() {
 }
 
 // Global Sage & Forest radial progress calculator
-function updateRadialProgress(percentage) {
+function updateRadialProgress(altitudeFt) {
   const circle = document.getElementById('radial-fill-bar');
   const valueLabel = document.getElementById('radial-percent-val');
   const descLabel = document.getElementById('radial-percent-desc');
 
   if (!circle || !valueLabel) return;
 
+  const alt = Number(altitudeFt) || 0;
+  const standardLimit = 400; // PM 37 / PM 63 standard ceiling limit in Indonesia
+  const actualRatio = Math.round((alt / standardLimit) * 100);
+
   // Circumference = 2 * PI * Radius (70) ~ 440px
   const circumference = 440;
-  const offset = circumference - (circumference * percentage / 100);
+  // Fill visually caps at 100% (or full ring) when >= standard limit, but percentage text shows actual value
+  const visualPercent = Math.min(Math.max((alt / standardLimit) * 100, 0), 100);
+  const offset = circumference - (circumference * visualPercent / 100);
 
   circle.style.strokeDashoffset = offset;
-  valueLabel.innerText = `${Math.round(percentage)}%`;
-  if (descLabel) {
-    descLabel.innerText = `${Math.round(percentage)}%`;
+
+  if (alt > standardLimit) {
+    // Special high-altitude authorization (e.g. 1000 ft)
+    circle.style.stroke = '#ef4444'; // Red / Warning color for high altitude
+    valueLabel.innerText = `${actualRatio}%`;
+    valueLabel.style.color = '#ef4444';
+    if (descLabel) {
+      descLabel.innerHTML = `<span class="text-amber-600 dark:text-amber-400 font-bold">Special Authorization:</span> Operating at <strong>${alt} ft AGL</strong> (${actualRatio}% of standard 400 ft limit).`;
+    }
+  } else {
+    circle.style.stroke = '';
+    valueLabel.innerText = `${actualRatio}%`;
+    valueLabel.style.color = '';
+    if (descLabel) {
+      descLabel.innerHTML = `Representing <span class="font-bold text-[var(--blue)]">${actualRatio}%</span> of standard 400 ft Indonesian regulatory limit.`;
+    }
   }
 }
 
