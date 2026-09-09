@@ -19,7 +19,7 @@
         "takeoff_lng": 105.165241
       },
       "compliance": {
-        "alt_compliant": false,
+        "alt_compliant": true,
         "speed_compliant": true,
         "geofence_compliant": true,
         "kkop_compliant": true,
@@ -14732,9 +14732,9 @@
         "start_lat": -2.060757989869914,
         "start_lon": 105.16524096619918,
         "compliance": {
-          "ceiling_limit_ft": 400,
+          "ceiling_limit_ft": 1000,
           "max_agl_ft": 998,
-          "ceiling_breach": true,
+          "ceiling_breach": false,
           "speed_limit_knots": 87,
           "max_speed_knots": 47.5,
           "speed_breach": false,

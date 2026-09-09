@@ -46,14 +46,6 @@ function getPermitSorties(permitId) {
 
 async function bootstrapSampleSorties() {
   const sampleKey = '0016/APPROVAL-PUTA/DNP-2026';
-  // If already loaded with high-fidelity points (>= 2000 points in both main track and studioData), keep it
-  if (permitFlightSorties[sampleKey] && permitFlightSorties[sampleKey].length > 0) {
-    const existing = permitFlightSorties[sampleKey][0];
-    if (existing && existing.map_points && existing.map_points.length >= 2000 &&
-        existing.studioData && existing.studioData.map_points && existing.studioData.map_points.length >= 2000) {
-      return;
-    }
-  }
   try {
     const res = await fetch('data/sample_sorties.json');
     if (res.ok) {
@@ -2741,7 +2733,8 @@ function renderInspector() {
       <div class="space-y-3">
         ${sorties.map((s) => {
           const isHighlighted = currentHighlightedSortieId === s.id && !isShowingAllSorties;
-          const altOk = s.compliance ? s.compliance.alt_compliant : true;
+          const ceilingLimit = Number(permit.max_altitude_ft) || 400;
+          const altOk = (s.stats?.max_agl_ft || 0) <= ceilingLimit;
           const geoOk = s.compliance ? s.compliance.geofence_compliant : true;
           const kkopOk = s.compliance ? s.compliance.kkop_compliant : true;
 
@@ -3347,9 +3340,16 @@ function computeSortieAuditSummary(permit) {
   let totalPoints = 0;
   let totalBreachPoints = 0;
 
+  const ceilingLimit = Number(permit.max_altitude_ft) || 400;
+
   sorties.forEach(s => {
+    // Dynamically evaluate altitude compliance against this specific permit's authorized ceiling
+    const sortieMaxAgl = (s.stats && s.stats.max_agl_ft) || 0;
+    const isAltCompliant = sortieMaxAgl <= ceilingLimit;
+
+    if (!isAltCompliant) altBreaches++;
+
     if (s.compliance) {
-      if (!s.compliance.alt_compliant) altBreaches++;
       if (!s.compliance.geofence_compliant) geoBreaches++;
       if (!s.compliance.kkop_compliant) kkopBreaches++;
       if (typeof s.compliance.breach_count === 'number') {
