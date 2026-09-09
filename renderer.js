@@ -2488,12 +2488,12 @@ function renderInspector() {
           </svg>
           <div class="radial-text">
             <span class="radial-percent" id="radial-percent-val">0%</span>
-            <span class="radial-label" id="radial-label-text">${sortieAudit.hasSorties ? 'Adherence' : 'Authorized'}</span>
+            <span class="radial-label" id="radial-label-text">${sortieAudit.hasSorties ? '3D Corridor' : 'Authorized'}</span>
           </div>
         </div>
         <div class="flex-grow space-y-1">
-          <div class="flex items-center justify-between"><div class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">${sortieAudit.hasSorties ? 'Polygon Boundary Adherence' : 'Authorized Flight Corridor'}</div><span class="text-[9px] font-bold text-gray-400">${permit.max_altitude_ft} ft AGL</span></div>
-          <div class="text-base font-extrabold text-gray-800 dark:text-white">${sortieAudit.hasSorties ? `${sortieAudit.adherencePct}% Inside Polygon` : `${permit.max_altitude_ft} ft AGL Limit`}</div>
+          <div class="flex items-center justify-between"><div class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">${sortieAudit.hasSorties ? '3D Airspace Corridor Adherence' : 'Authorized 3D Flight Corridor'}</div><span class="text-[9px] font-bold text-gray-400">${permit.max_altitude_ft} ft AGL</span></div>
+          <div class="text-base font-extrabold text-gray-800 dark:text-white">${sortieAudit.hasSorties ? `${sortieAudit.corridorAdherencePct}% 3D Corridor In-Bounds` : `${permit.max_altitude_ft} ft AGL Limit`}</div>
           <div id="radial-desc-container" class="text-[10px] text-gray-500 dark:text-gray-400 leading-normal font-medium">
             <span id="radial-percent-desc"></span>
           </div>
@@ -3357,6 +3357,7 @@ function getPermitCeilingReference(permit) {
 function computeSortieAuditSummary(permit) {
   const sorties = getPermitSorties(permit.permit_id);
   const ceilingSpec = getPermitCeilingReference(permit);
+  const polygon = permit ? permit.coordinates : null;
 
   if (!sorties || sorties.length === 0) {
     return {
@@ -3369,6 +3370,9 @@ function computeSortieAuditSummary(permit) {
       totalDistanceKm: '0.0',
       totalPoints: 0,
       adherencePct: 100,
+      corridorAdherencePct: 100,
+      geoAdherencePct: 100,
+      altAdherencePct: 100,
       totalBreachPoints: 0,
       ceilingSpec: ceilingSpec
     };
@@ -3377,13 +3381,18 @@ function computeSortieAuditSummary(permit) {
   let altBreaches = 0;
   let geoBreaches = 0;
   let kkopBreaches = 0;
-  let maxAltitudeRecorded = 0; // AMSL if NOTAM is AMSL, else AGL
+  let maxAltitudeRecorded = 0;
   let maxAgl = 0;
   let maxAmsl = 0;
   let totalSec = 0;
   let totalDistKm = 0;
   let totalPoints = 0;
-  let totalBreachPoints = 0;
+
+  // Granular 3D Corridor point tracking
+  let totalTrackPointsEvaluated = 0;
+  let totalPointsInside3DCorridor = 0;
+  let totalPointsInsidePolygon = 0;
+  let totalPointsUnderCeiling = 0;
 
   sorties.forEach(s => {
     const sortieAgl = (s.stats && s.stats.max_agl_ft) || 0;
@@ -3392,7 +3401,7 @@ function computeSortieAuditSummary(permit) {
     if (sortieAgl > maxAgl) maxAgl = sortieAgl;
     if (sortieAmsl > maxAmsl) maxAmsl = sortieAmsl;
 
-    // Evaluate altitude strictly using NOTAM reference (AMSL vs AGL)
+    // Evaluate overall sortie compliance flag
     let isAltCompliant = true;
     if (ceilingSpec.isAmsl) {
       isAltCompliant = sortieAmsl <= ceilingSpec.limit;
@@ -3407,9 +3416,6 @@ function computeSortieAuditSummary(permit) {
     if (s.compliance) {
       if (!s.compliance.geofence_compliant) geoBreaches++;
       if (!s.compliance.kkop_compliant) kkopBreaches++;
-      if (typeof s.compliance.breach_count === 'number') {
-        totalBreachPoints += s.compliance.breach_count;
-      }
     }
     if (s.stats) {
       totalSec += (s.stats.duration_sec || 0);
@@ -3418,6 +3424,31 @@ function computeSortieAuditSummary(permit) {
     if (s.map_points && s.map_points.length > 1) {
       totalDistKm += calculateTrackDistanceKm(s.map_points);
     }
+
+    // High-precision 3D Corridor point-by-point volume evaluation
+    const pts = s.map_points || [];
+    const takeoffElev = (s.studioData && s.studioData.takeoff_amsl_ft) ? s.studioData.takeoff_amsl_ft : 97.6;
+
+    pts.forEach(p => {
+      totalTrackPointsEvaluated++;
+      const lat = p[0];
+      const lng = p[1];
+      const altAgl = p[2] || 0;
+      const altAmsl = altAgl + takeoffElev;
+
+      // 1. Horizontal Polygon Check
+      const inPolygon = (polygon && polygon.length >= 3) ? isPointInPolygon([lat, lng], polygon) : true;
+      if (inPolygon) totalPointsInsidePolygon++;
+
+      // 2. Vertical NOTAM Ceiling Check
+      const underCeiling = ceilingSpec.isAmsl ? (altAmsl <= ceilingSpec.limit) : (altAgl <= ceilingSpec.limit);
+      if (underCeiling) totalPointsUnderCeiling++;
+
+      // 3. 3D Airspace Corridor Adherence (Both Horizontal & Vertical respected)
+      if (inPolygon && underCeiling) {
+        totalPointsInside3DCorridor++;
+      }
+    });
   });
 
   const m = Math.floor(totalSec / 60);
@@ -3426,19 +3457,24 @@ function computeSortieAuditSummary(permit) {
   const remM = m % 60;
   const totalDurationFormatted = h > 0 ? `${h}h ${remM}m` : `${m}m ${s}s`;
 
-  // Calculate percentage of track points that respected the authorized polygon
-  let adherencePct = 100;
-  if (totalPoints > 0) {
-    const insidePoints = Math.max(0, totalPoints - totalBreachPoints);
-    adherencePct = Math.round((insidePoints / totalPoints) * 1000) / 10;
+  // Calculate percentage of 3D Corridor volume compliance
+  let corridorAdherencePct = 100;
+  let geoAdherencePct = 100;
+  let altAdherencePct = 100;
+
+  if (totalTrackPointsEvaluated > 0) {
+    corridorAdherencePct = Math.round((totalPointsInside3DCorridor / totalTrackPointsEvaluated) * 1000) / 10;
+    geoAdherencePct = Math.round((totalPointsInsidePolygon / totalTrackPointsEvaluated) * 1000) / 10;
+    altAdherencePct = Math.round((totalPointsUnderCeiling / totalTrackPointsEvaluated) * 1000) / 10;
   }
 
   const hasBreach = altBreaches > 0 || geoBreaches > 0 || kkopBreaches > 0;
   let details = [];
-  if (geoBreaches > 0) details.push(`${geoBreaches} perimeter breach(es) (${adherencePct}% inside polygon)`);
+  if (geoBreaches > 0) details.push(`${geoBreaches} perimeter breach(es) (${geoAdherencePct}% polygon in-bounds)`);
   if (altBreaches > 0) {
     const recordedVal = Math.round(ceilingSpec.isAmsl ? maxAmsl : maxAgl);
-    details.push(`${altBreaches} ceiling breach(es) (Max: ${recordedVal} ft ${ceilingSpec.datum} > ${ceilingSpec.limit} ft ${ceilingSpec.datum} NOTAM cap)`);
+    const breachPercent = (100 - altAdherencePct).toFixed(1);
+    details.push(`Ceiling breach (Peak: ${recordedVal} ft ${ceilingSpec.datum} > ${ceilingSpec.limit} ft ${ceilingSpec.datum} NOTAM; ${breachPercent}% time above limit)`);
   }
   if (kkopBreaches > 0) details.push(`${kkopBreaches} KKOP buffer breach(es)`);
 
@@ -3449,8 +3485,12 @@ function computeSortieAuditSummary(permit) {
     totalDurationFormatted: totalDurationFormatted,
     totalDistanceKm: totalDistKm.toFixed(1),
     totalPoints: totalPoints,
-    totalBreachPoints: totalBreachPoints,
-    adherencePct: adherencePct,
+    totalTrackPointsEvaluated: totalTrackPointsEvaluated,
+    totalPointsInside3DCorridor: totalPointsInside3DCorridor,
+    adherencePct: corridorAdherencePct, // 3D Corridor Adherence as the primary adherence score
+    corridorAdherencePct: corridorAdherencePct,
+    geoAdherencePct: geoAdherencePct,
+    altAdherencePct: altAdherencePct,
     altBreaches,
     geoBreaches,
     kkopBreaches,
@@ -3465,7 +3505,7 @@ function computeSortieAuditSummary(permit) {
       : 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     summaryText: hasBreach
       ? `Post-flight inspection detected: ${details.join(', ')}.`
-      : `All ${sorties.length} recorded flight sorties complied with boundaries (${adherencePct}% in-bounds) and authorized NOTAM ${ceilingSpec.label}.`
+      : `All ${sorties.length} recorded flight sorties fully complied with 3D airspace corridor (${corridorAdherencePct}% in-bounds) and authorized NOTAM ${ceilingSpec.label}.`
   };
 }
 
@@ -8098,7 +8138,7 @@ function ulgOpenExportFolder() {
 }
 
 // Global Sage & Forest radial progress calculator
-// Dynamic Compliance & Polygon Adherence Radial Progress
+// Dynamic 3D Airspace Corridor Compliance & Adherence Radial Progress
 function updateRadialProgress(permit, sortieAudit) {
   const circle = document.getElementById('radial-fill-bar');
   const valueLabel = document.getElementById('radial-percent-val');
@@ -8109,47 +8149,51 @@ function updateRadialProgress(permit, sortieAudit) {
 
   const circumference = 440; // 2 * PI * 70
 
-  // CASE 1: Telemetry Sortie Log Exists -> Gauge shows exact % of flight inside polygon
+  // CASE 1: Telemetry Sortie Log Exists -> Gauge shows exact 3D Airspace Corridor Adherence (Horizontal Polygon + NOTAM Altitude)
   if (sortieAudit && sortieAudit.hasSorties) {
-    const adherence = Number(sortieAudit.adherencePct) || 100;
+    const adherence = Number(sortieAudit.corridorAdherencePct ?? sortieAudit.adherencePct) || 0;
     const visualPercent = Math.min(Math.max(adherence, 0), 100);
     const offset = circumference - (circumference * visualPercent / 100);
 
     circle.style.strokeDashoffset = offset;
     valueLabel.innerText = `${Math.round(adherence)}%`;
-    if (labelText) labelText.innerText = 'Adherence';
+    if (labelText) labelText.innerText = '3D Corridor';
+
+    const datum = sortieAudit.ceilingSpec?.datum || 'AMSL';
+    const limit = sortieAudit.ceilingSpec?.limit || 1000;
+    const peakAlt = Math.round(sortieAudit.ceilingSpec?.isAmsl ? sortieAudit.maxAmsl : sortieAudit.maxAgl);
 
     if (adherence >= 99) {
       circle.style.stroke = '#10b981'; // Emerald
       valueLabel.style.color = '#10b981';
       if (descLabel) {
-        descLabel.innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-bold">100% Polygon Respected:</span> Drone trajectory fully remained inside the authorized polygon without any perimeter boundary breaches.`;
+        descLabel.innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-bold">100% 3D Corridor Compliant:</span> Drone trajectory fully remained inside the 3D authorized airspace corridor (both horizontal polygon and ${limit} ft ${datum} NOTAM ceiling).`;
       }
-    } else if (adherence >= 90) {
+    } else if (adherence >= 80) {
       circle.style.stroke = '#f59e0b'; // Amber warning
       valueLabel.style.color = '#f59e0b';
       if (descLabel) {
-        descLabel.innerHTML = `<span class="text-amber-600 dark:text-amber-400 font-bold">${adherence}% Inside Polygon:</span> Drone strayed outside authorized boundaries for ${(100 - adherence).toFixed(1)}% of total flight time (${sortieAudit.geoBreaches} breach event).`;
+        descLabel.innerHTML = `<span class="text-amber-600 dark:text-amber-400 font-bold">${adherence}% 3D Corridor Compliance:</span> ${(100 - adherence).toFixed(1)}% of flight breached boundaries (Peak ${peakAlt} ft ${datum} vs ${limit} ft ${datum} NOTAM limit).`;
       }
     } else {
       circle.style.stroke = '#ef4444'; // Red alert
       valueLabel.style.color = '#ef4444';
       if (descLabel) {
-        descLabel.innerHTML = `<span class="text-red-600 dark:text-red-400 font-bold">Significant Geofence Breach:</span> Only ${adherence}% of flight stayed inside the polygon (${(100 - adherence).toFixed(1)}% spent outside boundaries).`;
+        descLabel.innerHTML = `<span class="text-red-600 dark:text-red-400 font-bold">Significant Airspace Breach:</span> Only <strong>${adherence}% of flight was inside the 3D corridor</strong>. ${(100 - adherence).toFixed(1)}% spent penetrating above NOTAM ceiling (Peak ${peakAlt} ft ${datum} vs ${limit} ft ${datum} limit).`;
       }
     }
     return;
   }
 
   // CASE 2: No flight logs uploaded yet -> Default to 100% full authorized corridor spec
-  const alt = Number(permit.max_altitude_ft) || 400;
+  const ceilingSpec = getPermitCeilingReference(permit);
   circle.style.strokeDashoffset = 0; // 100% full ring
   circle.style.stroke = '#10b981';
   valueLabel.innerText = '100%';
   valueLabel.style.color = '#10b981';
   if (labelText) labelText.innerText = 'Authorized';
   if (descLabel) {
-    descLabel.innerHTML = `Authorized corridor up to <strong>${alt} ft AGL</strong>. Attach telemetry flight logs below to audit real-time polygon boundary adherence.`;
+    descLabel.innerHTML = `Authorized 3D flight corridor up to <strong>${ceilingSpec.label}</strong>. Attach telemetry flight logs below to audit real-time 3D corridor adherence.`;
   }
 }
 
