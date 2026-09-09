@@ -2648,9 +2648,11 @@ function renderInspector() {
             </span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-gray-500 font-semibold">Ceiling Compliance:</span>
+            <span class="text-gray-500 font-semibold">NOTAM Ceiling Compliance:</span>
             <span class="font-bold ${sortieAudit.altBreaches === 0 ? 'text-emerald-600' : 'text-red-600 animate-pulse'}">
-              ${sortieAudit.altBreaches === 0 ? `Compliant (Max ${Math.round(sortieAudit.maxAgl)} ft)` : `Breached (Max ${Math.round(sortieAudit.maxAgl)} ft > ${permit.max_altitude_ft || 400} ft)`}
+              ${sortieAudit.altBreaches === 0 
+                ? `Compliant (Peak ${Math.round(sortieAudit.ceilingSpec?.isAmsl ? sortieAudit.maxAmsl : sortieAudit.maxAgl)} ft ${sortieAudit.ceilingSpec?.datum || 'ft'})` 
+                : `Breached (Max ${Math.round(sortieAudit.ceilingSpec?.isAmsl ? sortieAudit.maxAmsl : sortieAudit.maxAgl)} ft ${sortieAudit.ceilingSpec?.datum} > ${sortieAudit.ceilingSpec?.limit} ft ${sortieAudit.ceilingSpec?.datum} NOTAM)`}
             </span>
           </div>
           <div class="flex justify-between items-center">
@@ -2733,8 +2735,9 @@ function renderInspector() {
       <div class="space-y-3">
         ${sorties.map((s) => {
           const isHighlighted = currentHighlightedSortieId === s.id && !isShowingAllSorties;
-          const ceilingLimit = Number(permit.max_altitude_ft) || 400;
-          const altOk = (s.stats?.max_agl_ft || 0) <= ceilingLimit;
+          const ceilingSpec = getPermitCeilingReference(permit);
+          const sAltVal = ceilingSpec.isAmsl ? (s.stats?.max_amsl_ft || (s.stats?.max_agl_ft || 0) + 98) : (s.stats?.max_agl_ft || 0);
+          const altOk = sAltVal <= ceilingSpec.limit;
           const geoOk = s.compliance ? s.compliance.geofence_compliant : true;
           const kkopOk = s.compliance ? s.compliance.kkop_compliant : true;
 
@@ -3314,8 +3317,47 @@ function calculateTrackDistanceKm(points) {
   return totalMeters / 1000.0;
 }
 
+// Helper to resolve operational ceiling reference (NOTAM AMSL prioritized over standard AGL)
+function getPermitCeilingReference(permit) {
+  if (!permit) {
+    return { limit: 400, datum: 'AGL', label: '400 ft AGL', isAmsl: false };
+  }
+
+  const note = (permit.altitude_ceiling_note || '').toUpperCase();
+  const notamRef = permit.notam_reference;
+
+  // 1. Check for explicit AMSL / MSL clause in NOTAM or ceiling note
+  if (note.includes('AMSL') || note.includes('MSL')) {
+    const match = note.match(/(\d+)\s*(?:FT|M)?\s*(?:AMSL|MSL)/i);
+    let limitVal = match ? parseInt(match[1], 10) : (permit.max_altitude_ft || 1000);
+    // If noted in meters (e.g. 655 ft MSL or meters)
+    if (note.includes(' M ') || note.endsWith(' M') || note.includes('METER')) {
+      if (limitVal < 500) limitVal = Math.round(limitVal * 3.28084);
+    }
+    return {
+      limit: limitVal,
+      datum: 'AMSL',
+      label: `${limitVal} ft AMSL (NOTAM ${notamRef || 'Spec'})`,
+      isAmsl: true,
+      notamRef: notamRef
+    };
+  }
+
+  // 2. Default to permit max_altitude_ft (AGL)
+  const aglLimit = Number(permit.max_altitude_ft) || 400;
+  return {
+    limit: aglLimit,
+    datum: 'AGL',
+    label: `${aglLimit} ft AGL`,
+    isAmsl: false,
+    notamRef: notamRef
+  };
+}
+
 function computeSortieAuditSummary(permit) {
   const sorties = getPermitSorties(permit.permit_id);
+  const ceilingSpec = getPermitCeilingReference(permit);
+
   if (!sorties || sorties.length === 0) {
     return {
       hasSorties: false,
@@ -3327,25 +3369,38 @@ function computeSortieAuditSummary(permit) {
       totalDistanceKm: '0.0',
       totalPoints: 0,
       adherencePct: 100,
-      totalBreachPoints: 0
+      totalBreachPoints: 0,
+      ceilingSpec: ceilingSpec
     };
   }
 
   let altBreaches = 0;
   let geoBreaches = 0;
   let kkopBreaches = 0;
+  let maxAltitudeRecorded = 0; // AMSL if NOTAM is AMSL, else AGL
   let maxAgl = 0;
+  let maxAmsl = 0;
   let totalSec = 0;
   let totalDistKm = 0;
   let totalPoints = 0;
   let totalBreachPoints = 0;
 
-  const ceilingLimit = Number(permit.max_altitude_ft) || 400;
-
   sorties.forEach(s => {
-    // Dynamically evaluate altitude compliance against this specific permit's authorized ceiling
-    const sortieMaxAgl = (s.stats && s.stats.max_agl_ft) || 0;
-    const isAltCompliant = sortieMaxAgl <= ceilingLimit;
+    const sortieAgl = (s.stats && s.stats.max_agl_ft) || 0;
+    const sortieAmsl = (s.stats && s.stats.max_amsl_ft) || (sortieAgl + 98);
+
+    if (sortieAgl > maxAgl) maxAgl = sortieAgl;
+    if (sortieAmsl > maxAmsl) maxAmsl = sortieAmsl;
+
+    // Evaluate altitude strictly using NOTAM reference (AMSL vs AGL)
+    let isAltCompliant = true;
+    if (ceilingSpec.isAmsl) {
+      isAltCompliant = sortieAmsl <= ceilingSpec.limit;
+      if (sortieAmsl > maxAltitudeRecorded) maxAltitudeRecorded = sortieAmsl;
+    } else {
+      isAltCompliant = sortieAgl <= ceilingSpec.limit;
+      if (sortieAgl > maxAltitudeRecorded) maxAltitudeRecorded = sortieAgl;
+    }
 
     if (!isAltCompliant) altBreaches++;
 
@@ -3357,7 +3412,6 @@ function computeSortieAuditSummary(permit) {
       }
     }
     if (s.stats) {
-      if (s.stats.max_agl_ft > maxAgl) maxAgl = s.stats.max_agl_ft;
       totalSec += (s.stats.duration_sec || 0);
       totalPoints += (s.stats.points_count || 0);
     }
@@ -3382,7 +3436,10 @@ function computeSortieAuditSummary(permit) {
   const hasBreach = altBreaches > 0 || geoBreaches > 0 || kkopBreaches > 0;
   let details = [];
   if (geoBreaches > 0) details.push(`${geoBreaches} perimeter breach(es) (${adherencePct}% inside polygon)`);
-  if (altBreaches > 0) details.push(`${altBreaches} ceiling breach(es) (Max: ${Math.round(maxAgl)}ft)`);
+  if (altBreaches > 0) {
+    const recordedVal = Math.round(ceilingSpec.isAmsl ? maxAmsl : maxAgl);
+    details.push(`${altBreaches} ceiling breach(es) (Max: ${recordedVal} ft ${ceilingSpec.datum} > ${ceilingSpec.limit} ft ${ceilingSpec.datum} NOTAM cap)`);
+  }
   if (kkopBreaches > 0) details.push(`${kkopBreaches} KKOP buffer breach(es)`);
 
   return {
@@ -3398,6 +3455,9 @@ function computeSortieAuditSummary(permit) {
     geoBreaches,
     kkopBreaches,
     maxAgl,
+    maxAmsl,
+    maxAltitudeRecorded,
+    ceilingSpec,
     hasBreach,
     badgeText: hasBreach ? 'BREACH RECORDED' : 'AUDIT COMPLIANT',
     badgeClass: hasBreach
@@ -3405,7 +3465,7 @@ function computeSortieAuditSummary(permit) {
       : 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     summaryText: hasBreach
       ? `Post-flight inspection detected: ${details.join(', ')}.`
-      : `All ${sorties.length} recorded flight sorties complied with boundaries (${adherencePct}% in-bounds) and authorized ceiling.`
+      : `All ${sorties.length} recorded flight sorties complied with boundaries (${adherencePct}% in-bounds) and authorized NOTAM ${ceilingSpec.label}.`
   };
 }
 
