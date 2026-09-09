@@ -2486,7 +2486,7 @@ function renderInspector() {
 
     <!-- Workspace Properties -->
     <div class="p-6 border-b border-black/5 space-y-4">
-      <h3 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Operation Metrics</h3>
+      <div class="flex items-center justify-between"><h3 class="text-[10px] uppercase font-extrabold text-gray-400 tracking-wider">Airspace Adherence & Metrics</h3><span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full ${sortieAudit.hasSorties ? (sortieAudit.adherencePct >= 95 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200') : 'bg-gray-100 text-gray-500 border border-gray-200'}">${sortieAudit.hasSorties ? 'LIVE AUDIT ACTIVE' : 'PERMIT SPEC'}</span></div>
       <!-- Altitude Limit Gauge (Circular Radial Progress) -->
       <div class="flex gap-4 items-center bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/5">
         <div class="radial-gauge-wrapper shrink-0">
@@ -2496,12 +2496,12 @@ function renderInspector() {
           </svg>
           <div class="radial-text">
             <span class="radial-percent" id="radial-percent-val">0%</span>
-            <span class="radial-label">Ceiling</span>
+            <span class="radial-label" id="radial-label-text">${sortieAudit.hasSorties ? 'Adherence' : 'Authorized'}</span>
           </div>
         </div>
         <div class="flex-grow space-y-1">
-          <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Vertical Ceiling Limit</div>
-          <div class="text-lg font-extrabold text-gray-800 dark:text-white">${permit.max_altitude_ft} <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">ft (AGL)</span></div>
+          <div class="flex items-center justify-between"><div class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">${sortieAudit.hasSorties ? 'Polygon Boundary Adherence' : 'Authorized Flight Corridor'}</div><span class="text-[9px] font-bold text-gray-400">${permit.max_altitude_ft} ft AGL</span></div>
+          <div class="text-base font-extrabold text-gray-800 dark:text-white">${sortieAudit.hasSorties ? `${sortieAudit.adherencePct}% Inside Polygon` : `${permit.max_altitude_ft} ft AGL Limit`}</div>
           <div id="radial-desc-container" class="text-[10px] text-gray-500 dark:text-gray-400 leading-normal font-medium">
             <span id="radial-percent-desc"></span>
           </div>
@@ -3014,7 +3014,7 @@ function renderInspector() {
 
   // Update the circular progress gauge
   setTimeout(() => {
-    updateRadialProgress(permit.max_altitude_ft);
+    updateRadialProgress(permit, sortieAudit);
   }, 50);
 
   // Countdown timer clock cycle loop
@@ -3332,7 +3332,9 @@ function computeSortieAuditSummary(permit) {
       totalSorties: 0,
       totalDurationFormatted: '0m',
       totalDistanceKm: '0.0',
-      totalPoints: 0
+      totalPoints: 0,
+      adherencePct: 100,
+      totalBreachPoints: 0
     };
   }
 
@@ -3343,12 +3345,16 @@ function computeSortieAuditSummary(permit) {
   let totalSec = 0;
   let totalDistKm = 0;
   let totalPoints = 0;
+  let totalBreachPoints = 0;
 
   sorties.forEach(s => {
     if (s.compliance) {
       if (!s.compliance.alt_compliant) altBreaches++;
       if (!s.compliance.geofence_compliant) geoBreaches++;
       if (!s.compliance.kkop_compliant) kkopBreaches++;
+      if (typeof s.compliance.breach_count === 'number') {
+        totalBreachPoints += s.compliance.breach_count;
+      }
     }
     if (s.stats) {
       if (s.stats.max_agl_ft > maxAgl) maxAgl = s.stats.max_agl_ft;
@@ -3366,10 +3372,17 @@ function computeSortieAuditSummary(permit) {
   const remM = m % 60;
   const totalDurationFormatted = h > 0 ? `${h}h ${remM}m` : `${m}m ${s}s`;
 
+  // Calculate percentage of track points that respected the authorized polygon
+  let adherencePct = 100;
+  if (totalPoints > 0) {
+    const insidePoints = Math.max(0, totalPoints - totalBreachPoints);
+    adherencePct = Math.round((insidePoints / totalPoints) * 1000) / 10;
+  }
+
   const hasBreach = altBreaches > 0 || geoBreaches > 0 || kkopBreaches > 0;
   let details = [];
+  if (geoBreaches > 0) details.push(`${geoBreaches} perimeter breach(es) (${adherencePct}% inside polygon)`);
   if (altBreaches > 0) details.push(`${altBreaches} ceiling breach(es) (Max: ${Math.round(maxAgl)}ft)`);
-  if (geoBreaches > 0) details.push(`${geoBreaches} perimeter breach(es)`);
   if (kkopBreaches > 0) details.push(`${kkopBreaches} KKOP buffer breach(es)`);
 
   return {
@@ -3379,6 +3392,8 @@ function computeSortieAuditSummary(permit) {
     totalDurationFormatted: totalDurationFormatted,
     totalDistanceKm: totalDistKm.toFixed(1),
     totalPoints: totalPoints,
+    totalBreachPoints: totalBreachPoints,
+    adherencePct: adherencePct,
     altBreaches,
     geoBreaches,
     kkopBreaches,
@@ -3390,7 +3405,7 @@ function computeSortieAuditSummary(permit) {
       : 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     summaryText: hasBreach
       ? `Post-flight inspection detected: ${details.join(', ')}.`
-      : `All ${sorties.length} recorded flight sorties fully complied with airspace boundaries and the 400ft ceiling.`
+      : `All ${sorties.length} recorded flight sorties complied with boundaries (${adherencePct}% in-bounds) and authorized ceiling.`
   };
 }
 
@@ -7946,40 +7961,58 @@ function ulgOpenExportFolder() {
 }
 
 // Global Sage & Forest radial progress calculator
-function updateRadialProgress(altitudeFt) {
+// Dynamic Compliance & Polygon Adherence Radial Progress
+function updateRadialProgress(permit, sortieAudit) {
   const circle = document.getElementById('radial-fill-bar');
   const valueLabel = document.getElementById('radial-percent-val');
+  const labelText = document.getElementById('radial-label-text');
   const descLabel = document.getElementById('radial-percent-desc');
 
   if (!circle || !valueLabel) return;
 
-  const alt = Number(altitudeFt) || 0;
-  const standardLimit = 400; // PM 37 / PM 63 standard ceiling limit in Indonesia
-  const actualRatio = Math.round((alt / standardLimit) * 100);
+  const circumference = 440; // 2 * PI * 70
 
-  // Circumference = 2 * PI * Radius (70) ~ 440px
-  const circumference = 440;
-  // Fill visually caps at 100% (or full ring) when >= standard limit, but percentage text shows actual value
-  const visualPercent = Math.min(Math.max((alt / standardLimit) * 100, 0), 100);
-  const offset = circumference - (circumference * visualPercent / 100);
+  // CASE 1: Telemetry Sortie Log Exists -> Gauge shows exact % of flight inside polygon
+  if (sortieAudit && sortieAudit.hasSorties) {
+    const adherence = Number(sortieAudit.adherencePct) || 100;
+    const visualPercent = Math.min(Math.max(adherence, 0), 100);
+    const offset = circumference - (circumference * visualPercent / 100);
 
-  circle.style.strokeDashoffset = offset;
+    circle.style.strokeDashoffset = offset;
+    valueLabel.innerText = `${Math.round(adherence)}%`;
+    if (labelText) labelText.innerText = 'Adherence';
 
-  if (alt > standardLimit) {
-    // Special high-altitude authorization (e.g. 1000 ft)
-    circle.style.stroke = '#ef4444'; // Red / Warning color for high altitude
-    valueLabel.innerText = `${actualRatio}%`;
-    valueLabel.style.color = '#ef4444';
-    if (descLabel) {
-      descLabel.innerHTML = `<span class="text-amber-600 dark:text-amber-400 font-bold">Special Authorization:</span> Operating at <strong>${alt} ft AGL</strong> (${actualRatio}% of standard 400 ft limit).`;
+    if (adherence >= 99) {
+      circle.style.stroke = '#10b981'; // Emerald
+      valueLabel.style.color = '#10b981';
+      if (descLabel) {
+        descLabel.innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-bold">100% Polygon Respected:</span> Drone trajectory fully remained inside the authorized polygon without any perimeter boundary breaches.`;
+      }
+    } else if (adherence >= 90) {
+      circle.style.stroke = '#f59e0b'; // Amber warning
+      valueLabel.style.color = '#f59e0b';
+      if (descLabel) {
+        descLabel.innerHTML = `<span class="text-amber-600 dark:text-amber-400 font-bold">${adherence}% Inside Polygon:</span> Drone strayed outside authorized boundaries for ${(100 - adherence).toFixed(1)}% of total flight time (${sortieAudit.geoBreaches} breach event).`;
+      }
+    } else {
+      circle.style.stroke = '#ef4444'; // Red alert
+      valueLabel.style.color = '#ef4444';
+      if (descLabel) {
+        descLabel.innerHTML = `<span class="text-red-600 dark:text-red-400 font-bold">Significant Geofence Breach:</span> Only ${adherence}% of flight stayed inside the polygon (${(100 - adherence).toFixed(1)}% spent outside boundaries).`;
+      }
     }
-  } else {
-    circle.style.stroke = '';
-    valueLabel.innerText = `${actualRatio}%`;
-    valueLabel.style.color = '';
-    if (descLabel) {
-      descLabel.innerHTML = `Representing <span class="font-bold text-[var(--blue)]">${actualRatio}%</span> of standard 400 ft Indonesian regulatory limit.`;
-    }
+    return;
+  }
+
+  // CASE 2: No flight logs uploaded yet -> Default to 100% full authorized corridor spec
+  const alt = Number(permit.max_altitude_ft) || 400;
+  circle.style.strokeDashoffset = 0; // 100% full ring
+  circle.style.stroke = '#10b981';
+  valueLabel.innerText = '100%';
+  valueLabel.style.color = '#10b981';
+  if (labelText) labelText.innerText = 'Authorized';
+  if (descLabel) {
+    descLabel.innerHTML = `Authorized corridor up to <strong>${alt} ft AGL</strong>. Attach telemetry flight logs below to audit real-time polygon boundary adherence.`;
   }
 }
 
